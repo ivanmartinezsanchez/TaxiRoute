@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: documentación inicial.** La fase 1 cuenta con una aplicación de terminal y pruebas automatizadas. La persistencia del historial pertenece a la fase 2.
+> **Estado: fase 1 en validación.** La aplicación de terminal y las pruebas están implementadas en la rama de trabajo. El historial persistente pertenece a la fase 2.
 
 ## Qué problema aborda
 
@@ -14,7 +14,7 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 
 | Fase | Objetivo | Estado |
 |---|---|---|
-| 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Pendiente |
+| 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | En validación |
 | 2 | Historial persistente, registros, tarifas configurables y pruebas | Pendiente |
 | 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
 | 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
