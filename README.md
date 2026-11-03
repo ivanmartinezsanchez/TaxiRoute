@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: documentación inicial.** La aplicación todavía no está implementada. No hay una versión publicada ni un tablero enlazado en esta revisión.
+> **Estado: documentación inicial.** La aplicación todavía no está implementada. El repositorio y el tablero de trabajo ya están disponibles.
 
 ## Qué problema aborda
 
@@ -19,7 +19,7 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 | 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
 | 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
 
-Cada entrega requerirá código, una demostración y un tablero GitHub Projects actualizado. El enlace al tablero se añadirá cuando exista.
+Cada entrega requerirá código, una demostración y un tablero GitHub Projects actualizado. El seguimiento se realiza en el [tablero público de TaxiRoute](https://github.com/users/ivanmartinezsanchez/projects/2).
 
 ## Requisitos previstos
 
@@ -49,7 +49,7 @@ El MVP no manejará contraseñas ni publicará servicios de red. En fases poster
 
 - [Documentación técnica inicial](./DOCUMENTACION_TECNICA.md): arquitectura propuesta, decisiones, reglas y plan de pruebas.
 - Manual de usuario: se redactará al finalizar, basado en el funcionamiento comprobado.
-- Tablero GitHub Projects: pendiente de creación y enlace.
+- [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
 
 ## Desarrollo y contribución
 

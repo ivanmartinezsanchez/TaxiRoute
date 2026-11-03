@@ -160,7 +160,7 @@ El código se gestionará con Git y se alojará en un repositorio público de Gi
 
 El trabajo se organizará en un tablero de GitHub Projects con una columna por fase. Las tareas reflejarán los requisitos del proyecto y se actualizarán conforme avance el desarrollo. Los cambios se documentarán mediante commits descriptivos.
 
-No se incluirán en el repositorio contraseñas, claves, entornos virtuales ni datos privados de uso real.
+El seguimiento del proyecto está disponible en el [tablero público de TaxiRoute](https://github.com/users/ivanmartinezsanchez/projects/2). No se incluirán en el repositorio contraseñas, claves, entornos virtuales ni datos privados de uso real.
 
 ## 11. Documentación del proyecto
 
