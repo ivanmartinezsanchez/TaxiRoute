@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: documentación inicial.** El núcleo de cálculo de la fase 1 está en desarrollo. La interfaz de terminal todavía no está disponible.
+> **Estado: documentación inicial.** La fase 1 cuenta con una aplicación de terminal y pruebas automatizadas. La persistencia del historial pertenece a la fase 2.
 
 ## Qué problema aborda
 
@@ -29,12 +29,22 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 ## Instalación y ejecución
 
-La interfaz de terminal todavía está pendiente. Para comprobar el núcleo de cálculo, activa el entorno virtual y ejecuta las pruebas desde la carpeta del proyecto:
+Para preparar el entorno y ejecutar TaxiRoute desde Git Bash, sitúate en la carpeta del proyecto:
 
 ```bash
+python -m venv .venv
 source .venv/Scripts/activate
+python -m pip install -r requirements.txt
+python -m taxiroute
+```
+
+Para ejecutar las pruebas:
+
+```bash
 python -m unittest discover -s tests -v
 ```
+
+Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para cerrar, finaliza primero la carrera y escribe `salir`. Si se cierra la entrada durante una carrera, se interrumpe sin guardar: el historial se incorporará en la fase 2.
 
 ## Funcionamiento previsto de una carrera
 

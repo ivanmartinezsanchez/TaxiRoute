@@ -97,11 +97,11 @@ La organización definitiva de archivos y clases se ajustará a medida que avanc
 
 Python es el lenguaje establecido para el proyecto. El entorno de desarrollo utilizará Python 3.13, que ya está instalado en el equipo y cumple el requisito mínimo de Python 3.10 indicado en el enunciado.
 
-Para el primer entregable se plantea utilizar la biblioteca estándar de Python. Esta opción permite implementar la lógica de terminal, medición del tiempo y pruebas sin incorporar dependencias que todavía no aporten una necesidad concreta.
+Para el primer entregable se utiliza la biblioteca estándar de Python para el cálculo y las pruebas. Para la interfaz de terminal se incorpora `prompt_toolkit`, que permite actualizar el importe mientras el conductor escribe sin sobrescribir su entrada. La dependencia se declara en `requirements.txt` y se instala dentro del entorno virtual.
 
 | Necesidad | Enfoque para el proyecto |
 |---|---|
-| Aplicación inicial | Python y ejecución desde terminal |
+| Aplicación inicial | Python y ejecución desde terminal con `prompt_toolkit` |
 | Medición de intervalos | Reloj monotónico de Python |
 | Cálculo monetario | Módulo `decimal` de Python |
 | Pruebas iniciales | Herramientas de la biblioteca estándar |
