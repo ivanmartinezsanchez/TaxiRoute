@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: documentación inicial.** La aplicación todavía no está implementada. El repositorio y el tablero de trabajo ya están disponibles.
+> **Estado: documentación inicial.** El núcleo de cálculo de la fase 1 está en desarrollo. La interfaz de terminal todavía no está disponible.
 
 ## Qué problema aborda
 
@@ -29,7 +29,12 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 ## Instalación y ejecución
 
-La aplicación todavía no existe. Los comandos de instalación, arranque y pruebas se incorporarán y verificarán al terminar la fase 1. No se presentan comandos ficticios como si ya funcionaran.
+La interfaz de terminal todavía está pendiente. Para comprobar el núcleo de cálculo, activa el entorno virtual y ejecuta las pruebas desde la carpeta del proyecto:
+
+```bash
+source .venv/Scripts/activate
+python -m unittest discover -s tests -v
+```
 
 ## Funcionamiento previsto de una carrera
 
