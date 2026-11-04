@@ -2,7 +2,7 @@
 
 **Proyecto:** sistema de taxímetro digital  
 **Referencia:** TTX-247 · Proyecto formativo de Factoría F5  
-**Estado:** documento de diseño previo al desarrollo  
+**Estado:** fase 1 implementada y probada; pendiente de revisión e integración
 **Tecnología principal:** Python
 
 ## 1. Introducción
@@ -73,7 +73,7 @@ Por ejemplo, una carrera con 10 segundos parado y 20 segundos en movimiento tend
 
 ### Medición del tiempo e importes
 
-Para medir intervalos se propone utilizar un reloj monotónico de Python, independiente de los cambios de hora del sistema. La fecha y hora de inicio se tratarán por separado cuando se incorpore el historial.
+Para medir intervalos se utiliza un reloj monotónico de Python, independiente de los cambios de hora del sistema. La fecha y hora de inicio se tratarán por separado cuando se incorpore el historial.
 
 Los importes se representarán mediante aritmética decimal para evitar los problemas habituales de representación binaria de cantidades monetarias. El cálculo conservará la precisión de los tramos, incluidas las fracciones de segundo. Al finalizar la carrera, el importe acumulado se redondeará una sola vez a céntimos con redondeo habitual: una fracción de exactamente medio céntimo se redondeará hacia arriba. La cantidad mostrada durante la carrera se formateará a dos decimales sin alterar el importe acumulado. Estas reglas quedarán cubiertas por pruebas.
 
