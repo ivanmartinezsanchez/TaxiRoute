@@ -2,7 +2,7 @@
 
 **Proyecto:** sistema de taxímetro digital  
 **Referencia:** TTX-247 · Proyecto formativo de Factoría F5  
-**Estado:** documento de diseño previo al desarrollo  
+**Estado:** fase 1 implementada y probada
 **Tecnología principal:** Python
 
 ## 1. Introducción
@@ -73,7 +73,7 @@ Por ejemplo, una carrera con 10 segundos parado y 20 segundos en movimiento tend
 
 ### Medición del tiempo e importes
 
-Para medir intervalos se propone utilizar un reloj monotónico de Python, independiente de los cambios de hora del sistema. La fecha y hora de inicio se tratarán por separado cuando se incorpore el historial.
+Para medir intervalos se utiliza un reloj monotónico de Python, independiente de los cambios de hora del sistema. La fecha y hora de inicio se tratarán por separado cuando se incorpore el historial.
 
 Los importes se representarán mediante aritmética decimal para evitar los problemas habituales de representación binaria de cantidades monetarias. El cálculo conservará la precisión de los tramos, incluidas las fracciones de segundo. Al finalizar la carrera, el importe acumulado se redondeará una sola vez a céntimos con redondeo habitual: una fracción de exactamente medio céntimo se redondeará hacia arriba. La cantidad mostrada durante la carrera se formateará a dos decimales sin alterar el importe acumulado. Estas reglas quedarán cubiertas por pruebas.
 
@@ -97,11 +97,11 @@ La organización definitiva de archivos y clases se ajustará a medida que avanc
 
 Python es el lenguaje establecido para el proyecto. El entorno de desarrollo utilizará Python 3.13, que ya está instalado en el equipo y cumple el requisito mínimo de Python 3.10 indicado en el enunciado.
 
-Para el primer entregable se plantea utilizar la biblioteca estándar de Python. Esta opción permite implementar la lógica de terminal, medición del tiempo y pruebas sin incorporar dependencias que todavía no aporten una necesidad concreta.
+Para el primer entregable se utiliza la biblioteca estándar de Python para el cálculo y las pruebas. Para la interfaz de terminal se incorpora `prompt_toolkit`, que permite actualizar el importe mientras el conductor escribe sin sobrescribir su entrada. La dependencia se declara en `requirements.txt` y se instala dentro del entorno virtual.
 
 | Necesidad | Enfoque para el proyecto |
 |---|---|
-| Aplicación inicial | Python y ejecución desde terminal |
+| Aplicación inicial | Python y ejecución desde terminal con `prompt_toolkit` |
 | Medición de intervalos | Reloj monotónico de Python |
 | Cálculo monetario | Módulo `decimal` de Python |
 | Pruebas iniciales | Herramientas de la biblioteca estándar |

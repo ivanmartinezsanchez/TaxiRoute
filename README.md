@@ -2,11 +2,11 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: documentación inicial.** La aplicación todavía no está implementada. El repositorio y el tablero de trabajo ya están disponibles.
+> **Estado: fase 1 implementada y probada.** La aplicación permite gestionar carreras desde la terminal. El historial persistente pertenece a la fase 2.
 
 ## Qué problema aborda
 
-TaxiRoute calculará el importe de una carrera según el tiempo transcurrido en dos estados indicados por el conductor: parado y en movimiento. Permitirá cerrar una carrera y comenzar otra sin reiniciar el programa. Las fases siguientes incorporarán historial, configuración, autenticación e interfaces.
+TaxiRoute calcula el importe de una carrera según el tiempo transcurrido en dos estados indicados por el conductor: parado y en movimiento. Permite cerrar una carrera y comenzar otra sin reiniciar el programa. Las fases siguientes incorporarán historial, configuración, autenticación e interfaces.
 
 El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s en movimiento**. La velocidad no se medirá automáticamente: el cambio de estado será manual salvo que se acuerde otra cosa. Estas cifras y reglas son datos docentes; no están verificadas como tarifas vigentes ni como un sistema homologado para cobros reales.
 
@@ -14,7 +14,7 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 
 | Fase | Objetivo | Estado |
 |---|---|---|
-| 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Pendiente |
+| 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Implementada y probada |
 | 2 | Historial persistente, registros, tarifas configurables y pruebas | Pendiente |
 | 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
 | 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
@@ -29,7 +29,22 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 ## Instalación y ejecución
 
-La aplicación todavía no existe. Los comandos de instalación, arranque y pruebas se incorporarán y verificarán al terminar la fase 1. No se presentan comandos ficticios como si ya funcionaran.
+Para preparar el entorno y ejecutar TaxiRoute desde Git Bash, sitúate en la carpeta del proyecto:
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install -r requirements.txt
+python -m taxiroute
+```
+
+Para ejecutar las pruebas:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para cerrar, finaliza primero la carrera y escribe `salir`. Si se cierra la entrada durante una carrera, se interrumpe sin guardar: el historial se incorporará en la fase 2.
 
 ## Funcionamiento previsto de una carrera
 
@@ -39,7 +54,7 @@ La aplicación todavía no existe. Los comandos de instalación, arranque y prue
 4. Finalizar y mostrar el importe en euros con dos decimales.
 5. Iniciar otra carrera sin salir de la aplicación.
 
-La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_movimiento × tarifa_movimiento`. Las duraciones pueden incluir fracciones de segundo. El importe se actualizará automáticamente durante la carrera. El total se redondeará a céntimos al finalizar, aplicando el redondeo habitual: si la fracción es exactamente medio céntimo, se redondea hacia arriba. El cálculo conservará la precisión de los tramos hasta el cierre.
+La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_movimiento × tarifa_movimiento`. Las duraciones pueden incluir fracciones de segundo. El importe se actualiza automáticamente durante la carrera. El total se redondea a céntimos al finalizar, aplicando el redondeo habitual: si la fracción es exactamente medio céntimo, se redondea hacia arriba. El cálculo conservará la precisión de los tramos hasta el cierre.
 
 ## Seguridad, accesibilidad y datos
 
@@ -51,6 +66,11 @@ El MVP no manejará contraseñas ni publicará servicios de red. En fases poster
 - Manual de usuario: se redactará al finalizar, basado en el funcionamiento comprobado.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
 
+## Material original del ejercicio
+
+La carpeta [referencia/proyecto-original](./referencia/proyecto-original) conserva los archivos incluidos en el ZIP del [proyecto de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro): el enunciado, una imagen, una plantilla de incidencias y el archivo Python inicial. Se mantienen como referencia del punto de partida; la aplicación TaxiRoute se desarrolla en la carpeta `taxiroute`.
+
+El archivo [ENUNCIADO.md](./ENUNCIADO.md) reproduce el enunciado original para facilitar su consulta. El repositorio de origen no declara una licencia en el ZIP revisado; la reutilización de sus materiales queda sujeta a los derechos de sus autores.
 ## Desarrollo y contribución
 
 Se utilizarán ramas para tareas y mensajes de commit descriptivos, preferiblemente [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/). No se subirán contraseñas, datos privados, bases de datos reales ni entornos virtuales. Se definirá la política de revisión cuando se organice el equipo.
