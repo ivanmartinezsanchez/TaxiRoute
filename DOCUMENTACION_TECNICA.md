@@ -2,7 +2,7 @@
 
 **Proyecto:** sistema de taxímetro digital  
 **Referencia:** TTX-247 · Proyecto formativo de Factoría F5  
-**Estado:** fase 1 implementada y probada; pendiente de revisión e integración
+**Estado:** fase 1 implementada y probada
 **Tecnología principal:** Python
 
 ## 1. Introducción
