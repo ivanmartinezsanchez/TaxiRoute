@@ -2,7 +2,7 @@
 
 **Proyecto:** sistema de taxímetro digital  
 **Referencia:** TTX-247 · Proyecto formativo de Factoría F5  
-**Estado:** fase 1 implementada y probada
+**Estado:** fase 1 implementada y probada; fase 2 en desarrollo
 **Tecnología principal:** Python
 
 ## 1. Introducción
@@ -38,6 +38,40 @@ La pantalla inicial explicará los comandos disponibles. Durante la carrera, el 
 La segunda fase incorporará un historial persistente de carreras y un registro de eventos para facilitar el seguimiento de la aplicación. El historial conservará, al menos, la fecha, la duración y el importe de cada servicio, y estará disponible en sesiones posteriores.
 
 Las tarifas se leerán desde un fichero de configuración externo para poder modificarlas sin cambiar el código. También se ampliará la batería de pruebas automáticas para cubrir el cálculo, la persistencia y los posibles errores de lectura y escritura.
+
+#### Historial de carreras
+
+En esta fase se utilizará un archivo CSV para conservar el historial entre sesiones. El formato permite representar cada carrera como una fila y consultar los datos con una hoja de cálculo. Se ha valorado JSON, que facilita estructuras anidadas; para los datos previstos, una tabla resulta suficiente. En la fase 4 el historial deberá migrarse a una base de datos relacional, de acuerdo con el enunciado. La lectura y la escritura del historial se mantendrán separadas del cálculo para facilitar ese cambio.
+
+Cada carrera finalizada recogerá:
+
+- Un identificador de carrera.
+- Las fechas y horas de inicio y finalización.
+- La duración total, el tiempo parado y el tiempo en movimiento, en segundos, con sus fracciones cuando corresponda.
+- Las tarifas de parado y de movimiento aplicadas, en euros por segundo.
+- El importe final en euros, redondeado a céntimos.
+
+Las tarifas se fijarán al iniciar cada carrera. Si se cambia la configuración durante una carrera, las nuevas tarifas se aplicarán a la siguiente. Así el historial conservará los datos necesarios para revisar el cálculo con las tarifas que se utilizaron.
+
+Los archivos de historial y registros contendrán únicamente la información necesaria y quedarán fuera del repositorio. Los detalles de formato y consulta se concretarán antes de implementar cada funcionalidad.
+
+#### Acceso simultáneo al historial
+
+Para coordinar distintas ejecuciones de TaxiRoute se utiliza un archivo auxiliar de bloqueo junto al CSV. Antes de consultar o guardar, cada ejecución solicita el bloqueo; al terminar lo libera. La comprobación del identificador y la escritura se realizan bajo el mismo bloqueo para evitar duplicados cuando varias ejecuciones intentan guardar a la vez. Si el bloqueo no queda disponible en el tiempo previsto, la aplicación informa de que el historial está en uso y mantiene la carrera pendiente para reintentar.
+
+El mecanismo utiliza funciones de la biblioteca estándar específicas de Windows y de sistemas Unix. El archivo auxiliar se conserva y no debe eliminarse mientras haya ejecuciones activas: su presencia por sí sola no indica que el historial esté ocupado. Esta coordinación solo protege a procesos que utilicen el mismo bloqueo; un editor externo puede modificar el CSV sin respetarlo. Las pruebas de procesos se han ejecutado en Windows; quedan por comprobar en otros sistemas y en distintos tipos de almacenamiento. El bloqueo no sustituye a las copias de seguridad ni garantiza la recuperación de escrituras interrumpidas.
+
+#### Si no se puede guardar una carrera
+
+Cuando una carrera finalice, la aplicación mostrará su importe y tratará de guardar los datos en el historial. Si el guardado falla, mostrará un aviso claro y explicará el motivo cuando pueda identificarlo. Si no puede determinar la causa, lo indicará sin atribuir el error a un problema concreto.
+
+Mientras la aplicación siga abierta, conservará temporalmente los datos de la carrera y ofrecerá reintentar el guardado. Antes de añadir una carrera al historial, se comprobará su identificador para evitar duplicados al reintentar, teniendo en cuenta que una escritura interrumpida puede requerir revisión. No se iniciará otra carrera mientras la anterior esté pendiente de resolver.
+
+Las opciones de ayuda dependerán del problema. Si falta espacio de almacenamiento, se indicará cómo liberarlo y se ofrecerá guardar una copia de los datos de la carrera en otra ubicación. Si el archivo está bloqueado o no hay permisos, se explicará qué revisar. La copia alternativa también puede fallar: solo se confirmará cuando se haya completado correctamente.
+
+Como opción posterior se podrá estudiar el archivo de carreras antiguas: primero se exportarán y verificará la copia, y únicamente después se ofrecerá su eliminación con una confirmación explícita. No se borrarán carreras automáticamente. Eliminar unas pocas filas de un CSV puede no liberar suficiente espacio para resolver un disco lleno.
+
+Si la aplicación se cierra antes de guardar o exportar la carrera pendiente, los datos conservados en memoria podrían perderse. La interfaz advertirá de ese riesgo y no presentará la carrera como guardada hasta comprobar el resultado. El reintento, la copia alternativa y varios casos de error están implementados y cubiertos por pruebas; quedan pendientes más comprobaciones de escrituras interrumpidas y la gestión de archivos antiguos.
 
 ### Fase 3. Interfaz y protección de acceso
 

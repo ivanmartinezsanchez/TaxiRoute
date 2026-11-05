@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: fase 1 implementada y probada.** La aplicación permite gestionar carreras desde la terminal. El historial persistente pertenece a la fase 2.
+> **Estado: fase 1 implementada y probada; fase 2 en desarrollo.** La aplicación permite gestionar carreras desde la terminal y consultar un historial local.
 
 ## Qué problema aborda
 
@@ -15,7 +15,7 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 | Fase | Objetivo | Estado |
 |---|---|---|
 | 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Implementada y probada |
-| 2 | Historial persistente, registros, tarifas configurables y pruebas | Pendiente |
+| 2 | Historial persistente, registros, tarifas configurables y pruebas | En curso |
 | 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
 | 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
 
@@ -44,7 +44,7 @@ Para ejecutar las pruebas:
 python -m unittest discover -s tests -v
 ```
 
-Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para cerrar, finaliza primero la carrera y escribe `salir`. Si se cierra la entrada durante una carrera, se interrumpe sin guardar: el historial se incorporará en la fase 2.
+Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para consultar las carreras guardadas, escribe `historial`. El archivo se almacena en `.taxiroute/historial.csv` dentro de la carpeta de usuario. Si el guardado falla, la aplicación conserva temporalmente la carrera y permite usar `reintentar` o `exportar RUTA` para crear una copia en otra ubicación. La copia no sustituye al guardado en el historial principal. Si se cierra la terminal antes de resolver el error, los datos pendientes podrían perderse. El historial muestra por ahora todas las carreras y registra las fechas en UTC. La consulta de las carreras del día, las tarifas configurables y los registros operativos siguen pendientes.
 
 ## Funcionamiento previsto de una carrera
 
