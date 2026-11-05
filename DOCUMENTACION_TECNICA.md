@@ -39,6 +39,12 @@ La segunda fase incorporará un historial persistente de carreras y un registro 
 
 Las tarifas se leen desde el fichero externo `configuracion/tarifas.json`, sin modificar el código. Los valores se escriben como cadenas decimales no negativas con punto y se convierten a `Decimal`. Para prevenir entradas de tamaño extremo se admiten como máximo 12 cifras enteras y 9 decimales; este límite es técnico y no representa una tarifa real. Se utiliza JSON por ser un formato sencillo para dos valores y estar disponible en la biblioteca estándar. El archivo incluido tiene las tarifas del ejercicio y forma parte del repositorio. Si falta, no se puede leer o contiene datos inválidos, no se inicia una nueva carrera y se comunica el problema. Las pruebas cubren el cálculo, la persistencia, la configuración y errores de lectura y escritura.
 
+#### Registro de actividad
+
+El registro operativo se guarda en `.taxiroute/actividad.jsonl`, dentro de la carpeta de usuario y fuera del repositorio. Se usa JSON Lines: cada línea contiene un evento independiente con fecha UTC, nivel y tipo; algunos eventos incorporan el estado, el tipo de error y, cuando existe, su código numérico. Se registran el arranque, el cierre, el inicio y fin de carreras, los cambios de estado y errores operativos identificados. No se incluyen comandos escritos, rutas introducidas ni el texto de excepciones.
+
+Si no se puede escribir el registro, se avisa en la terminal y la gestión de carreras continúa. Cada evento posterior vuelve a intentar el guardado; al recuperarse se indica que los eventos que fallaron no quedaron registrados. Si el archivo termina con una línea incompleta, se conserva para su revisión. La escritura se coordina mediante un bloqueo auxiliar entre procesos de TaxiRoute, sin depender de que otros programas respeten ese mecanismo.
+
 #### Historial de carreras
 
 En esta fase se utilizará un archivo CSV para conservar el historial entre sesiones. El formato permite representar cada carrera como una fila y consultar los datos con una hoja de cálculo. Se ha valorado JSON, que facilita estructuras anidadas; para los datos previstos, una tabla resulta suficiente. En la fase 4 el historial deberá migrarse a una base de datos relacional, de acuerdo con el enunciado. La lectura y la escritura del historial se mantendrán separadas del cálculo para facilitar ese cambio.

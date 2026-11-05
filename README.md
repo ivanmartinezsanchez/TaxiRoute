@@ -44,13 +44,17 @@ Para ejecutar las pruebas:
 python -m unittest discover -s tests -v
 ```
 
-Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para consultar todas las carreras guardadas, escribe `historial`; para ver las finalizadas durante el día local actual, escribe `historial hoy`. El archivo se almacena en `.taxiroute/historial.csv` dentro de la carpeta de usuario. Si el guardado falla, la aplicación conserva temporalmente la carrera y permite usar `reintentar` o `exportar RUTA` para crear una copia en otra ubicación. La copia no sustituye al guardado en el historial principal. Si se cierra la terminal antes de resolver el error, los datos pendientes podrían perderse. El historial guarda las fechas en UTC y determina el día local usando la fecha de finalización de cada carrera. La configuración de tarifas se lee al iniciar cada carrera; los registros operativos siguen pendientes.
+Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para consultar todas las carreras guardadas, escribe `historial`; para ver las finalizadas durante el día local actual, escribe `historial hoy`. El archivo se almacena en `.taxiroute/historial.csv` dentro de la carpeta de usuario. Si el guardado falla, la aplicación conserva temporalmente la carrera y permite usar `reintentar` o `exportar RUTA` para crear una copia en otra ubicación. La copia no sustituye al guardado en el historial principal. Si se cierra la terminal antes de resolver el error, los datos pendientes podrían perderse. El historial guarda las fechas en UTC y determina el día local usando la fecha de finalización de cada carrera. La configuración de tarifas se lee al iniciar cada carrera. Los eventos de actividad se guardan en `.taxiroute/actividad.jsonl`, dentro de la carpeta de usuario.
 
 ## Configuración de tarifas
 
 Las tarifas se editan en [`configuracion/tarifas.json`](./configuracion/tarifas.json), en euros por segundo y entre comillas, usando punto como separador decimal. Cada valor admite hasta 12 cifras antes del punto y 9 después. El archivo incluido contiene los valores del ejercicio. Tras guardar un cambio, se aplicará al iniciar la siguiente carrera; la que ya esté activa conservará las tarifas con las que comenzó. Si el archivo falta o contiene datos inválidos, TaxiRoute avisará y no iniciará una nueva carrera hasta que se corrija.
 
 El archivo forma parte del repositorio: los cambios locales aparecen en Git y conviene revisarlos antes de incluirlos en un commit.
+
+## Registro de actividad
+
+TaxiRoute registra el arranque, las carreras, los cambios de estado y los errores operativos en formato JSON Lines. Cada línea es un evento con fecha UTC, nivel y tipo; los errores pueden incluir también un código numérico. No se guardan los comandos escritos ni las rutas introducidas. Si el registro falla, se muestra un aviso y la aplicación continúa; cuando se recupera, se informa de que los eventos que fallaron no se guardaron. Un archivo terminado en una línea incompleta se conserva para su revisión y no se modifica automáticamente.
 
 ## Funcionamiento previsto de una carrera
 

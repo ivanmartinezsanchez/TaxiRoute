@@ -11,6 +11,7 @@ from taxiroute.carrera import Carrera, EstadoVehiculo
 from taxiroute.historial import HistorialCSV, exportar_copia
 from taxiroute.bloqueo import HistorialOcupado
 from taxiroute.configuracion import ConfiguracionError, cargar_tarifas
+from taxiroute.registro import RegistroActividad
 
 AYUDA = """Comandos disponibles:
   iniciar    Iniciar una carrera (comienza en parado).
@@ -30,9 +31,11 @@ Escribe un comando y pulsa Intro."""
 class GestorTerminal:
     """Traduce comandos a operaciones del dominio, sin depender de la pantalla."""
 
-    def __init__(self, crear_carrera: Callable[[], Carrera] = Carrera, historial=None) -> None:
+    def __init__(self, crear_carrera: Callable[[], Carrera] = Carrera, historial=None, registro=None) -> None:
         self._crear_carrera = crear_carrera
         self.historial = historial
+        self.registro = registro
+        self._avisos_registro = []
         self.pendiente = None
         self.carrera: Carrera | None = None
 
@@ -46,8 +49,33 @@ class GestorTerminal:
             f"Importe: {self.carrera.importe_actual():.2f} €"
         )
 
+    def _registrar(self, evento: str, nivel: str = "INFO", **datos) -> None:
+        if self.registro is not None:
+            aviso = self.registro.registrar(evento, nivel=nivel, **datos)
+            if aviso:
+                self._avisos_registro.append(aviso)
+
+    def _registrar_error(self, evento: str, error: Exception) -> None:
+        datos = {"tipo": type(error).__name__}
+        for campo in ("errno", "winerror"):
+            codigo = getattr(error, campo, None)
+            if isinstance(codigo, int):
+                datos[campo] = codigo
+        self._registrar(evento, "ERROR", **datos)
+
     def ejecutar(self, comando: str) -> tuple[str, bool]:
         """Devuelve el mensaje al conductor y si debe terminar el programa."""
+        self._avisos_registro = []
+        try:
+            mensaje, salir = self._ejecutar(comando)
+        except Exception as error:
+            self._registrar_error("error_no_controlado", error)
+            raise
+        if self._avisos_registro:
+            mensaje += "\n" + "\n".join(self._avisos_registro)
+        return mensaje, salir
+
+    def _ejecutar(self, comando: str) -> tuple[str, bool]:
         entrada = comando.strip()
         partes = entrada.split(maxsplit=1)
         comando = partes[0].lower() if partes else ""
@@ -60,6 +88,7 @@ class GestorTerminal:
             try:
                 destino = exportar_copia(self.pendiente, ruta)
             except (OSError, ValueError) as error:
+                self._registrar_error("error_copia_alternativa", error)
                 return f"No se pudo crear la copia: {describir_error(error)} La carrera sigue pendiente.", False
             return f"Copia creada en {destino}. La carrera sigue pendiente en el historial principal; usa reintentar.", False
         consultar_hoy = comando == "historial" and len(partes) == 2 and partes[1].lower() == "hoy"
@@ -73,12 +102,14 @@ class GestorTerminal:
             try:
                 registros = self.historial.consultar()
             except (OSError, ValueError) as error:
+                self._registrar_error("error_consulta_historial", error)
                 return f"No se puede consultar el historial: {error}", False
             if consultar_hoy:
                 hoy = fecha_local_actual()
                 try:
                     registros = [fila for fila in registros if fecha_final_local(fila) == hoy]
                 except ValueError as error:
+                    self._registrar_error("error_filtro_historial", error)
                     return f"No se puede filtrar el historial: {error}", False
                 if not registros:
                     return "No hay carreras finalizadas hoy.", False
@@ -97,6 +128,7 @@ class GestorTerminal:
         if comando == "salir":
             if self.carrera is not None:
                 return "Hay una carrera activa. Finalízala antes de salir.", False
+            self._registrar("aplicacion_finalizada")
             return "TaxiRoute cerrado.", True
         if comando == "iniciar":
             if self.carrera is not None:
@@ -104,7 +136,9 @@ class GestorTerminal:
             try:
                 self.carrera = self._crear_carrera()
             except ConfiguracionError as error:
+                self._registrar_error("error_configuracion", error)
                 return f"No se puede iniciar la carrera. Revisa las tarifas: {error}", False
+            self._registrar("carrera_iniciada", estado="parado")
             return "Carrera iniciada. Estado: parado.", False
         if comando not in {"mover", "parar", "importe", "finalizar"}:
             return "Comando no reconocido. Escribe 'ayuda' para ver las opciones.", False
@@ -114,6 +148,7 @@ class GestorTerminal:
             return self.estado_actual(), False
         if comando == "finalizar":
             total = self.carrera.finalizar()
+            self._registrar("carrera_finalizada")
             self.pendiente = self.carrera.resumen if self.historial is not None else None
             self.carrera = None
             mensaje = f"Carrera finalizada. Total: {total:.2f} €"
@@ -126,16 +161,19 @@ class GestorTerminal:
         if self.carrera.estado == estado:
             return f"El vehículo ya está en estado: {estado.value}.", False
         self.carrera.cambiar_estado(estado)
+        self._registrar("estado_cambiado", estado=estado.value)
         return f"Estado actualizado: {estado.value}.", False
 
     def _guardar_pendiente(self) -> str:
         try:
             self.historial.guardar(self.pendiente)
         except (OSError, ValueError) as error:
+            self._registrar_error("error_guardado_historial", error)
             return (f"No se ha podido guardar la carrera: {describir_error(error)} "
                     "Escribe 'reintentar' o 'exportar RUTA' para crear una copia en otro lugar. "
                     "Si cierras la terminal, podrías perder los datos pendientes.")
         self.pendiente = None
+        self._registrar("historial_guardado")
         return "Carrera guardada en el historial."
 
 
@@ -180,20 +218,32 @@ def describir_error(error: Exception) -> str:
 
 def main() -> None:
     ruta_tarifas = Path(__file__).resolve().parent.parent / "configuracion" / "tarifas.json"
+    registro = RegistroActividad(Path.home() / ".taxiroute" / "actividad.jsonl")
     gestor = GestorTerminal(
         crear_carrera=lambda: Carrera(tarifas=cargar_tarifas(ruta_tarifas)),
         historial=HistorialCSV(Path.home() / ".taxiroute" / "historial.csv"),
+        registro=registro,
     )
     sesion = PromptSession(bottom_toolbar=gestor.estado_actual, refresh_interval=1)
     print("TaxiRoute — taxímetro digital")
+    aviso = registro.registrar("aplicacion_iniciada")
+    if aviso:
+        print(aviso)
     print(AYUDA)
     while True:
         try:
             comando = sesion.prompt("TaxiRoute > ")
         except KeyboardInterrupt:
+            aviso = registro.registrar("interrupcion_cancelada")
             print("\nInterrupción cancelada. Escribe 'salir' para terminar.")
+            if aviso:
+                print(aviso)
             continue
         except EOFError:
+            aviso = registro.registrar("entrada_cerrada", carrera_activa=gestor.carrera is not None,
+                                       carrera_pendiente=gestor.pendiente is not None)
+            if aviso:
+                print(aviso)
             if gestor.pendiente is not None:
                 print("\nEntrada cerrada. La carrera pendiente podría perderse sin guardar.")
             elif gestor.carrera is not None:
