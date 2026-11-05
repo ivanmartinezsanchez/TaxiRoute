@@ -52,12 +52,13 @@ class Carrera:
         self,
         reloj: Callable[[], int] = monotonic_ns,
         fecha_actual: Callable[[], datetime] | None = None,
+        tarifas: dict[EstadoVehiculo, Decimal] | None = None,
     ) -> None:
         self._reloj = reloj
         self._fecha_actual = fecha_actual or (lambda: datetime.now(timezone.utc))
         self._identificador = str(uuid4())
         self._inicio = self._fecha_actual()
-        self._tarifas = dict(self.TARIFAS)
+        self._tarifas = dict(self.TARIFAS if tarifas is None else tarifas)
         self._tiempos_ns = {estado: 0 for estado in EstadoVehiculo}
         self._resumen: ResumenCarrera | None = None
         self._estado = EstadoVehiculo.PARADO

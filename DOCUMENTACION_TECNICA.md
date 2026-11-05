@@ -37,7 +37,7 @@ La pantalla inicial explicará los comandos disponibles. Durante la carrera, el 
 
 La segunda fase incorporará un historial persistente de carreras y un registro de eventos para facilitar el seguimiento de la aplicación. El historial conservará, al menos, la fecha, la duración y el importe de cada servicio, y estará disponible en sesiones posteriores.
 
-Las tarifas se leerán desde un fichero de configuración externo para poder modificarlas sin cambiar el código. También se ampliará la batería de pruebas automáticas para cubrir el cálculo, la persistencia y los posibles errores de lectura y escritura.
+Las tarifas se leen desde el fichero externo `configuracion/tarifas.json`, sin modificar el código. Los valores se escriben como cadenas decimales no negativas con punto y se convierten a `Decimal`. Para prevenir entradas de tamaño extremo se admiten como máximo 12 cifras enteras y 9 decimales; este límite es técnico y no representa una tarifa real. Se utiliza JSON por ser un formato sencillo para dos valores y estar disponible en la biblioteca estándar. El archivo incluido tiene las tarifas del ejercicio y forma parte del repositorio. Si falta, no se puede leer o contiene datos inválidos, no se inicia una nueva carrera y se comunica el problema. Las pruebas cubren el cálculo, la persistencia, la configuración y errores de lectura y escritura.
 
 #### Historial de carreras
 

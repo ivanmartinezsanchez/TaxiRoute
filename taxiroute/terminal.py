@@ -10,6 +10,7 @@ from prompt_toolkit import PromptSession
 from taxiroute.carrera import Carrera, EstadoVehiculo
 from taxiroute.historial import HistorialCSV, exportar_copia
 from taxiroute.bloqueo import HistorialOcupado
+from taxiroute.configuracion import ConfiguracionError, cargar_tarifas
 
 AYUDA = """Comandos disponibles:
   iniciar    Iniciar una carrera (comienza en parado).
@@ -100,7 +101,10 @@ class GestorTerminal:
         if comando == "iniciar":
             if self.carrera is not None:
                 return "Ya hay una carrera activa. Finalízala antes de iniciar otra.", False
-            self.carrera = self._crear_carrera()
+            try:
+                self.carrera = self._crear_carrera()
+            except ConfiguracionError as error:
+                return f"No se puede iniciar la carrera. Revisa las tarifas: {error}", False
             return "Carrera iniciada. Estado: parado.", False
         if comando not in {"mover", "parar", "importe", "finalizar"}:
             return "Comando no reconocido. Escribe 'ayuda' para ver las opciones.", False
@@ -175,7 +179,11 @@ def describir_error(error: Exception) -> str:
 
 
 def main() -> None:
-    gestor = GestorTerminal(historial=HistorialCSV(Path.home() / ".taxiroute" / "historial.csv"))
+    ruta_tarifas = Path(__file__).resolve().parent.parent / "configuracion" / "tarifas.json"
+    gestor = GestorTerminal(
+        crear_carrera=lambda: Carrera(tarifas=cargar_tarifas(ruta_tarifas)),
+        historial=HistorialCSV(Path.home() / ".taxiroute" / "historial.csv"),
+    )
     sesion = PromptSession(bottom_toolbar=gestor.estado_actual, refresh_interval=1)
     print("TaxiRoute — taxímetro digital")
     print(AYUDA)
