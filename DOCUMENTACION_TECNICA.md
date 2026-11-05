@@ -51,6 +51,8 @@ Cada carrera finalizada recogerá:
 - Las tarifas de parado y de movimiento aplicadas, en euros por segundo.
 - El importe final en euros, redondeado a céntimos.
 
+El comando `historial` muestra todas las carreras guardadas. `historial hoy` muestra las finalizadas durante el día local actual del ordenador: las fechas se conservan en UTC y se convierten a la zona local antes de comparar el día. Si una fecha de finalización es inválida o no indica zona horaria, se muestra un error para que el archivo pueda revisarse.
+
 Las tarifas se fijarán al iniciar cada carrera. Si se cambia la configuración durante una carrera, las nuevas tarifas se aplicarán a la siguiente. Así el historial conservará los datos necesarios para revisar el cálculo con las tarifas que se utilizaron.
 
 Los archivos de historial y registros contendrán únicamente la información necesaria y quedarán fuera del repositorio. Los detalles de formato y consulta se concretarán antes de implementar cada funcionalidad.

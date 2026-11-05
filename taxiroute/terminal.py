@@ -2,6 +2,7 @@
 
 import errno
 from collections.abc import Callable
+from datetime import date, datetime
 from pathlib import Path
 
 from prompt_toolkit import PromptSession
@@ -16,7 +17,8 @@ AYUDA = """Comandos disponibles:
   parar      Indicar que el vehículo está parado.
   importe    Mostrar el estado y el importe actual.
   finalizar  Finalizar la carrera y mostrar el total.
-  historial  Consultar las carreras guardadas.
+  historial      Consultar todas las carreras guardadas.
+  historial hoy  Consultar las carreras finalizadas hoy.
   reintentar Reintentar el guardado pendiente.
   exportar RUTA  Guardar una copia de la carrera pendiente.
   ayuda      Mostrar estos comandos.
@@ -59,7 +61,8 @@ class GestorTerminal:
             except (OSError, ValueError) as error:
                 return f"No se pudo crear la copia: {describir_error(error)} La carrera sigue pendiente.", False
             return f"Copia creada en {destino}. La carrera sigue pendiente en el historial principal; usa reintentar.", False
-        if len(partes) > 1:
+        consultar_hoy = comando == "historial" and len(partes) == 2 and partes[1].lower() == "hoy"
+        if len(partes) > 1 and not consultar_hoy:
             return "Comando no reconocido. Escribe 'ayuda' para ver las opciones.", False
         if comando == "ayuda":
             return AYUDA, False
@@ -70,9 +73,17 @@ class GestorTerminal:
                 registros = self.historial.consultar()
             except (OSError, ValueError) as error:
                 return f"No se puede consultar el historial: {error}", False
-            if not registros:
+            if consultar_hoy:
+                hoy = fecha_local_actual()
+                try:
+                    registros = [fila for fila in registros if fecha_final_local(fila) == hoy]
+                except ValueError as error:
+                    return f"No se puede filtrar el historial: {error}", False
+                if not registros:
+                    return "No hay carreras finalizadas hoy.", False
+            elif not registros:
                 return "No hay carreras guardadas.", False
-            lineas = ["Carreras guardadas:"]
+            lineas = ["Carreras finalizadas hoy:" if consultar_hoy else "Carreras guardadas:"]
             for fila in registros:
                 lineas.append(f"{fila['inicio']} | {fila['duracion_segundos']} s | {fila['importe']} € | {fila['identificador']}")
             return "\n".join(lineas), False
@@ -122,6 +133,27 @@ class GestorTerminal:
                     "Si cierras la terminal, podrías perder los datos pendientes.")
         self.pendiente = None
         return "Carrera guardada en el historial."
+
+
+def fecha_local_actual() -> date:
+    """Día actual según la zona horaria configurada en el ordenador."""
+    return datetime.now().astimezone().date()
+
+
+def a_fecha_local(instante: datetime) -> date:
+    """Convierte cada instante usando la zona local aplicable a esa fecha."""
+    return instante.astimezone().date()
+
+
+def fecha_final_local(fila: dict) -> date:
+    """Extrae el día local de finalización de un registro del historial."""
+    try:
+        instante = datetime.fromisoformat(fila["fin"])
+        if instante.utcoffset() is None:
+            raise ValueError("La fecha no indica su zona horaria")
+        return a_fecha_local(instante)
+    except (ValueError, TypeError, KeyError) as error:
+        raise ValueError("hay una fecha de finalización inválida o sin zona horaria; revisa el archivo") from error
 
 
 def describir_error(error: Exception) -> str:
