@@ -54,7 +54,7 @@ El archivo forma parte del repositorio: los cambios locales aparecen en Git y co
 
 ## Registro de actividad
 
-TaxiRoute registra el arranque, las carreras, los cambios de estado y los errores operativos en formato JSON Lines. Cada línea es un evento con fecha UTC, nivel y tipo; los errores pueden incluir también un código numérico. No se guardan los comandos escritos ni las rutas introducidas. Si el registro falla, se muestra un aviso y la aplicación continúa; cuando se recupera, se informa de que los eventos que fallaron no se guardaron. Un archivo terminado en una línea incompleta se conserva para su revisión y no se modifica automáticamente.
+TaxiRoute registra el arranque, las carreras, los cambios de estado y los errores operativos en formato JSON Lines. Cada línea es un evento con fecha UTC, nivel y tipo; los errores pueden incluir también un código numérico. No se guardan los comandos escritos ni las rutas introducidas. Si el registro falla, se muestra un aviso y la aplicación continúa; cuando se recupera, se informa de que los eventos que fallaron no se guardaron. Un archivo terminado en una línea incompleta se conserva para su revisión y no se modifica automáticamente. La aplicación rota el registro antes de que supere aproximadamente 5 MiB y conserva hasta cinco archivos anteriores; al alcanzar ese número, la copia más antigua se elimina. El historial de carreras no se borra con esta rotación.
 
 ## Funcionamiento previsto de una carrera
 
