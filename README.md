@@ -2,11 +2,11 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: fase 1 implementada y probada; fase 2 en desarrollo.** La aplicación permite gestionar carreras desde la terminal y consultar un historial local.
+> **Estado: fase 1 implementada y probada; fase 2 implementada en su rama de trabajo, pendiente de cierre e integración.** La aplicación permite gestionar carreras desde la terminal y consultar un historial local.
 
 ## Qué problema aborda
 
-TaxiRoute calcula el importe de una carrera según el tiempo transcurrido en dos estados indicados por el conductor: parado y en movimiento. Permite cerrar una carrera y comenzar otra sin reiniciar el programa. Las fases siguientes incorporarán historial, configuración, autenticación e interfaces.
+TaxiRoute calcula el importe de una carrera según el tiempo transcurrido en dos estados indicados por el conductor: parado y en movimiento. Permite cerrar una carrera y comenzar otra sin reiniciar el programa. La fase 2 añade historial persistente, configuración de tarifas y registros de actividad. La autenticación y las interfaces visuales corresponden a entregas posteriores.
 
 El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s en movimiento**. La velocidad no se medirá automáticamente: el cambio de estado será manual salvo que se acuerde otra cosa. Estas cifras y reglas son datos docentes; no están verificadas como tarifas vigentes ni como un sistema homologado para cobros reales.
 
@@ -15,21 +15,31 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 | Fase | Objetivo | Estado |
 |---|---|---|
 | 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Implementada y probada |
-| 2 | Historial persistente, registros, tarifas configurables y pruebas | En curso |
+| 2 | Historial persistente, registros, tarifas configurables y pruebas | Pendiente de cierre e integración |
 | 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
 | 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
 
 Cada entrega requerirá código, una demostración y un tablero GitHub Projects actualizado. El seguimiento se realiza en el [tablero público de TaxiRoute](https://github.com/users/ivanmartinezsanchez/projects/2).
 
-## Requisitos previstos
+## Requisitos
 
-- Python 3.13 para el desarrollo de esta formación; el enunciado acepta Python 3.10 o superior.
+- Python 3.13, versión utilizada en las pruebas automatizadas de GitHub. La compatibilidad con otras versiones no se da por verificada.
 - Git y una cuenta de GitHub para gestionar el código.
 - Docker y Docker Compose se evaluarán para la fase de despliegue; todavía no son necesarios para el MVP.
 
 ## Instalación y ejecución
 
-Para preparar el entorno y ejecutar TaxiRoute desde Git Bash, sitúate en la carpeta del proyecto:
+Clona el repositorio y entra en su carpeta. La fase 2 se encuentra actualmente en la rama `feature/fase-2-historial`; `main` conserva la entrega anterior.
+
+```bash
+git clone https://github.com/ivanmartinezsanchez/TaxiRoute.git
+cd TaxiRoute
+git switch feature/fase-2-historial
+```
+
+Si ya tienes una copia, utiliza su carpeta en lugar de volver a clonar. Ejecuta los comandos siguientes desde la raíz del proyecto, donde están este README y `requirements.txt`.
+
+### Windows con Git Bash
 
 ```bash
 python -m venv .venv
@@ -38,13 +48,62 @@ python -m pip install -r requirements.txt
 python -m taxiroute
 ```
 
-Para ejecutar las pruebas:
+Si el entorno ya existe, basta con activarlo e instalar las dependencias. En PowerShell, el comando de activación es `.\.venv\Scripts\Activate.ps1`.
+
+### Linux y macOS
+
+Con Python 3.13 instalado, comprueba primero qué versión ejecuta `python3 --version`.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m taxiroute
+```
+
+Dentro del entorno activado se utiliza `python`. Para salir del entorno después de cerrar TaxiRoute, ejecuta `deactivate`. Las instrucciones para macOS están incluidas, pero su validación sigue pendiente en la comprobación indicada más abajo.
+
+## Comandos de la aplicación
+
+| Comando | Función |
+|---|---|
+| `iniciar` | Inicia una carrera en parado y lee las tarifas vigentes. |
+| `mover` / `parar` | Cambia el estado del vehículo. |
+| `importe` | Consulta el estado y el importe provisional. |
+| `finalizar` | Calcula el total e intenta guardar la carrera. |
+| `historial` | Consulta todas las carreras guardadas. |
+| `historial hoy` | Consulta las carreras finalizadas durante el día local actual. |
+| `reintentar` | Reintenta guardar la carrera pendiente. |
+| `exportar RUTA` | Crea una copia CSV de la carrera pendiente en un archivo nuevo. |
+| `ayuda` | Muestra los comandos disponibles. |
+| `salir` | Cierra la aplicación si no hay carrera activa ni pendiente de guardar. |
+
+## Archivos y recuperación
+
+Los datos de uso se guardan en la carpeta `.taxiroute` del usuario, fuera del repositorio. En Windows suele estar bajo `C:\Users\nombre\.taxiroute`; en Linux y macOS, bajo `~/.taxiroute`.
+
+| Archivo | Contenido |
+|---|---|
+| `historial.csv` | Identificador, fechas, tiempos, tarifas aplicadas e importe de cada carrera. |
+| `actividad.jsonl` | Eventos operativos, uno por línea. |
+| `actividad.jsonl.1` a `actividad.jsonl.5` | Registros anteriores, del más reciente al más antiguo. |
+| Archivos `.lock` | Coordinación entre ejecuciones; no deben borrarse mientras la aplicación esté en uso. |
+
+Las fechas del historial se conservan en UTC. Para `historial hoy`, se convierte la fecha de finalización al día local del ordenador; la columna mostrada en la lista sigue siendo la fecha de inicio.
+
+Si el guardado falla, TaxiRoute conserva la carrera en memoria y ofrece `reintentar` o `exportar RUTA`. La exportación no sobrescribe archivos existentes ni sustituye el guardado en el historial principal. La carrera continúa pendiente y bloquea el inicio de otra carrera y la salida normal. Cerrar la terminal puede hacer que se pierdan los datos pendientes. Si un archivo está incompleto, se conserva para su revisión; no existe reparación automática ni eliminación de carreras antiguas.
+
+## Pruebas
+
+Con el entorno activado, ejecuta desde la raíz:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-Durante la ejecución, escribe `ayuda` para ver los comandos. Usa `iniciar`, `mover`, `parar`, `importe` y `finalizar`; para consultar todas las carreras guardadas, escribe `historial`; para ver las finalizadas durante el día local actual, escribe `historial hoy`. El archivo se almacena en `.taxiroute/historial.csv` dentro de la carpeta de usuario. Si el guardado falla, la aplicación conserva temporalmente la carrera y permite usar `reintentar` o `exportar RUTA` para crear una copia en otra ubicación. La copia no sustituye al guardado en el historial principal. Si se cierra la terminal antes de resolver el error, los datos pendientes podrían perderse. El historial guarda las fechas en UTC y determina el día local usando la fecha de finalización de cada carrera. La configuración de tarifas se lee al iniciar cada carrera. Los eventos de actividad se guardan en `.taxiroute/actividad.jsonl`, dentro de la carpeta de usuario.
+La revisión del 6 de noviembre de 2026 ha superado las 46 pruebas en Windows. Cubren cálculo, terminal, historial, configuración, errores de guardado, bloqueos entre procesos y rotación de registros.
+
+[GitHub Actions](https://github.com/ivanmartinezsanchez/TaxiRoute/actions) ejecuta la misma suite con Python 3.13 en Windows, Ubuntu y macOS al subir cambios y en las pull requests. La configuración está en [pruebas.yml](./.github/workflows/pruebas.yml). En la [ejecución revisada](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42258848712), Windows y Ubuntu han terminado correctamente; macOS seguía en cola al realizar esta revisión. Este resultado no acredita todavía la compatibilidad con macOS ni sustituye la demostración interactiva de la terminal.
 
 ## Configuración de tarifas
 
@@ -56,7 +115,7 @@ El archivo forma parte del repositorio: los cambios locales aparecen en Git y co
 
 TaxiRoute registra el arranque, las carreras, los cambios de estado y los errores operativos en formato JSON Lines. Cada línea es un evento con fecha UTC, nivel y tipo; los errores pueden incluir también un código numérico. No se guardan los comandos escritos ni las rutas introducidas. Si el registro falla, se muestra un aviso y la aplicación continúa; cuando se recupera, se informa de que los eventos que fallaron no se guardaron. Un archivo terminado en una línea incompleta se conserva para su revisión y no se modifica automáticamente. La aplicación rota el registro antes de que supere aproximadamente 5 MiB y conserva hasta cinco archivos anteriores; al alcanzar ese número, la copia más antigua se elimina. El historial de carreras no se borra con esta rotación.
 
-## Funcionamiento previsto de una carrera
+## Funcionamiento de una carrera
 
 1. Iniciar una carrera; el taxímetro comienza en estado **parado**.
 2. Cambiar entre **parado** y **en movimiento** durante el trayecto.
@@ -64,15 +123,15 @@ TaxiRoute registra el arranque, las carreras, los cambios de estado y los errore
 4. Finalizar y mostrar el importe en euros con dos decimales.
 5. Iniciar otra carrera sin salir de la aplicación.
 
-La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_movimiento × tarifa_movimiento`. Las duraciones pueden incluir fracciones de segundo. El importe se actualiza automáticamente durante la carrera. El total se redondea a céntimos al finalizar, aplicando el redondeo habitual: si la fracción es exactamente medio céntimo, se redondea hacia arriba. El cálculo conservará la precisión de los tramos hasta el cierre.
+La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_movimiento × tarifa_movimiento`. Las duraciones pueden incluir fracciones de segundo. El importe se actualiza automáticamente durante la carrera. El total se redondea a céntimos al finalizar, aplicando el redondeo habitual: si la fracción es exactamente medio céntimo, se redondea hacia arriba. El cálculo conserva la precisión de los tramos hasta el cierre.
 
 ## Seguridad, accesibilidad y datos
 
-El MVP no manejará contraseñas ni publicará servicios de red. En fases posteriores se diseñarán autenticación, protección del historial y controles de acceso antes de exponer la aplicación. La interfaz visual tendrá objetivos de accesibilidad, adaptación a distintos tamaños de pantalla y navegación mediante teclado; su conformidad se comprobará cuando exista.
+La versión actual funciona localmente y no incorpora autenticación ni servicios de red. En fases posteriores se diseñarán autenticación, protección del historial y controles de acceso antes de exponer la aplicación. La interfaz visual tendrá objetivos de accesibilidad, adaptación a distintos tamaños de pantalla y navegación mediante teclado; su conformidad se comprobará cuando exista.
 
 ## Documentación y gestión
 
-- [Documentación técnica inicial](./DOCUMENTACION_TECNICA.md): arquitectura propuesta, decisiones, reglas y plan de pruebas.
+- [Documentación técnica](./DOCUMENTACION_TECNICA.md): módulos, decisiones, reglas de cálculo, pruebas y limitaciones.
 - Manual de usuario: se redactará al finalizar, basado en el funcionamiento comprobado.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
 
@@ -83,7 +142,7 @@ La carpeta [referencia/proyecto-original](./referencia/proyecto-original) conser
 El archivo [ENUNCIADO.md](./ENUNCIADO.md) reproduce el enunciado original para facilitar su consulta. El repositorio de origen no declara una licencia en el ZIP revisado; la reutilización de sus materiales queda sujeta a los derechos de sus autores.
 ## Desarrollo y contribución
 
-Se utilizarán ramas para tareas y mensajes de commit descriptivos, preferiblemente [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/). No se subirán contraseñas, datos privados, bases de datos reales ni entornos virtuales. Se definirá la política de revisión cuando se organice el equipo.
+Se utilizan ramas para las tareas y mensajes de commit descriptivos en español, siguiendo [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/). No se subirán contraseñas, datos privados, bases de datos reales ni entornos virtuales. Se definirá la política de revisión cuando se organice el equipo.
 
 ## Fuentes
 
