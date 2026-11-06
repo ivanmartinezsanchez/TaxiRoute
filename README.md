@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: fase 1 implementada y probada; fase 2 implementada en su rama de trabajo, pendiente de cierre e integración.** La aplicación permite gestionar carreras desde la terminal y consultar un historial local.
+> **Estado: fases 1 y 2 implementadas, probadas e integradas en main.** La aplicación permite gestionar carreras desde la terminal y consultar un historial local.
 
 ## Qué problema aborda
 
@@ -15,7 +15,7 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 | Fase | Objetivo | Estado |
 |---|---|---|
 | 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Implementada y probada |
-| 2 | Historial persistente, registros, tarifas configurables y pruebas | Pendiente de cierre e integración |
+| 2 | Historial persistente, registros, tarifas configurables y pruebas | Completada e integrada |
 | 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
 | 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
 
@@ -29,12 +29,12 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 ## Instalación y ejecución
 
-Clona el repositorio y entra en su carpeta. La fase 2 se encuentra actualmente en la rama `feature/fase-2-historial`; `main` conserva la entrega anterior.
+Clona el repositorio y entra en su carpeta. La rama `main` incluye la fase 2, integrada mediante la [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17).
 
 ```bash
 git clone https://github.com/ivanmartinezsanchez/TaxiRoute.git
 cd TaxiRoute
-git switch feature/fase-2-historial
+git switch main
 ```
 
 Si ya tienes una copia, utiliza su carpeta en lugar de volver a clonar. Ejecuta los comandos siguientes desde la raíz del proyecto, donde están este README y `requirements.txt`.

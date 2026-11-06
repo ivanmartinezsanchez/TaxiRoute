@@ -2,7 +2,7 @@
 
 **Proyecto:** sistema de taxímetro digital  
 **Referencia:** TTX-247 · Proyecto formativo de Factoría F5  
-**Estado:** fase 1 implementada y probada; fase 2 implementada en su rama de trabajo, pendiente de cierre e integración
+**Estado:** fases 1 y 2 implementadas, probadas e integradas en main
 **Tecnología principal:** Python
 
 ## 1. Introducción
@@ -11,7 +11,7 @@ TaxiRoute es un proyecto de software que simula el funcionamiento de un taxímet
 
 El desarrollo está organizado en cuatro fases. La primera entrega proporciona el cálculo y la terminal. La segunda añade historial persistente, tarifas configurables y registros operativos. La interfaz visual, la autenticación, la API y la base de datos corresponden a fases posteriores.
 
-Este documento describe la implementación actual y distingue las funciones disponibles de las previstas. La fase 2 se revisa en la rama `feature/fase-2-historial`; todavía no se ha integrado en `main`.
+Este documento describe la implementación actual y distingue las funciones disponibles de las previstas. La fase 2 se ha integrado en `main` mediante la [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17), conservando los commits de desarrollo.
 
 ## 2. Alcance del proyecto
 
@@ -227,14 +227,13 @@ La demostración interactiva utiliza Git Bash dentro de VS Code, con el entorno 
 5. Mostrar `configuracion/tarifas.json` y ejecutar `python -m unittest discover -s tests -p "test_configuracion.py" -v`. Las pruebas usan archivos temporales y un reloj controlado para comprobar que las nuevas tarifas se aplican a la siguiente carrera, sin cambiar la configuración de uso.
 6. Mostrar las verificaciones de GitHub Actions. Para explicar la recuperación ante errores, consultar las pruebas de `test_errores_guardado.py` y `test_historial.py`: simulan fallos y comprueban el reintento y la copia alternativa sin llenar el disco real.
 
-Se han comprobado durante el desarrollo la persistencia entre sesiones, la consulta diaria y los eventos operativos en Windows. Las pruebas automatizadas cubren además los cambios de tarifas y los errores de almacenamiento. Este guion reúne esas comprobaciones para presentar la entrega; su inclusión en el documento no significa que se haya realizado una nueva demostración completa.
+Se han comprobado durante el desarrollo la persistencia entre sesiones, la consulta diaria y los eventos operativos en Windows. Las pruebas automatizadas cubren además los cambios de tarifas y los errores de almacenamiento. El 6 de noviembre de 2026 se ha realizado la demostración interactiva del ciclo de carrera, la consulta diaria y la persistencia tras reiniciar; se ha revisado la salida del registro de eventos. También se han superado las cinco pruebas de configuración y las seis de historial y recuperación usando archivos temporales.
 
-### Comprobaciones para cerrar la fase 2
+### Cierre de la fase 2
 
-- Mantener las verificaciones automáticas correctas en los tres sistemas hasta la integración.
-- Reunir la demostración de persistencia entre sesiones, consulta diaria, cambios de tarifas y registro de eventos.
-- Revisar la pull request de la fase y su documentación.
-- Integrar la entrega y actualizar el tablero con los resultados verificados.
+La entrega se ha integrado el 6 de noviembre de 2026 tras comprobar la demostración y las verificaciones de la pull request en Windows, Ubuntu y macOS. Las tareas de historial (#5), registros (#6) y tarifas (#7) están cerradas y figuran como completadas en el tablero. Las fases 3 y 4 siguen pendientes.
+
+La [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17) conserva el resumen de la entrega y las evidencias de validación. Cada envío posterior a `main` vuelve a ejecutar la suite de GitHub Actions.
 
 La autenticación, la interfaz visual, la API y la base de datos tendrán sus propias pruebas en las fases correspondientes. El manual de usuario final se redactará al terminar el proyecto.
 
