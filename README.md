@@ -61,7 +61,7 @@ python -m pip install -r requirements.txt
 python -m taxiroute
 ```
 
-Dentro del entorno activado se utiliza `python`. Para salir del entorno después de cerrar TaxiRoute, ejecuta `deactivate`. Las instrucciones para macOS están incluidas, pero su validación sigue pendiente en la comprobación indicada más abajo.
+Dentro del entorno activado se utiliza `python`. Para salir del entorno después de cerrar TaxiRoute, ejecuta `deactivate`. Las pruebas automatizadas se han superado en los tres sistemas; la comprobación interactiva de la terminal se ha realizado en Windows.
 
 ## Comandos de la aplicación
 
@@ -103,7 +103,7 @@ python -m unittest discover -s tests -v
 
 La revisión del 6 de noviembre de 2026 ha superado las 46 pruebas en Windows. Cubren cálculo, terminal, historial, configuración, errores de guardado, bloqueos entre procesos y rotación de registros.
 
-[GitHub Actions](https://github.com/ivanmartinezsanchez/TaxiRoute/actions) ejecuta la misma suite con Python 3.13 en Windows, Ubuntu y macOS al subir cambios y en las pull requests. La configuración está en [pruebas.yml](./.github/workflows/pruebas.yml). En la [ejecución revisada](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42258848712), Windows y Ubuntu han terminado correctamente; macOS seguía en cola al realizar esta revisión. Este resultado no acredita todavía la compatibilidad con macOS ni sustituye la demostración interactiva de la terminal.
+[GitHub Actions](https://github.com/ivanmartinezsanchez/TaxiRoute/actions) ejecuta la misma suite con Python 3.13 en Windows, Ubuntu y macOS al subir cambios y en las pull requests. La configuración está en [pruebas.yml](./.github/workflows/pruebas.yml). La [ejecución de la rama](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42263629496) y la [comprobación de la pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42264111193) han terminado correctamente en los tres sistemas. Estos resultados validan los casos automatizados con Python 3.13; no sustituyen la demostración interactiva ni prueban todos los entornos posibles.
 
 ## Configuración de tarifas
 

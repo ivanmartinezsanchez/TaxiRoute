@@ -67,7 +67,7 @@ Los archivos de historial y registros se guardan en la carpeta de usuario, fuera
 
 Para coordinar distintas ejecuciones de TaxiRoute se utiliza un archivo auxiliar de bloqueo junto al CSV. Antes de consultar o guardar, cada ejecución solicita el bloqueo; al terminar lo libera. La comprobación del identificador y la escritura se realizan bajo el mismo bloqueo para evitar duplicados cuando varias ejecuciones intentan guardar a la vez. Si el bloqueo no queda disponible en el tiempo previsto, la aplicación informa de que el historial está en uso y mantiene la carrera pendiente para reintentar.
 
-El mecanismo utiliza funciones de la biblioteca estándar específicas de Windows y de sistemas Unix. El archivo auxiliar se conserva y no debe eliminarse mientras haya ejecuciones activas: su presencia por sí sola no indica que el historial esté ocupado. Esta coordinación solo protege a procesos que utilicen el mismo bloqueo; un editor externo puede modificar el CSV sin respetarlo. Las pruebas de procesos se han ejecutado en Windows y en Ubuntu mediante WSL 2; quedan por comprobar macOS y otros tipos de almacenamiento. El bloqueo no sustituye a las copias de seguridad ni garantiza la recuperación de escrituras interrumpidas.
+El mecanismo utiliza funciones de la biblioteca estándar específicas de Windows y de sistemas Unix. El archivo auxiliar se conserva y no debe eliminarse mientras haya ejecuciones activas: su presencia por sí sola no indica que el historial esté ocupado. Esta coordinación solo protege a procesos que utilicen el mismo bloqueo; un editor externo puede modificar el CSV sin respetarlo. Las pruebas de procesos se han superado en Windows, Ubuntu y macOS mediante GitHub Actions; también se han realizado comprobaciones locales en Windows y Ubuntu mediante WSL 2. No se han validado todos los tipos de almacenamiento, como las unidades de red. El bloqueo no sustituye a las copias de seguridad ni garantiza la recuperación de escrituras interrumpidas.
 
 #### Si no se puede guardar una carrera
 
@@ -210,15 +210,28 @@ La suite actual contiene 46 pruebas. Para comprobar duraciones e importes sin es
 
 El flujo `.github/workflows/pruebas.yml` instala las dependencias y ejecuta la suite con Python 3.13 en Windows, Ubuntu y macOS. Se activa con los envíos al repositorio y las pull requests; también declara ejecución manual. Cada trabajo tiene un límite de diez minutos, permisos de lectura del contenido y acciones fijadas a identificadores de commit.
 
-En la revisión del 6 de noviembre de 2026 se han superado las 46 pruebas locales en Windows. La [ejecución de GitHub Actions revisada](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42258848712) ha terminado correctamente en Windows y Ubuntu; macOS seguía en cola. La validación de este último sistema permanece pendiente. El resultado de una suite automatizada no sustituye la demostración interactiva en una terminal real.
+En la revisión del 6 de noviembre de 2026 se han superado las 46 pruebas locales en Windows. La [ejecución de la rama](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42263629496) y la [ejecución de la pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/actions/runs/42264111193) han terminado correctamente en Windows, Ubuntu y macOS con Python 3.13. El resultado de una suite automatizada no sustituye la demostración interactiva en una terminal real.
 
 ### Límites de la validación
 
 Las pruebas simulan algunos errores de almacenamiento y comprueban archivos incompletos. No acreditan recuperación frente a cortes eléctricos ni escrituras interrumpidas en cualquier punto. Las carreras pendientes solo permanecen en memoria y los archivos no se reparan automáticamente. El historial se lee completo para consultar y comprobar duplicados; no se ha medido su rendimiento con grandes volúmenes. Los bloqueos no evitan modificaciones de programas externos que no los respeten.
 
+### Guion de demostración de la fase 2
+
+La demostración interactiva utiliza Git Bash dentro de VS Code, con el entorno virtual activado y la terminal situada en la raíz del proyecto. Crea una carrera de prueba en el historial local; no elimina las existentes. Se mantienen las tarifas del ejercicio.
+
+1. Ejecutar `python -m taxiroute`. Introducir `iniciar`, esperar unos segundos, escribir `mover`, volver a esperar y consultar `importe`. Mostrar que la barra se actualiza mientras se escribe.
+2. Introducir `finalizar` y comprobar los mensajes del total y del guardado. Consultar `historial hoy` y localizar la nueva carrera por su identificador.
+3. Escribir `salir`, ejecutar de nuevo `python -m taxiroute` y consultar `historial`. La misma carrera debe seguir disponible. Cerrar con `salir`.
+4. Ejecutar `tail -n 12 ~/.taxiroute/actividad.jsonl` desde Git Bash. Mostrar los eventos de inicio, cambio de estado, finalización, guardado y cierre. Cada línea debe ser un objeto JSON independiente.
+5. Mostrar `configuracion/tarifas.json` y ejecutar `python -m unittest discover -s tests -p "test_configuracion.py" -v`. Las pruebas usan archivos temporales y un reloj controlado para comprobar que las nuevas tarifas se aplican a la siguiente carrera, sin cambiar la configuración de uso.
+6. Mostrar las verificaciones de GitHub Actions. Para explicar la recuperación ante errores, consultar las pruebas de `test_errores_guardado.py` y `test_historial.py`: simulan fallos y comprueban el reintento y la copia alternativa sin llenar el disco real.
+
+Se han comprobado durante el desarrollo la persistencia entre sesiones, la consulta diaria y los eventos operativos en Windows. Las pruebas automatizadas cubren además los cambios de tarifas y los errores de almacenamiento. Este guion reúne esas comprobaciones para presentar la entrega; su inclusión en el documento no significa que se haya realizado una nueva demostración completa.
+
 ### Comprobaciones para cerrar la fase 2
 
-- Completar la ejecución automatizada pendiente en macOS.
+- Mantener las verificaciones automáticas correctas en los tres sistemas hasta la integración.
 - Reunir la demostración de persistencia entre sesiones, consulta diaria, cambios de tarifas y registro de eventos.
 - Revisar la pull request de la fase y su documentación.
 - Integrar la entrega y actualizar el tablero con los resultados verificados.
