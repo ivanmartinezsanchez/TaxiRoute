@@ -1,29 +1,65 @@
-"""Prototipo web local: una carrera de prueba en memoria por proceso."""
+"""Interfaz web local conectada a las operaciones de TaxiRoute."""
+import argparse
+from collections import deque
+import json
+from pathlib import Path
 from secrets import token_urlsafe, compare_digest
-from threading import RLock
+from tempfile import TemporaryDirectory
+from threading import RLock, Timer
 
 from flask import Flask, jsonify, render_template, request, abort
+from werkzeug.serving import make_server
 
-from taxiroute.carrera import Carrera, EstadoVehiculo
+from taxiroute.bloqueo import bloqueo_historial
+from taxiroute.carrera import Carrera
+from taxiroute.configuracion import cargar_tarifas, guardar_tarifas, ConfiguracionError
+from taxiroute.historial import HistorialCSV
+from taxiroute.registro import RegistroActividad
+from taxiroute.servicio import ServicioCarreras
 
 
-def crear_app(crear_carrera=Carrera):
-    """Crea una instancia aislada para ejecutar la aplicación o probarla."""
+def crear_app(servicio=None, *, carpeta_datos=None, ruta_tarifas=None, modo_prueba=False):
+    """Permite inyectar el servicio o aislar datos para pruebas."""
     app = Flask(__name__)
     app.config.update(TRUSTED_HOSTS=["127.0.0.1", "localhost"], MAX_CONTENT_LENGTH=4096)
+    ruta_tarifas = Path(ruta_tarifas) if ruta_tarifas else Path(__file__).resolve().parent.parent / "configuracion" / "tarifas.json"
+    if servicio is None:
+        carpeta = Path(carpeta_datos) if carpeta_datos else Path.home() / ".taxiroute"
+        servicio = ServicioCarreras(
+            crear_carrera=lambda: Carrera(tarifas=cargar_tarifas(ruta_tarifas)),
+            historial=HistorialCSV(carpeta / "historial.csv"),
+            registro=RegistroActividad(carpeta / "actividad.jsonl"),
+        )
+    app.extensions["servicio_carreras"] = servicio
     token = token_urlsafe(32)
     bloqueo = RLock()
-    carrera = None
     revision = 0
+    cerrada = False
+    ultimo_mensaje = "Aplicación preparada."
+    servicio._registrar("aplicacion_iniciada", interfaz="web")
+
+    def precios(tarifas):
+        return {estado.value: str(valor) for estado, valor in tarifas.items()}
 
     def estado():
-        activa = carrera is not None and not carrera.finalizada
+        activa = servicio.carrera is not None
+        resumen = servicio.ultimo_resumen
+        error_tarifas = None
+        try:
+            siguientes = precios(cargar_tarifas(ruta_tarifas))
+        except ConfiguracionError as error:
+            siguientes = None
+            error_tarifas = str(error)
+        aplicadas = precios(servicio.carrera.tarifas) if activa else None
+        importe = servicio.carrera.importe_actual() if activa else resumen.importe if resumen else "0.00"
         return {
-            "activa": activa,
-            "estado": carrera.estado.value if activa else "sin carrera activa",
-            "importe": str(carrera.importe_actual()) if carrera else "0.00",
-            "finalizada": carrera is not None and carrera.finalizada,
-            "revision": revision,
+            "activa": activa, "pendiente": servicio.pendiente is not None,
+            "estado": servicio.carrera.estado.value if activa else "sin carrera activa",
+            "importe": str(importe), "finalizada": resumen is not None and not activa,
+            "revision": revision, "cerrada": cerrada,
+            "tarifas": aplicadas or siguientes, "tarifas_siguientes": siguientes,
+            "error_tarifas": error_tarifas, "aviso_registro": servicio.aviso_registro,
+            "mensaje": ultimo_mensaje, "modo_prueba": modo_prueba,
         }
 
     @app.before_request
@@ -34,7 +70,8 @@ def crear_app(crear_carrera=Carrera):
             origen = request.headers.get("Origin")
             if origen and origen != request.host_url.rstrip("/"):
                 abort(403)
-            if not compare_digest(request.headers.get("X-TaxiRoute-Token", ""), token):
+            recibido = request.headers.get("X-TaxiRoute-Token", "")
+            if not compare_digest(recibido.encode("utf-8"), token.encode("ascii")):
                 abort(403)
 
     @app.after_request
@@ -50,46 +87,115 @@ def crear_app(crear_carrera=Carrera):
 
     @app.get("/")
     def inicio():
-        return render_template("prototipo.html", token=token)
+        return render_template("prototipo.html", token=token, modo_prueba=modo_prueba)
 
     @app.get("/prototipo/estado")
     def consultar():
         with bloqueo:
             return jsonify(estado())
 
+    @app.get("/prototipo/historial")
+    def historial():
+        filtro = request.args.get("filtro", "hoy")
+        if filtro not in {"hoy", "todo"}:
+            return jsonify(error="Filtro no válido."), 400
+        with bloqueo:
+            filas, error = servicio.consultar_historial(filtro == "hoy")
+            if error:
+                return jsonify(error=error), 409
+            return jsonify(carreras=filas)
+
+    @app.get("/prototipo/registros")
+    def registros():
+        if servicio.registro is None:
+            return jsonify(eventos=[])
+        ruta = servicio.registro.ruta
+        try:
+            with bloqueo_historial(ruta):
+                if not ruta.exists():
+                    return jsonify(eventos=[])
+                with ruta.open(encoding="utf-8") as archivo:
+                    ultimas = deque(archivo, maxlen=50)
+            return jsonify(eventos=[json.loads(linea) for linea in ultimas])
+        except (OSError, ValueError):
+            return jsonify(error="No se puede leer el registro. Revisa el archivo o sus permisos."), 409
+
     @app.post("/prototipo/accion")
     def actuar():
-        nonlocal carrera, revision
+        nonlocal revision, cerrada, ultimo_mensaje
         datos = request.get_json(silent=True)
-        if not isinstance(datos, dict) or datos.get("accion") not in {"iniciar", "mover", "parar", "finalizar"}:
+        permitidas = {"iniciar", "mover", "parar", "finalizar", "reintentar", "exportar", "salir", "tarifas"}
+        if not isinstance(datos, dict) or not isinstance(datos.get("accion"), str) or datos["accion"] not in permitidas:
             return jsonify(error="Acción no válida."), 400
         with bloqueo:
-            # Evita aplicar una acción antigua o duplicada tras otra petición.
+            if cerrada:
+                return jsonify(error="La aplicación está cerrada. Inicia de nuevo el servicio."), 409
             if type(datos.get("revision")) is not int or datos["revision"] != revision:
                 return jsonify(error="El estado ha cambiado. Revisa la pantalla e inténtalo de nuevo."), 409
             accion = datos["accion"]
-            activa = carrera is not None and not carrera.finalizada
-            if accion == "iniciar":
-                if activa:
-                    return jsonify(error="Ya hay una carrera activa."), 409
-                carrera = crear_carrera()
-                mensaje = "Carrera de prueba iniciada en parado."
-            else:
-                if not activa:
-                    return jsonify(error="Inicia una carrera antes de realizar esta acción."), 409
-                if accion == "finalizar":
-                    carrera.finalizar()
-                    mensaje = "Carrera finalizada. El resultado no se ha guardado."
-                else:
-                    nuevo = EstadoVehiculo.EN_MOVIMIENTO if accion == "mover" else EstadoVehiculo.PARADO
-                    carrera.cambiar_estado(nuevo)
-                    mensaje = "Estado actualizado: " + nuevo.value + "."
+            if accion == "iniciar" and (servicio.carrera or servicio.pendiente):
+                return jsonify(error="Finaliza la carrera y resuelve el guardado pendiente antes de iniciar otra."), 409
+            if accion in {"mover", "parar", "finalizar"} and servicio.carrera is None:
+                return jsonify(error="No hay ninguna carrera activa."), 409
+            if accion == "salir" and (servicio.carrera or servicio.pendiente):
+                return jsonify(error="No se puede cerrar con una carrera activa o pendiente de guardar."), 409
+            if accion in {"exportar", "reintentar"} and servicio.pendiente is None:
+                return jsonify(error="No hay ninguna carrera pendiente de guardar."), 409
+            if accion == "tarifas":
+                try:
+                    guardar_tarifas(ruta_tarifas, datos.get("tarifas"))
+                except (OSError, ConfiguracionError) as error:
+                    servicio._registrar_error("error_configuracion", error)
+                    return jsonify(error=f"No se han guardado las tarifas: {error}"), 400
+                servicio._registrar("tarifas_actualizadas")
+                ultimo_mensaje = "Tarifas guardadas. Se aplicarán a la siguiente carrera; la activa conserva las suyas."
+                revision += 1
+                return jsonify(estado())
+            comando = accion
+            if accion == "exportar":
+                ruta = datos.get("ruta")
+                if not isinstance(ruta, str) or not ruta.strip() or any(c in ruta for c in "\r\n\x00"):
+                    return jsonify(error="Indica una ruta válida para un archivo CSV nuevo."), 400
+                comando = "exportar " + ruta
+            ultimo_mensaje, salir = servicio.ejecutar(comando)
             revision += 1
-            return jsonify(**estado(), mensaje=mensaje)
+            cerrada = salir
+            respuesta = jsonify(estado())
+            if salir and app.config.get("DETENER_SERVIDOR"):
+                Timer(0.5, app.config["DETENER_SERVIDOR"]).start()
+            return respuesta
 
     return app
 
 
+def main():
+    parser = argparse.ArgumentParser(description="TaxiRoute web local")
+    parser.add_argument("--demo", action="store_true", help="Usar archivos temporales, sin tocar el historial ni las tarifas de uso")
+    args = parser.parse_args()
+    temporal = TemporaryDirectory(prefix="taxiroute-demo-") if args.demo else None
+    ruta_demo = None
+    if temporal:
+        ruta_demo = Path(temporal.name) / "tarifas.json"
+        ruta_demo.write_text('{"parado":"0.02","en_movimiento":"0.05"}', encoding="utf-8")
+    app = crear_app(carpeta_datos=temporal.name if temporal else None,
+                    ruta_tarifas=ruta_demo, modo_prueba=args.demo)
+    servidor = make_server("127.0.0.1", 8765, app, threaded=True)
+    app.config["DETENER_SERVIDOR"] = servidor.shutdown
+    print("TaxiRoute local: http://127.0.0.1:8765/", flush=True)
+    print("Modo demostración: datos y tarifas temporales." if args.demo else "Historial de uso: ~/.taxiroute/historial.csv", flush=True)
+    try:
+        servidor.serve_forever()
+    except KeyboardInterrupt:
+        servicio = app.extensions["servicio_carreras"]
+        servicio._registrar("entrada_cerrada", interfaz="web",
+                           carrera_activa=servicio.carrera is not None,
+                           carrera_pendiente=servicio.pendiente is not None)
+        print("Servicio detenido. Una carrera activa o pendiente no se recupera automáticamente.", flush=True)
+    finally:
+        servidor.server_close()
+        if temporal:
+            temporal.cleanup()
+
+
 if __name__ == "__main__":
-    # Servidor de desarrollo, limitado al prototipo local y sin depurador.
-    crear_app().run(host="127.0.0.1", port=8765, debug=False, use_reloader=False)
+    main()

@@ -3,12 +3,13 @@ import re
 import unittest
 from taxiroute.carrera import Carrera
 from taxiroute.web import crear_app
+from taxiroute.servicio import ServicioCarreras
 
 
 class PruebasWeb(unittest.TestCase):
     def setUp(self):
         self.tiempo = 0
-        self.app = crear_app(lambda: Carrera(reloj=lambda: self.tiempo))
+        self.app = crear_app(ServicioCarreras(lambda: Carrera(reloj=lambda: self.tiempo)))
         self.app.config["TESTING"] = True
         self.cliente = self.app.test_client()
         html = self.cliente.get("/").get_data(as_text=True)
@@ -56,7 +57,7 @@ class PruebasWeb(unittest.TestCase):
     def test_recargar_comparte_carrera_pero_otra_instancia_es_independiente(self):
         self.accion("iniciar", 0)
         self.assertTrue(self.app.test_client().get("/prototipo/estado").json["activa"])
-        self.assertFalse(crear_app().test_client().get("/prototipo/estado").json["activa"])
+        self.assertFalse(crear_app(ServicioCarreras()).test_client().get("/prototipo/estado").json["activa"])
 
     def test_recursos_locales_y_sin_cache(self):
         respuesta = self.cliente.get("/")

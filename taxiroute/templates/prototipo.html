@@ -13,7 +13,7 @@
   <div class="marco">
     <header class="cabecera">
       <a class="marca" href="/" aria-label="TaxiRoute, inicio"><span class="simbolo" aria-hidden="true">↗</span> TaxiRoute<span class="punto">.</span></a>
-      <span class="etiqueta">LOCAL · PROTOTIPO</span>
+      <span class="etiqueta">LOCAL · {% if modo_prueba %}DEMOSTRACIÓN{% else %}FASE 3{% endif %}</span>
     </header>
     <main id="principal">
       <div class="introduccion">
@@ -34,23 +34,68 @@
             <button id="mover" data-accion="mover" disabled>En movimiento</button>
             <button id="finalizar" class="finalizar" data-accion="finalizar" disabled>Finalizar carrera</button>
           </div>
+          <section id="recuperacion" hidden aria-labelledby="titulo-recuperacion">
+            <h3 id="titulo-recuperacion">Carrera pendiente de guardar</h3>
+            <p>No inicies otra carrera ni detengas Python. Puedes reintentar o crear una copia en otra unidad. La copia no sustituye al guardado principal.</p>
+            <button data-accion="reintentar">Reintentar guardado</button>
+            <form id="form-exportar">
+              <label for="ruta-copia">Ruta completa para un archivo CSV nuevo</label>
+              <input id="ruta-copia" name="ruta" type="text" required placeholder="C:\carpeta\copia.csv" autocomplete="off">
+              <button type="submit" id="exportar">Crear copia alternativa</button>
+            </form>
+          </section>
           <p id="mensaje" class="mensaje" role="status" aria-live="polite">Esperando conexión con el servicio local.</p>
         </section>
         <aside class="lateral" aria-label="Información de la prueba">
           <section class="tarifas">
-            <p class="ceja">TARIFAS DEL EJERCICIO</p>
+            <p class="ceja"><span id="titulo-tarifas">TARIFAS CONFIGURADAS</span></p>
             <h2>Una tarifa por estado.</h2>
-            <div class="tarifa"><span>Parado</span><strong>0,02 <small>€/s</small></strong></div>
-            <div class="tarifa"><span>En movimiento</span><strong>0,05 <small>€/s</small></strong></div>
+            <div class="tarifa"><span>Parado</span><strong><span id="tarifa-parado">—</span> <small>€/s</small></strong></div>
+            <div class="tarifa"><span>En movimiento</span><strong><span id="tarifa-mover">—</span> <small>€/s</small></strong></div>
             <p>El cambio de estado es manual. El total se redondea a céntimos al finalizar.</p>
           </section>
+          <details class="editor-tarifas">
+            <summary>Editar tarifas para la próxima carrera</summary>
+            <p>Puedes guardarlas durante una carrera. La carrera activa mantiene las tarifas con las que comenzó.</p>
+            <p id="proximas-tarifas"></p>
+            <form id="form-tarifas">
+              <label for="precio-parado">Parado · euros por segundo</label>
+              <input id="precio-parado" type="text" inputmode="decimal" required pattern="[0-9]+([.,][0-9]+)?" maxlength="22" autocomplete="off">
+              <label for="precio-mover">En movimiento · euros por segundo</label>
+              <input id="precio-mover" type="text" inputmode="decimal" required pattern="[0-9]+([.,][0-9]+)?" maxlength="22" autocomplete="off">
+              <p>Admite cero y valores positivos, hasta 12 cifras enteras y 9 decimales.</p>
+              <button type="submit" id="guardar-tarifas">Guardar tarifas</button>
+            </form>
+            <p id="mensaje-tarifas" role="status"></p>
+          </details>
           <section class="aviso">
-            <h2>Un espacio de prueba</h2>
-            <p>Esta pantalla no guarda carreras ni modifica tu historial. La contraseña todavía no está implementada.</p>
-            <p>Recargar conserva la carrera mientras el servicio siga abierto. Las pestañas comparten esta prueba; cerrar el navegador no detiene el contador. Detener Python elimina los datos de la prueba.</p>
+            <h2>{% if modo_prueba %}Demostración aislada{% else %}Datos guardados en tu equipo{% endif %}</h2>
+            <p>{% if modo_prueba %}El historial, los registros y las tarifas de esta demostración son temporales. No modifican tus datos de uso.{% else %}Las carreras finalizadas se guardan en tu historial local. Las tarifas se leen del archivo de configuración.{% endif %} La contraseña sigue pendiente.</p>
+            <p>Recargar conserva la carrera mientras el servicio siga abierto. Las pestañas comparten la carrera activa. Cerrar el navegador no detiene el contador. Detener Python puede perder una carrera activa o pendiente.</p>
           </section>
         </aside>
       </div>
+      <section class="historial-panel" aria-labelledby="titulo-historial">
+        <div class="fila"><h2 id="titulo-historial">Historial de carreras</h2>
+          <div class="filtros"><button id="historial-hoy" aria-pressed="true">Hoy</button><button id="historial-todo" aria-pressed="false">Todas</button><button id="actualizar-historial">Actualizar</button></div>
+        </div>
+        <p>El filtro de hoy usa la fecha local de finalización. Las fechas se muestran en la zona horaria del navegador.</p>
+        <p id="mensaje-historial" role="status"></p>
+        <div id="lista-historial" class="lista-historial"></div>
+      </section>
+      <details class="registro-panel">
+        <summary>Actividad y diagnóstico</summary>
+        <p>Últimos 50 eventos del archivo activo. Los registros rotan a unos 5 MiB y conservan cinco copias anteriores.</p>
+        <button id="ver-registros">Consultar registros</button>
+        <pre id="lista-registros" tabindex="0" aria-label="Eventos de actividad"></pre>
+      </details>
+      <p id="aviso-registro" role="status"></p>
+      <details class="ayuda-panel"><summary>Ayuda de uso</summary>
+        <p>Inicia una carrera en parado. Cambia a movimiento o vuelve a parado según el trayecto. Finaliza para calcular el total e intentar guardarlo. Si falla, utiliza el panel de recuperación.</p>
+        <p>Puedes editar las tarifas en cualquier momento: se aplican a la siguiente carrera. El historial muestra todas las carreras o las finalizadas hoy.</p>
+        <p>Para detener el servicio utiliza Cerrar aplicación. No se permite mientras haya una carrera activa o pendiente. Después podrás arrancarlo de nuevo desde la terminal.</p>
+      </details>
+      <button id="salir" data-accion="salir" class="cerrar">Cerrar aplicación</button>
       <noscript>Activa JavaScript para consultar el estado y utilizar los controles.</noscript>
     </main>
     <footer><span>TaxiRoute / Fase 3</span><span>Prototipo formativo · Sin validez para cobros reales</span></footer>

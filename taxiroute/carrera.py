@@ -72,6 +72,11 @@ class Carrera:
         return self._estado
 
     @property
+    def tarifas(self) -> dict[EstadoVehiculo, Decimal]:
+        """Copia de las tarifas fijadas al inicio; no permite modificar la carrera."""
+        return dict(self._tarifas)
+
+    @property
     def finalizada(self) -> bool:
         return self._finalizada
 

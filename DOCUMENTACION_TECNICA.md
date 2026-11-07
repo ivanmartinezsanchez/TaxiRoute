@@ -125,6 +125,30 @@ Se han superado las 52 pruebas locales y la comprobación de dependencias. Las s
 
 El estado provisional se comparte entre pestañas del mismo servicio y desaparece al detener Python. El cierre del navegador no detiene el contador. Estas reglas se muestran en la pantalla de prueba y se revisarán antes de conectar el historial o incorporar autenticación.
 
+#### Integración de las funciones anteriores — 7 de noviembre de 2026
+
+El primer prototipo descrito arriba se ha ampliado. ServicioCarreras, en taxiroute/servicio.py, coordina las operaciones comunes. GestorTerminal conserva los comandos y Flask utiliza el mismo servicio. El cálculo continúa en Carrera.
+
+| Función o mejora | Integración web |
+|---|---|
+| Estados, reloj monotónico y redondeo | Reutiliza Carrera y muestra el importe actualizado. |
+| Historial CSV con UUID, fechas, tiempos y tarifas | Guardado al finalizar y consulta en pantalla. |
+| Consulta diaria por finalización local | Filtros Hoy y Todas. |
+| Tarifas externas y validación | Lectura del JSON y formulario de edición. |
+| Tarifas fijas durante una carrera | Edición permitida en cualquier momento, aplicada solo a la siguiente. |
+| Errores y carrera pendiente | Mensaje con causa, reintento y copia alternativa sin sobrescritura. |
+| Duplicados y acceso simultáneo | Conserva la comprobación del CSV y los bloqueos entre procesos. |
+| Registros y rotación | Conserva RegistroActividad y muestra los últimos 50 eventos. |
+| Ayuda y salida protegida | Ayuda desplegable y cierre bloqueado con carrera activa o pendiente. |
+
+La edición de tarifas valida antes de escribir y sustituye el JSON mediante un archivo temporal. Un fallo previo a la sustitución conserva el archivo anterior. La pantalla distingue las tarifas activas de las de la siguiente carrera.
+
+El modo normal utiliza los archivos existentes. El modo --demo aísla historial, registros y tarifas en una carpeta temporal. Los ensayos del navegador se han realizado en modo demo.
+
+Se han superado 61 pruebas locales, incluidas nueve nuevas de integración que comprueban persistencia entre instancias, consulta diaria, edición de tarifas, conservación ante errores, exportación, reintento y cierre. Se han verificado en el navegador dos carreras con tarifas diferentes, su guardado y los eventos.
+
+La autenticación, las sesiones y la revisión completa de accesibilidad siguen pendientes. El archivo de carreras antiguas y la recuperación automática de escrituras interrumpidas eran mejoras futuras, no funciones ya implementadas; siguen pendientes. No se añade eliminación automática de carreras.
+
 ### Fase 4. API, panel web y despliegue
 
 La última fase ampliará el sistema con una base de datos relacional, una API REST y un panel web para consultar el historial desde un navegador. La API permitirá iniciar carreras, cambiar su estado, finalizarlas y consultar los datos registrados.

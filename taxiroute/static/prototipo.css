@@ -30,3 +30,20 @@ footer{display:flex;justify-content:space-between;gap:15px;border-top:1px solid 
 :focus-visible{outline:3px solid #dc8c21;outline-offset:4px}.saltar{position:absolute;left:16px;top:-100px;background:white;padding:12px;z-index:2}.saltar:focus{top:12px}
 @media(max-width:760px){.marco{padding:0 18px}.columnas{grid-template-columns:1fr}.introduccion{padding:28px 0 18px}.contador{padding:24px}.cabecera{padding:20px 0}.marca{font-size:23px}.etiqueta{font-size:9px;padding:7px 9px}footer{flex-direction:column}.importe{font-size:68px}}
 @media(max-width:360px){.acciones{grid-template-columns:1fr}.cabecera{flex-wrap:wrap}.contador{padding:20px}.importe{font-size:54px}.fila{flex-wrap:wrap}}
+
+[hidden]{display:none!important}
+.editor-tarifas,.historial-panel,.registro-panel,.ayuda-panel{background:#fff;border:1px solid #dce1d6;border-radius:18px;padding:24px;margin-top:20px}
+summary{cursor:pointer;font-weight:700;min-height:32px;line-height:1.5}
+label{display:block;font-size:14px;margin:14px 0 6px;font-weight:650}
+input{width:100%;min-height:48px;border:1px solid #768b7d;background:white;color:#192b27;border-radius:8px;padding:10px;font:inherit}
+form button{margin-top:12px}.editor-tarifas p,.historial-panel>p,.registro-panel p,.ayuda-panel p{font-size:13px;color:#42594b}
+.editor-tarifas button,.historial-panel button,.registro-panel button,.cerrar{background:#244e3f;color:white}
+#recuperacion{margin-top:24px;border:2px solid #e3ee91;padding:16px;border-radius:12px}
+#recuperacion p{font-size:14px}#mensaje{white-space:pre-line}#aviso-registro{color:#78350f}
+.filtros{display:flex;flex-wrap:wrap;gap:8px}.filtros button{min-height:44px;font-size:13px;padding:9px 14px}
+.lista-historial{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px;margin-top:15px}
+.carrera-historial{padding:18px;border:1px solid #cfd9cb;border-radius:12px;background:#f6f8f1}
+.carrera-historial h3{font-size:23px;margin:0 0 10px}.carrera-historial p{font-size:13px;margin:6px 0;overflow-wrap:anywhere}
+#lista-registros{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;font-size:12px}
+.cerrar{margin-top:20px}#mensaje-historial,#mensaje-tarifas{white-space:pre-line}
+@media(max-width:760px){.historial-panel>.fila{align-items:flex-start;flex-direction:column}.editor-tarifas,.historial-panel,.registro-panel,.ayuda-panel{padding:20px}}

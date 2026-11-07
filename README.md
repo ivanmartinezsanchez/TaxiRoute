@@ -63,22 +63,28 @@ python -m taxiroute
 
 Dentro del entorno activado se utiliza `python`. Para salir del entorno después de cerrar TaxiRoute, ejecuta `deactivate`. Las pruebas automatizadas se han superado en los tres sistemas; la comprobación interactiva de la terminal se ha realizado en Windows.
 
-## Prototipo web local de fase 3
+## Interfaz web local de fase 3
 
-En la rama `feature/fase-3-web-local` se está preparando la interfaz con Flask. Con el entorno activado y las dependencias instaladas:
+La interfaz Flask comparte las operaciones con la terminal mediante ServicioCarreras. Con el entorno activado, ejecuta **python -m taxiroute.web** y abre http://127.0.0.1:8765/.
 
-```bash
-python -m pip install -r requirements.txt
-python -m taxiroute.web
-```
+El modo normal utiliza el historial y los registros de la carpeta .taxiroute del usuario, y lee y edita configuracion/tarifas.json. Los cambios de ese JSON aparecen en Git.
 
-Abre [TaxiRoute local](http://127.0.0.1:8765/) en el navegador. El puerto del prototipo es 8765; el servicio escucha solo en el propio ordenador y usa el servidor de desarrollo sin depurador. Para detenerlo, pulsa Ctrl+C en la terminal donde lo arrancaste.
+Para probar sin modificar los datos ni las tarifas de uso, ejecuta **python -m taxiroute.web --demo**. Este modo utiliza archivos temporales que desaparecen al detener el servicio. La pantalla identifica el modo activo.
 
-Esta prueba utiliza las tarifas del ejercicio incluidas en `Carrera` (0,02 y 0,05 €/s). No lee las tarifas personalizadas ni escribe en el historial o registro de uso. Permite probar el inicio, los cambios de estado, la finalización y la actualización del importe.
+Funciones disponibles:
 
-El prototipo mantiene una sola carrera en memoria por proceso, compartida por las pestañas. Recargar la página conserva su estado; cerrar el navegador no finaliza la carrera. Al detener Python se pierde el estado de prueba. Estos comportamientos son provisionales y deben acordarse antes de conectar la interfaz con los datos persistentes.
+- Inicio en parado, cambio de estado, importe actualizado y finalización.
+- Guardado de carreras y consulta de todas o las finalizadas hoy.
+- Edición de tarifas durante una carrera: se aplican a la siguiente; la activa conserva las suyas.
+- Reintento del guardado y exportación de la carrera pendiente a un archivo nuevo sin sobrescribir.
+- Consulta de los últimos 50 eventos del registro activo; se mantiene la rotación y cinco copias anteriores.
+- Ayuda y cierre de la aplicación, bloqueado si hay una carrera activa o pendiente.
 
-Todavía no incorpora autenticación. La revisión local del 7 de noviembre de 2026 ha superado 52 pruebas, incluidas seis del servidor web. Se ha probado el ciclo en el navegador y una ventana de 390 píxeles sin desbordamiento horizontal. Esto no acredita compatibilidad con todos los dispositivos ni una auditoría completa de accesibilidad.
+Recargar conserva la carrera en memoria del proceso y las pestañas comparten su estado. Cerrar el navegador no detiene el contador. Detener Python puede perder una carrera activa o pendiente. Las carreras ya guardadas permanecen en disco en el modo normal.
+
+El servicio se limita al propio ordenador y utiliza un servidor de desarrollo. La autenticación y las sesiones siguen pendientes: no se considera terminada la fase 3.
+
+La revisión del 7 de noviembre de 2026 ha superado 61 pruebas locales. En el navegador se han comprobado el guardado, la consulta, los eventos y la edición de tarifas durante una carrera, aplicadas a la siguiente. Se ha revisado una ventana de 390 píxeles sin desbordamiento horizontal. La validación completa de accesibilidad sigue pendiente.
 
 ## Comandos de la aplicación
 

@@ -2,6 +2,8 @@
 
 from decimal import Decimal, InvalidOperation
 import json
+import os
+import tempfile
 from pathlib import Path
 import re
 
@@ -32,6 +34,11 @@ def cargar_tarifas(ruta):
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ConfiguracionError(f"No se puede leer el archivo de tarifas: {error}") from error
 
+    return validar_tarifas(datos)
+
+
+def validar_tarifas(datos):
+    """La lectura y la edición utilizan exactamente las mismas reglas."""
     campos = {'parado': EstadoVehiculo.PARADO, 'en_movimiento': EstadoVehiculo.EN_MOVIMIENTO}
     if not isinstance(datos, dict) or set(datos) != set(campos):
         raise ConfiguracionError("El archivo debe contener solo 'parado' y 'en_movimiento'")
@@ -50,3 +57,20 @@ def cargar_tarifas(ruta):
         except InvalidOperation as error:
             raise ConfiguracionError(f"La tarifa '{nombre}' no es válida") from error
     return tarifas
+
+
+def guardar_tarifas(ruta, datos):
+    """Valida antes de escribir y sustituye el JSON completo, sin escritura parcial."""
+    validar_tarifas(datos)
+    ruta = Path(ruta)
+    descriptor, nombre = tempfile.mkstemp(prefix=".tarifas-", suffix=".tmp", dir=ruta.parent)
+    temporal = Path(nombre)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as archivo:
+            json.dump(datos, archivo, ensure_ascii=False, indent=2)
+            archivo.write("\n")
+            archivo.flush()
+            os.fsync(archivo.fileno())
+        os.replace(temporal, ruta)
+    finally:
+        temporal.unlink(missing_ok=True)
