@@ -63,6 +63,23 @@ python -m taxiroute
 
 Dentro del entorno activado se utiliza `python`. Para salir del entorno después de cerrar TaxiRoute, ejecuta `deactivate`. Las pruebas automatizadas se han superado en los tres sistemas; la comprobación interactiva de la terminal se ha realizado en Windows.
 
+## Prototipo web local de fase 3
+
+En la rama `feature/fase-3-web-local` se está preparando la interfaz con Flask. Con el entorno activado y las dependencias instaladas:
+
+```bash
+python -m pip install -r requirements.txt
+python -m taxiroute.web
+```
+
+Abre [TaxiRoute local](http://127.0.0.1:8765/) en el navegador. El puerto del prototipo es 8765; el servicio escucha solo en el propio ordenador y usa el servidor de desarrollo sin depurador. Para detenerlo, pulsa Ctrl+C en la terminal donde lo arrancaste.
+
+Esta prueba utiliza las tarifas del ejercicio incluidas en `Carrera` (0,02 y 0,05 €/s). No lee las tarifas personalizadas ni escribe en el historial o registro de uso. Permite probar el inicio, los cambios de estado, la finalización y la actualización del importe.
+
+El prototipo mantiene una sola carrera en memoria por proceso, compartida por las pestañas. Recargar la página conserva su estado; cerrar el navegador no finaliza la carrera. Al detener Python se pierde el estado de prueba. Estos comportamientos son provisionales y deben acordarse antes de conectar la interfaz con los datos persistentes.
+
+Todavía no incorpora autenticación. La revisión local del 7 de noviembre de 2026 ha superado 52 pruebas, incluidas seis del servidor web. Se ha probado el ciclo en el navegador y una ventana de 390 píxeles sin desbordamiento horizontal. Esto no acredita compatibilidad con todos los dispositivos ni una auditoría completa de accesibilidad.
+
 ## Comandos de la aplicación
 
 | Comando | Función |

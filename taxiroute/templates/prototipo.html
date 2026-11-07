@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="taxiroute-token" content="{{ token }}">
+  <title>TaxiRoute · Taxímetro local</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='prototipo.css') }}">
+  <script src="{{ url_for('static', filename='prototipo.js') }}" defer></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Saltar al taxímetro</a>
+  <div class="marco">
+    <header class="cabecera">
+      <a class="marca" href="/" aria-label="TaxiRoute, inicio"><span class="simbolo" aria-hidden="true">↗</span> TaxiRoute<span class="punto">.</span></a>
+      <span class="etiqueta">LOCAL · PROTOTIPO</span>
+    </header>
+    <main id="principal">
+      <div class="introduccion">
+        <p class="ceja">TU TRAYECTO, BAJO CONTROL</p>
+        <h1>Cada segundo cuenta.</h1>
+        <p>Gestiona la carrera y consulta su importe en tiempo real.</p>
+      </div>
+      <div class="columnas">
+        <section class="contador" aria-labelledby="titulo-contador">
+          <div class="fila"><h2 id="titulo-contador">Taxímetro</h2><span id="conexion">Conectando…</span></div>
+          <p id="estado" class="estado">Consultando estado</p>
+          <p id="etiqueta-importe" class="leyenda">Importe de la carrera</p>
+          <p class="importe"><span id="importe">—</span><span class="moneda"> €</span></p>
+          <p class="nota-importe">El importe se calcula en Python y se consulta cada segundo.</p>
+          <div class="acciones" aria-label="Controles de carrera">
+            <button id="iniciar" class="primario" data-accion="iniciar" disabled>Iniciar carrera <span aria-hidden="true">↗</span></button>
+            <button id="parar" data-accion="parar" disabled>Parado</button>
+            <button id="mover" data-accion="mover" disabled>En movimiento</button>
+            <button id="finalizar" class="finalizar" data-accion="finalizar" disabled>Finalizar carrera</button>
+          </div>
+          <p id="mensaje" class="mensaje" role="status" aria-live="polite">Esperando conexión con el servicio local.</p>
+        </section>
+        <aside class="lateral" aria-label="Información de la prueba">
+          <section class="tarifas">
+            <p class="ceja">TARIFAS DEL EJERCICIO</p>
+            <h2>Una tarifa por estado.</h2>
+            <div class="tarifa"><span>Parado</span><strong>0,02 <small>€/s</small></strong></div>
+            <div class="tarifa"><span>En movimiento</span><strong>0,05 <small>€/s</small></strong></div>
+            <p>El cambio de estado es manual. El total se redondea a céntimos al finalizar.</p>
+          </section>
+          <section class="aviso">
+            <h2>Un espacio de prueba</h2>
+            <p>Esta pantalla no guarda carreras ni modifica tu historial. La contraseña todavía no está implementada.</p>
+            <p>Recargar conserva la carrera mientras el servicio siga abierto. Las pestañas comparten esta prueba; cerrar el navegador no detiene el contador. Detener Python elimina los datos de la prueba.</p>
+          </section>
+        </aside>
+      </div>
+      <noscript>Activa JavaScript para consultar el estado y utilizar los controles.</noscript>
+    </main>
+    <footer><span>TaxiRoute / Fase 3</span><span>Prototipo formativo · Sin validez para cobros reales</span></footer>
+  </div>
+</body>
+</html>

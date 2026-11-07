@@ -113,6 +113,18 @@ La primera revisión deberá comprobar que los controles se pueden usar con tecl
 
 Fuentes de la selección: [diseño de Flask](https://flask.palletsprojects.com/en/stable/design/), [características de FastAPI](https://fastapi.tiangolo.com/features/) y [visión general de Django](https://www.djangoproject.com/start/overview/).
 
+#### Resultado del primer prototipo — 7 de noviembre de 2026
+
+Se ha preparado una aplicación aislada mediante `crear_app()`, en `taxiroute/web.py`. Reutiliza `Carrera` y mantiene su estado en memoria bajo un bloqueo entre hilos. Las rutas del prototipo consultan el estado y reciben acciones; no escriben en los archivos de historial o actividad. Una revisión numérica impide aplicar órdenes duplicadas o desactualizadas después de otra acción.
+
+La plantilla está en `taxiroute/templates/prototipo.html`; los estilos y la interacción se encuentran en `taxiroute/static/`. El navegador consulta el importe cada segundo, limita las acciones disponibles según el estado y avisa cuando no puede confirmar la conexión. El importe se recibe como cadena decimal calculada por Python.
+
+El servicio escucha en `127.0.0.1:8765`, sin depurador. Las operaciones requieren un token de la instancia y rechazan orígenes externos; también se validan los nombres de host. Estas medidas no equivalen a autenticación: la contraseña y las sesiones siguen pendientes.
+
+Se han superado las 52 pruebas locales y la comprobación de dependencias. Las seis pruebas nuevas verifican cálculo, transiciones, rechazo de peticiones sin token u origen permitido, revisión de acciones y aislamiento entre instancias. En el navegador se han comprobado inicio, movimiento, finalización y recarga, además del diseño a 390 píxeles de ancho sin desbordamiento horizontal. La comprobación completa de accesibilidad, navegación por teclado y fallos de comunicación en el navegador permanece pendiente.
+
+El estado provisional se comparte entre pestañas del mismo servicio y desaparece al detener Python. El cierre del navegador no detiene el contador. Estas reglas se muestran en la pantalla de prueba y se revisarán antes de conectar el historial o incorporar autenticación.
+
 ### Fase 4. API, panel web y despliegue
 
 La última fase ampliará el sistema con una base de datos relacional, una API REST y un panel web para consultar el historial desde un navegador. La API permitirá iniciar carreras, cambiar su estado, finalizarlas y consultar los datos registrados.
@@ -182,7 +194,7 @@ Para el primer entregable se utiliza la biblioteca estándar de Python para el c
 | Integración continua | GitHub Actions con Python 3.13 |
 | Control de versiones | Git y GitHub |
 | Organización del trabajo | GitHub Projects, con una columna por fase |
-| Interfaz web local de fase 3 | Flask, HTML, CSS y JavaScript; elección aprobada, implementación pendiente |
+| Interfaz web local de fase 3 | Flask, HTML, CSS y JavaScript; prototipo en evaluación |
 | API y base de datos de fase 4 | Diseño que se concretará al preparar esa entrega |
 
 La elección de la interfaz local se recoge en el apartado de fase 3. Las decisiones de API y base de datos se concretarán en la fase 4. La decisión tendrá en cuenta el tipo de dispositivo, la facilidad de mantenimiento, las necesidades de acceso y el despliegue.
