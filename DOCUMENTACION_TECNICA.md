@@ -87,6 +87,32 @@ En esta etapa se organizará la aplicación en componentes con responsabilidades
 
 Se desarrollará una interfaz adecuada para su uso en una tablet. El conductor deberá poder identificar el estado del vehículo y el importe de un vistazo, interactuar mediante controles táctiles y utilizar la aplicación sin que la pantalla se bloquee durante el cálculo.
 
+#### Elección de la interfaz local — 6 de noviembre de 2026
+
+La fase 3 utilizará Flask con HTML, CSS y JavaScript. La aplicación se ejecutará en el ordenador y se abrirá desde su navegador. El servicio Python escuchará únicamente en la interfaz local `127.0.0.1`; no se contratará alojamiento ni se habilitará acceso desde Internet o desde otros dispositivos de la red.
+
+El diseño será responsive: se adaptará a distintos tamaños de ventana. Esto no equivale a disponer de una aplicación instalada en Android o iPad. El funcionamiento autónomo en esos dispositivos queda fuera del alcance confirmado. Los recursos de la interfaz se incluirán en el proyecto para evitar dependencias de Internet durante el uso; la instalación inicial de las dependencias sí puede requerir conexión.
+
+| Componente | Elección y motivo | Alternativas consideradas | Coste y mantenimiento | Validación pendiente y condición de revisión |
+|---|---|---|---|---|
+| Servidor web local | Flask permite añadir vistas y conectar las operaciones con la lógica Python existente. | FastAPI aporta validación y documentación de APIs; es viable, pero no resulta imprescindible para la primera interfaz. Django incluye autenticación y administración, a cambio de una estructura más amplia. | No requiere contratar alojamiento. Hay que mantener las dependencias, las sesiones y la configuración del servicio local. | Probar actualización del importe, coordinación de peticiones y cierre del proceso. Revisar la elección si cambia el alcance hacia múltiples usuarios o servicios. |
+| Presentación | HTML, CSS y JavaScript permiten construir una interfaz adaptable y controlar su comportamiento en el navegador. | Tkinter y PySide6 permitirían interfaces de escritorio; no cumplen por sí solos la decisión de usar el navegador. Un framework de interfaz añadiría herramientas que aún no se han justificado. | Requiere desarrollar y mantener estilos, interacción y accesibilidad. | Probar teclado, foco, zoom, tamaños de pantalla y estados de error. Revisar si la complejidad de la interfaz crece. |
+| Lógica y persistencia | Se reutilizan el cálculo Python, el historial CSV y las tarifas JSON de la fase 2. | La base de datos relacional corresponde a la fase 4. | Evita duplicar las reglas de cálculo; exige separar la coordinación de las carreras de los mensajes de terminal. | Mantener las pruebas existentes y añadir pruebas del servicio compartido y la interfaz web. |
+
+Python seguirá siendo la fuente del estado y del importe de la carrera. JavaScript enviará las acciones y actualizará la presentación; no sustituirá el cálculo de negocio. La interfaz de terminal seguirá disponible.
+
+La autenticación por contraseña forma parte de la fase 3, pero aún deben concretarse su configuración inicial, la gestión de sesiones y la recuperación de acceso. El servicio local también deberá validar las peticiones y proteger las operaciones frente a solicitudes no autorizadas. Escuchar en `127.0.0.1` no sustituye esos controles. Las bibliotecas de autenticación y el servidor de ejecución se elegirán antes de implementar esas partes.
+
+La interfaz necesitará rutas locales para consultar el estado y realizar acciones. La fase 4 mantendrá como entregables propios la API REST formal, la base de datos, el panel de gestión y el despliegue. La elección de Flask no obliga a cambiar de framework al llegar a esa fase.
+
+#### Primera comprobación prevista
+
+Se preparará un prototipo acotado para comprobar una pantalla adaptable y la actualización del importe sin recargar la página. Se utilizarán datos de prueba separados del historial de uso. Antes de ampliar la implementación se revisará el resultado visual y se acordará qué debe ocurrir al recargar, abrir varias pestañas o cerrar el navegador durante una carrera. Estas decisiones permanecen pendientes; no se presentan como comportamientos ya implementados.
+
+La primera revisión deberá comprobar que los controles se pueden usar con teclado, que no hay desplazamiento horizontal innecesario en una pantalla estrecha y que un fallo de comunicación se distingue de un importe actualizado. La validación visual no dará por completada la autenticación ni la accesibilidad de toda la aplicación.
+
+Fuentes de la selección: [diseño de Flask](https://flask.palletsprojects.com/en/stable/design/), [características de FastAPI](https://fastapi.tiangolo.com/features/) y [visión general de Django](https://www.djangoproject.com/start/overview/).
+
 ### Fase 4. API, panel web y despliegue
 
 La última fase ampliará el sistema con una base de datos relacional, una API REST y un panel web para consultar el historial desde un navegador. La API permitirá iniciar carreras, cambiar su estado, finalizarlas y consultar los datos registrados.
@@ -156,9 +182,10 @@ Para el primer entregable se utiliza la biblioteca estándar de Python para el c
 | Integración continua | GitHub Actions con Python 3.13 |
 | Control de versiones | Git y GitHub |
 | Organización del trabajo | GitHub Projects, con una columna por fase |
-| Interfaz visual, API y base de datos | Herramientas que se elegirán y justificarán al preparar cada fase |
+| Interfaz web local de fase 3 | Flask, HTML, CSS y JavaScript; elección aprobada, implementación pendiente |
+| API y base de datos de fase 4 | Diseño que se concretará al preparar esa entrega |
 
-Las alternativas para la interfaz visual, la API y la base de datos se evaluarán en el momento de abordar esas entregas. La decisión tendrá en cuenta el tipo de dispositivo, la facilidad de mantenimiento, las necesidades de acceso y el despliegue.
+La elección de la interfaz local se recoge en el apartado de fase 3. Las decisiones de API y base de datos se concretarán en la fase 4. La decisión tendrá en cuenta el tipo de dispositivo, la facilidad de mantenimiento, las necesidades de acceso y el despliegue.
 
 ## 7. Experiencia de uso y accesibilidad
 
