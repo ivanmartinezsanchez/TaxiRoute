@@ -2,6 +2,7 @@
 
 No se expone en la web ni crea por sí sola una instalación de uso real.
 """
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parseaddr
 from pathlib import Path
@@ -10,11 +11,19 @@ import unicodedata
 from uuid import uuid4
 
 from taxiroute.base_cuentas import IDENTIFICADOR_APLICACION, VERSION_ESQUEMA
+from taxiroute.codigos_recuperacion_experimentales import generar_codigos_en_transaccion
 from taxiroute.cuentas import CuentaCreada, DatosCuentaInvalidos, _PROTECTOR, normalizar_usuario, validar_contrasena
 
 
 class InicializacionDenegada(ValueError):
     """La base no está disponible para inicializar la primera cuenta."""
+
+
+@dataclass(frozen=True)
+class PreparacionConCodigos:
+    """El llamador debe entregar los códigos de forma privada y evitar registrarlos."""
+    cuenta: CuentaCreada
+    codigos: tuple[str, ...] = field(repr=False)
 
 
 def preparar_primer_administrador(ruta, *, nombre_usuario, nombre_visible, contrasena, correo):
@@ -25,6 +34,24 @@ def preparar_primer_administrador(ruta, *, nombre_usuario, nombre_visible, contr
     La contraseña es temporal y deberá cambiarse tras la verificación del PIN.
     No envía correo, ni configura OAuth, ni inicia un servidor.
     """
+    cuenta, _ = _preparar(ruta, nombre_usuario=nombre_usuario, nombre_visible=nombre_visible,
+                          contrasena=contrasena, correo=correo, emitir_codigos=False)
+    return cuenta
+
+
+def preparar_primer_administrador_con_codigos(ruta, *, nombre_usuario, nombre_visible, contrasena, correo):
+    """Crea cuenta, correo y códigos juntos; devuelve los códigos tras confirmar.
+
+    Es una operación interna, sin interfaz de entrega ni recuperación todavía.
+    La persona integradora debe entregar los códigos de forma privada; si se
+    pierden, este componente aún no ofrece un procedimiento para reemplazarlos.
+    """
+    cuenta, codigos = _preparar(ruta, nombre_usuario=nombre_usuario, nombre_visible=nombre_visible,
+                               contrasena=contrasena, correo=correo, emitir_codigos=True)
+    return PreparacionConCodigos(cuenta, codigos)
+
+
+def _preparar(ruta, *, nombre_usuario, nombre_visible, contrasena, correo, emitir_codigos):
     ruta = Path(ruta)
     if ruta.is_symlink() or not ruta.is_file():
         raise InicializacionDenegada("Se necesita una base de cuentas existente y preparada.")
@@ -61,10 +88,11 @@ def preparar_primer_administrador(ruta, *, nombre_usuario, nombre_visible, contr
                 (identificador, nombre, normalizado, visible, protegido, fecha, fecha))
             conexion.execute("INSERT INTO configuracion_administrador (usuario_id, correo_verificacion) VALUES (?, ?)",
                              (identificador, correo))
+            codigos = generar_codigos_en_transaccion(conexion, identificador) if emitir_codigos else ()
             conexion.commit()
         except BaseException:
             conexion.rollback()
             raise
     finally:
         conexion.close()
-    return CuentaCreada(identificador, nombre, visible, "administrador", True)
+    return CuentaCreada(identificador, nombre, visible, "administrador", True), codigos

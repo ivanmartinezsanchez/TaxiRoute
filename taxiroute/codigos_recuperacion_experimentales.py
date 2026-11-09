@@ -1,6 +1,6 @@
 """Primitivas internas para códigos de recuperación; no autorizan accesos.
 
-Su esquema todavía no está integrado en la base de la aplicación. El futuro
+Su tabla forma parte de la base de cuentas desde la versión 11. El futuro
 flujo debe comprobar la contraseña, limitar intentos y consumir el código,
 desbloquear, revocar sesiones y auditar dentro de la misma transacción.
 """

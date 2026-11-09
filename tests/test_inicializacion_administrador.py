@@ -6,10 +6,13 @@ from secrets import token_bytes
 import sqlite3
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.cuentas import DatosCuentaInvalidos, _PROTECTOR, crear_cuenta
-from taxiroute.inicializacion_administrador import InicializacionDenegada, preparar_primer_administrador
+from taxiroute.inicializacion_administrador import (InicializacionDenegada, preparar_primer_administrador,
+    preparar_primer_administrador_con_codigos)
+from taxiroute.codigos_recuperacion_experimentales import consumir_codigo_en_transaccion
 from taxiroute.cambio_administrador import cambiar_contrasena_administrador
 from taxiroute.pin import ServicioPIN
 from taxiroute.acceso import comprobar_credenciales, PasoAcceso
@@ -47,6 +50,64 @@ class PruebasPrimerAdministrador(unittest.TestCase):
         with conectar(self.ruta) as conexion:
             self.assertEqual(conexion.execute("SELECT id FROM usuarios").fetchall()[0][0], primera.id)
             self.assertEqual(conexion.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0], 1)
+
+    def test_crea_admin_y_codigos_conjuntamente_sin_mostrarlos_en_repr(self):
+        resultado = preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos)
+        self.assertEqual(len(set(resultado.codigos)), 5)
+        self.assertTrue(resultado.cuenta.cambio_obligatorio)
+        for codigo in resultado.codigos:
+            self.assertNotIn(codigo, repr(resultado))
+        with conectar(self.ruta) as conexion:
+            filas = conexion.execute("SELECT usuario_id, verificador FROM codigos_recuperacion").fetchall()
+            self.assertEqual(len(filas), 5)
+            self.assertTrue(all(fila[0] == resultado.cuenta.id and fila[1] not in resultado.codigos for fila in filas))
+            conexion.execute("BEGIN IMMEDIATE")
+            self.assertTrue(consumir_codigo_en_transaccion(conexion, resultado.cuenta.id, resultado.codigos[0]))
+            conexion.rollback()
+
+    def test_error_al_generar_codigos_revierte_toda_la_inicializacion(self):
+        with patch("taxiroute.inicializacion_administrador.generar_codigos_en_transaccion",
+                   side_effect=OSError("fallo simulado")):
+            with self.assertRaises(OSError):
+                preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos)
+        with conectar(self.ruta) as conexion:
+            for tabla in ("usuarios", "configuracion_administrador", "codigos_recuperacion"):
+                self.assertEqual(conexion.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0], 0)
+        resultado = preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos)
+        self.assertEqual(len(resultado.codigos), 5)
+
+    def test_no_emite_segundo_lote_sobre_cuenta_existente(self):
+        resultado = preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos)
+        with self.assertRaises(InicializacionDenegada):
+            preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos)
+        with conectar(self.ruta) as conexion:
+            self.assertEqual(conexion.execute("SELECT COUNT(*) FROM codigos_recuperacion WHERE usuario_id=?",
+                                              (resultado.cuenta.id,)).fetchone()[0], 5)
+
+    def test_dos_altas_con_codigos_solo_producen_un_lote(self):
+        def intentar(numero):
+            try:
+                return preparar_primer_administrador_con_codigos(self.ruta,
+                    **(self.argumentos | {"nombre_usuario": f"Admin{numero}"}))
+            except InicializacionDenegada:
+                return None
+        with ThreadPoolExecutor(max_workers=2) as ejecutor:
+            resultados = list(ejecutor.map(intentar, (1, 2)))
+        self.assertEqual(sum(resultado is not None for resultado in resultados), 1)
+        with conectar(self.ruta) as conexion:
+            self.assertEqual(conexion.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0], 1)
+            self.assertEqual(conexion.execute("SELECT COUNT(*) FROM codigos_recuperacion").fetchone()[0], 5)
+
+    def test_fallo_a_mitad_del_lote_revierte_tambien_cuenta_y_correo(self):
+        with conectar(self.ruta) as conexion:
+            conexion.execute("""CREATE TRIGGER fallo_segundo_codigo BEFORE INSERT ON codigos_recuperacion
+                WHEN (SELECT COUNT(*) FROM codigos_recuperacion) > 0
+                BEGIN SELECT RAISE(ABORT, 'fallo simulado'); END""")
+        with self.assertRaises(sqlite3.IntegrityError):
+            preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos)
+        with conectar(self.ruta) as conexion:
+            for tabla in ("usuarios", "configuracion_administrador", "codigos_recuperacion"):
+                self.assertEqual(conexion.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0], 0)
 
     def test_cuenta_nueva_verifica_pin_y_cambia_contrasena(self):
         self.preparar()
