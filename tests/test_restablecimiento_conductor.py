@@ -119,6 +119,7 @@ class PruebasRestablecimiento(unittest.TestCase):
             for sentencia in MIGRACION_AUDITORIA_V7:
                 c.execute(sentencia)
             c.execute("INSERT INTO auditoria_cuentas(actor_id, afectado_id, accion, fecha) VALUES (?, ?, 'alta', ?)", (self.admin, self.conductor, self.fecha.isoformat()))
+            c.execute('DROP TABLE codigos_recuperacion')
             c.execute('PRAGMA user_version=7')
             c.commit()
         inicializar_base(self.ruta)

@@ -3,8 +3,9 @@ from contextlib import contextmanager
 from pathlib import Path
 import sqlite3
 
+from taxiroute.codigos_recuperacion_experimentales import CREAR_TABLA_CODIGOS
 
-VERSION_ESQUEMA = 10
+VERSION_ESQUEMA = 11
 # Marca propia para no confundir una base ajena con la de TaxiRoute.
 IDENTIFICADOR_APLICACION = 0x54585254
 
@@ -265,10 +266,14 @@ def inicializar_base(ruta: str | Path) -> None:
                 for sentencia in MIGRACION_RECIBOS_V10:
                     conexion.execute(sentencia)
                 version = 10
+            if version == 10:
+                conexion.execute(CREAR_TABLA_CODIGOS)
+                version = 11
                 conexion.execute(f"PRAGMA user_version = {version}")
             for tabla in ("usuarios", "configuracion_administrador", "desafios_acceso",
                           "autorizaciones_cambio", "sesiones", "auditoria_cuentas",
-                          "carreras_recuperacion", "intenciones_operacion", "recibos_operacion"):
+                          "carreras_recuperacion", "intenciones_operacion", "recibos_operacion",
+                          "codigos_recuperacion"):
                 if conexion.execute(
                     "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?", (tabla,)
                 ).fetchone() is None:

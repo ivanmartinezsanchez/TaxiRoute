@@ -119,6 +119,7 @@ class PruebasIntenciones(unittest.TestCase):
         with conectar(self.ruta) as conexion:
             conexion.execute("DROP TABLE recibos_operacion")
             conexion.execute("DROP TABLE intenciones_operacion")
+            conexion.execute("DROP TABLE codigos_recuperacion")
             conexion.execute("PRAGMA user_version=8")
         with patch("taxiroute.base_cuentas.MIGRACION_INTENCIONES_V9",
                    ("CREATE TABLE temporal_prueba (x INTEGER)", "SQL INVALIDO")):

@@ -196,7 +196,7 @@ Para probar el recorrido durable experimental se puede añadir `--durable`. En e
 
 Después se abre `https://127.0.0.1:8767/`. El servidor muestra las credenciales ficticias y el código de prueba en su terminal. El navegador puede advertir que el certificado de prueba no es de confianza. El código no debe reutilizarse como configuración de producción.
 
-Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
+Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. Al abrir una demo ficticia anterior reconocida, actualiza la base de cuentas de la versión 10 a la 11 con una transacción, sin generar códigos de recuperación. Una versión antigua de la aplicación puede no reconocer la base actualizada. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
 
 ### Demostración integrada con Docker
 

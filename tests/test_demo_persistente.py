@@ -7,10 +7,33 @@ from uuid import uuid4
 import unittest
 
 from taxiroute.bloqueo import HistorialOcupado
+from taxiroute.base_cuentas import VERSION_ESQUEMA, conectar
 from taxiroute.demo_integrada import CLAVE_CONDUCTOR_DEMO, demo_persistente
 
 
 class PruebasDemoPersistente(unittest.TestCase):
+    def test_migra_demo_anterior_y_conserva_carrera_pendiente(self):
+        with TemporaryDirectory() as temporal:
+            carpeta = Path(temporal) / "demo"
+            base, origen = "https://localhost", {"Origin": "https://localhost"}
+            with demo_persistente(carpeta, mostrar_codigo=lambda _: None) as app:
+                cliente = app.test_client()
+                self.assertEqual(cliente.post("/acceso/conductor", base_url=base, headers=origen,
+                    json={"usuario": "AnaDemo", "contrasena": CLAVE_CONDUCTOR_DEMO}).status_code, 200)
+                self.assertEqual(cliente.post("/api/carrera/iniciar", base_url=base, headers=origen,
+                    json={"revision": 0, "id_operacion": str(uuid4())}).status_code, 200)
+            with conectar(carpeta / "cuentas.sqlite3") as conexion:
+                conexion.execute("DROP TABLE codigos_recuperacion")
+                conexion.execute("PRAGMA user_version=10")
+            with demo_persistente(carpeta, mostrar_codigo=lambda _: None) as app:
+                cliente = app.test_client()
+                self.assertEqual(cliente.post("/acceso/conductor", base_url=base, headers=origen,
+                    json={"usuario": "AnaDemo", "contrasena": CLAVE_CONDUCTOR_DEMO}).status_code, 200)
+                self.assertEqual(cliente.get("/api/carrera", base_url=base).status_code, 409)
+                self.assertEqual(cliente.get("/api/recuperacion/pendiente", base_url=base).json["pendiente"]["estado"], "activa")
+            with conectar(carpeta / "cuentas.sqlite3") as conexion:
+                self.assertEqual(conexion.execute("PRAGMA user_version").fetchone()[0], VERSION_ESQUEMA)
+
     def test_reinicio_detecta_carrera_y_conserva_archivos(self):
         with TemporaryDirectory() as temporal:
             carpeta = Path(temporal) / "demo"

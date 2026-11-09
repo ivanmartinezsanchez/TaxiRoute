@@ -7,7 +7,7 @@ import unittest
 
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.codigos_recuperacion_experimentales import (
-    CREAR_TABLA_CODIGOS, consumir_codigo_en_transaccion, generar_codigos_en_transaccion,
+    consumir_codigo_en_transaccion, generar_codigos_en_transaccion,
 )
 from taxiroute.cuentas import crear_cuenta
 
@@ -22,8 +22,6 @@ class PruebasCodigosRecuperacion(unittest.TestCase):
                                   contrasena="AdminPrueba123!", rol="administrador")
         self.conductor = crear_cuenta(self.ruta, nombre_usuario="Conductor", nombre_visible="Prueba",
                                       contrasena="Conductor123!", rol="conductor")
-        with conectar(self.ruta) as conexion:
-            conexion.execute(CREAR_TABLA_CODIGOS)
 
     def generar(self):
         with conectar(self.ruta) as conexion:

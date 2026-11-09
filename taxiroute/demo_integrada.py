@@ -105,6 +105,8 @@ def demo_persistente(carpeta, *, mostrar_codigo):
                 ).fetchall()
                 if cuentas != [("AdminDemo", "administrador", "demo@example.invalid")]:
                     raise ValueError("Las cuentas no corresponden a la demostración ficticia.")
+            # Solo se actualiza una demo reconocida, mientras se mantiene su bloqueo.
+            inicializar_base(carpeta / "cuentas.sqlite3")
             app = _armar_demo(carpeta, mostrar_codigo=mostrar_codigo, durable=True)
         app.config["DEMO_PERSISTENTE"] = True
         yield app

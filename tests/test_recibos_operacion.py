@@ -83,6 +83,7 @@ class PruebasRecibosOperacion(unittest.TestCase):
     def test_migracion_v9_conserva_datos_y_revierte_si_falla(self):
         with conectar(self.ruta) as conexion:
             conexion.execute("DROP TABLE recibos_operacion")
+            conexion.execute("DROP TABLE codigos_recuperacion")
             conexion.execute("PRAGMA user_version=9")
         with patch("taxiroute.base_cuentas.MIGRACION_RECIBOS_V10",
                    ("CREATE TABLE prueba_temporal (x INTEGER)", "SQL INVALIDO")):

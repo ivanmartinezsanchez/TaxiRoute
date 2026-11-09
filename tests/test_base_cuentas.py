@@ -109,6 +109,7 @@ class PruebasBaseCuentas(unittest.TestCase):
             conexion.execute(MIGRACION_AUDITORIA)
             conexion.execute("INSERT INTO auditoria_cuentas(id, actor_id, afectado_id, accion, fecha) VALUES (7, ?, ?, 'revocar', ?)",
                              ("admin", "conductor", "2026-11-08T10:00:00+00:00"))
+            conexion.execute("DROP TABLE codigos_recuperacion")
             conexion.execute("PRAGMA user_version=6")
 
     def test_migracion_6_a_7_conserva_auditoria_y_admite_alta(self):
