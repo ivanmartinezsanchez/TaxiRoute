@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acceder · TaxiRoute</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='acceso.css') }}">
+  <script src="{{ url_for('static', filename='acceso.js') }}" defer></script>
+</head>
+<body>
+  <a class="saltar" href="#principal">Saltar al formulario</a>
+  <div class="marco">
+    <header class="cabecera">
+      <span class="marca"><span class="simbolo" aria-hidden="true">↗</span> TaxiRoute<span class="punto">.</span></span>
+      <span class="etiqueta">ACCESO</span>
+    </header>
+    <main id="principal" class="contenedor">
+      <section class="introduccion" aria-labelledby="titulo-pagina">
+        <p class="ceja">TU TRAYECTO, BAJO CONTROL</p>
+        <h1 id="titulo-pagina">Bienvenido a TaxiRoute.</h1>
+        <p>Accede a tu cuenta para gestionar tus carreras.</p>
+      </section>
+      <section class="tarjeta" aria-labelledby="titulo-formulario">
+        <p class="ceja">TU CUENTA</p>
+        <h2 id="titulo-formulario">Iniciar sesión</h2>
+        <p id="mensaje" class="mensaje" role="status" aria-live="polite" aria-atomic="true"></p>
+        <noscript><p class="aviso">Para iniciar sesión necesitas tener JavaScript activado.</p></noscript>
+        <form id="form-acceso" method="post" action="/acceso/conductor">
+          <label for="tipo">Tipo de cuenta</label>
+          <select id="tipo" name="tipo" required>
+            <option value="conductor">Conductor</option>
+            <option value="administrador">Administrador</option>
+          </select>
+          <label for="usuario">Usuario</label>
+          <input id="usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="40" required>
+          <label for="contrasena">Contraseña</label>
+          <div class="campo-clave">
+            <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" maxlength="128" required>
+            <button class="mostrar" type="button" data-mostrar="contrasena" aria-controls="contrasena" aria-pressed="false">Mostrar</button>
+          </div>
+          <button class="principal" type="submit">Continuar</button>
+          <button id="ir-cambio-conductor" class="secundario" type="button">Cambiar contraseña de conductor</button>
+        </form>
+        <form id="form-cambio-conductor" method="post" action="/acceso/conductor/cambio" hidden>
+          <p>Usa este formulario para cambiar tu contraseña temporal o actual.</p>
+          <label for="usuario-cambio">Usuario</label>
+          <input id="usuario-cambio" autocomplete="username" maxlength="40" required>
+          <label for="actual-conductor">Contraseña actual</label>
+          <input id="actual-conductor" type="password" autocomplete="current-password" maxlength="128" required>
+          <label for="nueva-conductor">Contraseña nueva</label>
+          <input id="nueva-conductor" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="reglas-conductor" required>
+          <p id="reglas-conductor" class="ayuda">De 12 a 128 caracteres, con al menos una mayúscula, tres minúsculas, tres números y un símbolo.</p>
+          <label for="confirmar-conductor">Repite la contraseña nueva</label>
+          <input id="confirmar-conductor" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+          <button class="principal" type="submit">Cambiar contraseña</button>
+          <button class="secundario volver" type="button">Volver al inicio de sesión</button>
+        </form>
+        <form id="form-pin" method="post" action="/acceso/administrador/pin" hidden>
+          <p>Introduce el código de siete cifras enviado al correo configurado. Caduca a los cinco minutos.</p>
+          <label for="codigo">Código de verificación</label>
+          <input id="codigo" name="codigo" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{7}" minlength="7" maxlength="7" required>
+          <button class="principal" type="submit">Verificar código</button>
+          <button class="secundario volver" type="button">Volver al inicio de sesión</button>
+        </form>
+        <form id="form-cambio" method="post" action="/acceso/administrador/cambio" hidden>
+          <p>Debes establecer una contraseña nueva antes de continuar.</p>
+          <p id="ayuda-clave" class="ayuda">De 12 a 128 caracteres, con al menos una mayúscula, tres minúsculas, tres números y un símbolo.</p>
+          <label for="nueva">Contraseña nueva</label>
+          <div class="campo-clave">
+            <input id="nueva" name="contrasena_nueva" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="ayuda-clave" required>
+            <button class="mostrar" type="button" data-mostrar="nueva" aria-controls="nueva" aria-pressed="false">Mostrar</button>
+          </div>
+          <label for="confirmacion">Repite la contraseña nueva</label>
+          <input id="confirmacion" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+          <button class="principal" type="submit">Cambiar contraseña</button>
+          <button class="secundario volver" type="button">Volver al inicio de sesión</button>
+        </form>
+      </section>
+    </main>
+    <footer>TaxiRoute · acceso a la aplicación</footer>
+  </div>
+</body>
+</html>

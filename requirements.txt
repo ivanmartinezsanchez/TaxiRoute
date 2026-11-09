@@ -1,2 +1,9 @@
 prompt_toolkit>=3.0.52,<4
 Flask>=3.1,<4
+argon2-cffi>=25.1.0,<26
+google-api-python-client>=2,<3
+
+google-auth-oauthlib>=1.2,<2
+
+keyring>=25,<26
+cryptography>=45,<51

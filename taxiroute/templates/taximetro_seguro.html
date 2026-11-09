@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaxiRoute · Taxímetro</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='taximetro_seguro.css') }}">
+  <script src="{{ url_for('static', filename='taximetro_seguro.js') }}" defer></script>
+</head>
+<body data-durable="{{ 'true' if durable else 'false' }}">
+<a class="saltar" href="#principal">Saltar al taxímetro</a>
+<header><span class="marca">TaxiRoute</span><nav aria-label="Cuenta">{% if rol == "administrador" %}<a href="{{ url_for('administracion') }}">Administración</a>{% endif %} <button id="cerrar" class="secundario" type="button">Cerrar sesión</button></nav></header>
+<main id="principal">
+  <p class="aviso">Modo de pruebas: utiliza solo cuentas y datos ficticios. Al detener la demostración se borran sus datos.</p>
+  <section class="panel" aria-labelledby="titulo">
+    <div class="fila"><h1 id="titulo">Tu taxímetro</h1><span id="conexion" role="status">Conectando…</span></div>
+    <p class="leyenda">Estado de la carrera</p><p id="estado" class="estado">Consultando…</p>
+    <p class="leyenda">Importe</p><p class="importe"><span id="importe">—</span> <span class="moneda">€</span></p>
+    <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
+    <div class="acciones" aria-label="Acciones de la carrera">
+      <button id="iniciar" type="button" disabled>Iniciar carrera</button>
+      <button id="mover" type="button" disabled>En movimiento</button>
+      <button id="parar" type="button" disabled>Parado</button>
+      <button id="finalizar" class="finalizar" type="button" disabled>Finalizar carrera</button>
+      <button id="reintentar" class="secundario" type="button" hidden>Reintentar guardado</button>
+    </div>
+    <p class="nota">El estado y el importe se actualizan automáticamente mientras el servicio está disponible.</p>
+    <section class="tarifas-conductor" aria-labelledby="titulo-tarifas-conductor">
+      <h2 id="titulo-tarifas-conductor">Tarifas</h2>
+      <p><strong>Carrera actual:</strong> <span id="tarifas-actuales">Consultando…</span></p>
+      <p><strong>Para carreras nuevas:</strong> <span id="tarifas-nuevas">Consultando…</span></p>
+      <p>Si cambian las tarifas, la carrera en marcha conserva las que tenía al comenzar.</p>
+    </section>
+
+  </section>
+  <section id="revision-pendiente" class="panel revision-pendiente" aria-labelledby="titulo-revision" hidden>
+    <h2 id="titulo-revision">Carrera pendiente de revisión</h2>
+    <p>Hay una carrera que necesita atención antes de continuar. Los datos mostrados corresponden al último punto fiable.</p>
+    <p>El tiempo posterior a ese punto es desconocido, no está incluido en los datos mostrados y requiere revisión. La revisión todavía no está disponible en esta demostración.</p>
+    <dl><dt>Inicio</dt><dd id="revision-inicio">—</dd><dt>Último punto guardado</dt><dd id="revision-control">—</dd><dt>Último estado registrado</dt><dd id="revision-estado">—</dd><dt>Situación</dt><dd id="revision-situacion">—</dd></dl>
+    <p id="revision-error" role="status" aria-live="polite"></p>
+  </section>
+  <section class="panel" aria-labelledby="titulo-historial">
+    <div class="fila"><h2 id="titulo-historial">Mis carreras</h2><button id="actualizar" class="secundario" type="button">Actualizar</button></div>
+    <p id="aviso-historial" role="status">Cargando historial…</p>
+    <div class="tabla-contenedor"><table><thead><tr><th scope="col">Inicio</th><th scope="col">Duración (s)</th><th scope="col">Importe</th></tr></thead><tbody id="historial"></tbody></table></div>
+  </section>
+</main>
+</body>
+</html>

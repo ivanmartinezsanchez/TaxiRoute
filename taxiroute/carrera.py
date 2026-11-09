@@ -17,6 +17,18 @@ class EstadoVehiculo(str, Enum):
 
 
 @dataclass(frozen=True)
+class CapturaCarrera:
+    """Datos exactos de una carrera activa en un instante de lectura."""
+    identificador: str
+    inicio: datetime
+    instante: datetime
+    estado: EstadoVehiculo
+    parado_ns: int
+    movimiento_ns: int
+    tarifa_parado: Decimal
+    tarifa_movimiento: Decimal
+
+@dataclass(frozen=True)
 class ResumenCarrera:
     """Datos de una carrera finalizada, independientes del almacenamiento."""
 
@@ -105,6 +117,27 @@ class Carrera:
             self.CENTIMO, rounding=ROUND_HALF_UP
         )
 
+    def capturar(self) -> CapturaCarrera:
+        """Copia tiempos hasta ahora sin modificar la carrera.
+
+        Quien coordine varios hilos debe usar el mismo bloqueo para capturar y
+        para cambiar o finalizar la carrera.
+        """
+        self._comprobar_activa()
+        instante_ns = self._reloj()
+        duracion = instante_ns - self._inicio_tramo_ns
+        if duracion < 0:
+            raise ValueError("El reloj no puede retroceder durante una carrera.")
+        tiempos = self._tiempos_ns.copy()
+        tiempos[self._estado] += duracion
+        return CapturaCarrera(
+            identificador=self._identificador, inicio=self._inicio,
+            instante=self._fecha_actual(), estado=self._estado,
+            parado_ns=tiempos[EstadoVehiculo.PARADO],
+            movimiento_ns=tiempos[EstadoVehiculo.EN_MOVIMIENTO],
+            tarifa_parado=self._tarifas[EstadoVehiculo.PARADO],
+            tarifa_movimiento=self._tarifas[EstadoVehiculo.EN_MOVIMIENTO],
+        )
     def cambiar_estado(self, nuevo_estado: EstadoVehiculo) -> None:
         """Cierra el tramo anterior y empieza otro con la tarifa nueva."""
         self._comprobar_activa()

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaxiRoute · Acceso de prueba</title>
+  <link rel="stylesheet" href="/static/demo_acceso.css">
+  <script src="/static/demo_acceso.js" defer></script>
+</head>
+<body>
+<main class="tarjeta">
+  <p class="marca">TaxiRoute · demostración aislada</p>
+  <h1>Acceso de administración</h1>
+  <p>Prueba con una cuenta de demostración. Esta pantalla todavía no está conectada al taxímetro principal.</p>
+  {% if mostrar_datos_demo %}
+  <aside aria-label="Datos ficticios de prueba">
+    <p><strong>Solo demostración:</strong> usuario <code>AdminDemo</code> y contraseña <code>DemoTaxiroute123!</code>.</p>
+    <p>El código aparecerá en esta pantalla; no se enviarán correos. No uses credenciales reales aquí.</p>
+  </aside>
+  {% endif %}
+  <p id="mensaje" role="status" aria-live="polite"></p>
+  <form id="form-credenciales">
+    <label for="usuario">Usuario</label>
+    <input id="usuario" name="usuario" autocomplete="username" required maxlength="40">
+    <label for="contrasena">Contraseña</label>
+    <input id="contrasena" name="contrasena" type="password" autocomplete="current-password" required maxlength="128">
+    <button type="submit">Continuar</button>
+  </form>
+  <form id="form-pin" hidden>
+    <label for="codigo">Código de siete cifras</label>
+    <p>Consulta el código de la prueba. Caduca a los cinco minutos.</p>
+    <input id="codigo" name="codigo" type="text" inputmode="numeric" autocomplete="one-time-code"
+           pattern="[0-9]{7}" minlength="7" maxlength="7" required>
+    <button type="submit">Verificar código</button>
+  </form>
+  <form id="form-cambio" hidden>
+    <label for="nueva">Contraseña nueva</label>
+    <p>Debe tener al menos 12 caracteres, una mayúscula, tres minúsculas, tres números y un símbolo.</p>
+    <input id="nueva" name="nueva" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+    <button type="submit">Cambiar contraseña</button>
+  </form>
+</main>
+</body>
+</html>

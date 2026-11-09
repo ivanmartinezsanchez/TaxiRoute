@@ -7,7 +7,7 @@ from secrets import token_urlsafe, compare_digest
 from tempfile import TemporaryDirectory
 from threading import RLock, Timer
 
-from flask import Flask, jsonify, render_template, request, abort
+from flask import Flask, jsonify, render_template, request, abort, g
 from werkzeug.serving import make_server
 
 from taxiroute.bloqueo import bloqueo_historial
@@ -18,8 +18,15 @@ from taxiroute.registro import RegistroActividad
 from taxiroute.servicio import ServicioCarreras
 
 
-def crear_app(servicio=None, *, carpeta_datos=None, ruta_tarifas=None, modo_prueba=False):
+def crear_app(servicio=None, *, carpeta_datos=None, ruta_tarifas=None, modo_prueba=False,
+              sesiones_prueba=None, pin_prueba=None, flota_prueba=None):
     """Permite inyectar el servicio o aislar datos para pruebas."""
+    if sesiones_prueba is not None and (not modo_prueba or servicio is None):
+        raise ValueError("La integración parcial solo admite pruebas con servicio inyectado.")
+    if pin_prueba is not None and sesiones_prueba is None:
+        raise ValueError("El PIN de prueba necesita el servicio de sesiones de prueba.")
+    if flota_prueba is not None and sesiones_prueba is None:
+        raise ValueError("La flota de prueba necesita sesiones de prueba.")
     app = Flask(__name__)
     app.config.update(TRUSTED_HOSTS=["127.0.0.1", "localhost"], MAX_CONTENT_LENGTH=4096)
     ruta_tarifas = Path(ruta_tarifas) if ruta_tarifas else Path(__file__).resolve().parent.parent / "configuracion" / "tarifas.json"
@@ -64,6 +71,19 @@ def crear_app(servicio=None, *, carpeta_datos=None, ruta_tarifas=None, modo_prue
 
     @app.before_request
     def proteger_operaciones():
+        if sesiones_prueba is not None:
+            # Integración parcial: bloquear todo salvo los endpoints probados.
+            if not request.is_secure:
+                abort(400)
+            if request.endpoint in {"acceso_conductor.iniciar", "acceso_conductor.cerrar",
+                                    "acceso_administrador.solicitar",
+                                    "acceso_administrador.verificar",
+                                    "acceso_administrador.cambiar"}:
+                return None  # El blueprint valida origen, HTTPS y formato.
+            if flota_prueba is not None and request.endpoint == "flota_accion":
+                return None  # La ruta valida sesión, origen y contenido.
+            if request.endpoint != "consultar":
+                abort(404)
         if request.method == "POST":
             if request.headers.get("Sec-Fetch-Site") == "cross-site":
                 abort(403)
@@ -91,6 +111,18 @@ def crear_app(servicio=None, *, carpeta_datos=None, ruta_tarifas=None, modo_prue
 
     @app.get("/prototipo/estado")
     def consultar():
+        if flota_prueba is not None:
+            # El identificador procede de la sesión validada, no de la URL.
+            if request.args:
+                abort(400)
+            resultado = flota_prueba.consultar(g.identidad_taxiroute.usuario_id)
+            return jsonify(
+                activa=resultado.activa if resultado else False,
+                estado=resultado.estado if resultado else "sin carrera activa",
+                importe=str(resultado.importe) if resultado and resultado.importe is not None else None,
+                pendiente=resultado.pendiente if resultado else False,
+                revision=resultado.revision if resultado else 0,
+            )
         with bloqueo:
             return jsonify(estado())
 
@@ -164,6 +196,53 @@ def crear_app(servicio=None, *, carpeta_datos=None, ruta_tarifas=None, modo_prue
             if salir and app.config.get("DETENER_SERVIDOR"):
                 Timer(0.5, app.config["DETENER_SERVIDOR"]).start()
             return respuesta
+
+    if sesiones_prueba is not None:
+        from taxiroute.web_acceso import requerir_sesion
+        from taxiroute.web_login import crear_acceso_conductor
+
+        app.register_blueprint(crear_acceso_conductor(sesiones_prueba))
+        if pin_prueba is not None:
+            from taxiroute.web_admin_login import crear_acceso_administrador
+
+            app.register_blueprint(crear_acceso_administrador(pin_prueba))
+        if flota_prueba is not None:
+            from taxiroute.flota import RevisionDesactualizada
+            from taxiroute.sesiones import SesionNoAutorizada
+            from taxiroute.web_acceso import NOMBRE_COOKIE
+
+            @app.post("/prueba/flota/accion")
+            @requerir_sesion(sesiones_prueba, roles={"conductor", "administrador"})
+            def flota_accion():
+                if request.headers.get("Origin") != request.host_url.rstrip("/"):
+                    abort(403)
+                if request.headers.get("Sec-Fetch-Site") == "cross-site":
+                    abort(403)
+                if request.args:
+                    abort(400)
+                if not request.is_json:
+                    abort(415)
+                datos = request.get_json(silent=True)
+                if (not isinstance(datos, dict) or set(datos) != {"accion", "revision"}
+                        or type(datos["revision"]) is not int or datos["revision"] < 0
+                        or not isinstance(datos["accion"], str)
+                        or datos["accion"] not in {"iniciar", "mover", "parar", "finalizar"}):
+                    abort(400)
+                try:
+                    resultado = sesiones_prueba.ejecutar_con_sesion_vigente(
+                        request.cookies.get(NOMBRE_COOKIE), roles={"conductor", "administrador"},
+                        operacion=lambda identidad: flota_prueba.ejecutar_si_revision(
+                            identidad.usuario_id, datos["accion"], datos["revision"]))
+                except SesionNoAutorizada:
+                    abort(401)
+                except RevisionDesactualizada:
+                    return jsonify(error="El estado ha cambiado. Actualiza la pantalla."), 409
+                return jsonify(mensaje=resultado.mensaje, activa=resultado.activa,
+                               estado=resultado.estado, pendiente=resultado.pendiente, revision=resultado.revision,
+                               importe=str(resultado.importe) if resultado.importe is not None else None)
+        app.view_functions["consultar"] = requerir_sesion(
+            sesiones_prueba, roles={"conductor", "administrador"}
+        )(app.view_functions["consultar"])
 
     return app
 

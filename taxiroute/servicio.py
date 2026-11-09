@@ -37,6 +37,7 @@ class ServicioCarreras:
         self.pendiente = None
         self.ultimo_resumen = None
         self.aviso_registro = None
+        self.motivo_guardado = None
         self.carrera: Carrera | None = None
 
     def estado_actual(self) -> str:
@@ -176,11 +177,13 @@ class ServicioCarreras:
         try:
             self.historial.guardar(self.pendiente)
         except (OSError, ValueError) as error:
+            self.motivo_guardado = motivo_guardado_publico(error)
             self._registrar_error("error_guardado_historial", error)
             return (f"No se ha podido guardar la carrera: {describir_error(error)} "
                     "Escribe 'reintentar' o 'exportar RUTA' para crear una copia en otro lugar. "
                     "Si cierras la terminal, podrías perder los datos pendientes.")
         self.pendiente = None
+        self.motivo_guardado = None
         self._registrar("historial_guardado")
         return "Carrera guardada en el historial."
 
@@ -205,6 +208,18 @@ def fecha_final_local(fila: dict) -> date:
     except (ValueError, TypeError, KeyError) as error:
         raise ValueError("hay una fecha de finalización inválida o sin zona horaria; revisa el archivo") from error
 
+
+def motivo_guardado_publico(error: Exception) -> str:
+    """Explica el fallo sin exponer rutas ni detalles internos en interfaces."""
+    if isinstance(error, HistorialOcupado):
+        return "El historial está siendo utilizado por otra ejecución."
+    if isinstance(error, OSError) and (error.errno == errno.ENOSPC or getattr(error, "winerror", None) in (39, 112)):
+        return "No queda espacio en la unidad."
+    if isinstance(error, PermissionError):
+        return "No hay permiso para guardar el historial."
+    if isinstance(error, ValueError):
+        return "Los datos del historial necesitan revisión."
+    return "No se ha podido determinar la causa con seguridad."
 
 def describir_error(error: Exception) -> str:
     if isinstance(error, HistorialOcupado):

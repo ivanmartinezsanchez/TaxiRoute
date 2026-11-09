@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaxiRoute · Administración</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='administracion.css') }}">
+<script src="{{ url_for('static', filename='administracion.js') }}" defer></script></head>
+<body><a class="saltar" href="#principal">Saltar al contenido</a><header><a class="marca" href="{{ url_for('taximetro') }}">TaxiRoute</a><a href="{{ url_for('taximetro') }}">Volver al taxímetro</a></header>
+<main id="principal"><p class="aviso">Modo de pruebas: utiliza únicamente cuentas ficticias. Los datos se borran al detener la demostración.</p>
+<section class="cuenta" aria-labelledby="titulo-tarifas"><h1 id="titulo-tarifas">Tarifas para nuevas carreras</h1>
+<p>Las carreras que ya están en marcha mantienen las tarifas con las que comenzaron.</p>
+<form id="form-tarifas"><div class="tarifas"><label>Parado (€ por segundo)<input id="tarifa-parado" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label>
+<label>En movimiento (€ por segundo)<input id="tarifa-movimiento" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label></div>
+<p>Usa un punto para los decimales, por ejemplo 0.02.</p><button type="submit">Guardar tarifas</button></form></section><section class="cuenta" aria-labelledby="titulo-alta"><h2 id="titulo-alta">Añadir conductor</h2>
+<p>La contraseña será temporal. El conductor deberá cambiarla antes de iniciar sesión.</p>
+<form id="form-alta"><div class="tarifas"><label>Usuario<input id="alta-usuario" autocomplete="off" minlength="3" maxlength="40" required></label>
+<label>Nombre visible<input id="alta-nombre" autocomplete="off" maxlength="100" required></label>
+<label>Contraseña temporal<input id="alta-clave" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="alta-reglas" required></label>
+<label>Repite la contraseña<input id="alta-confirmar" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label></div>
+<p id="alta-reglas">Al menos una mayúscula, tres minúsculas, tres números y un símbolo. Comparte la clave por un medio seguro.</p>
+<button type="submit">Crear conductor</button></form></section>
+<h2>Cuentas de conductores</h2><p>Consulta el estado de cada cuenta y administra su acceso.</p>
+<p id="mensaje" role="status" aria-live="polite">Cargando cuentas…</p>
+<button id="actualizar" type="button">Actualizar cuentas</button><section id="cuentas" aria-label="Cuentas de conductores"></section>
+</main></body></html>

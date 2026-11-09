@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaxiRoute · Panel de administración</title>
+  <style>
+    :root { color-scheme: light; font: 1rem/1.5 system-ui, sans-serif; color: #18352c; background: #f5f3ea; }
+    body { margin: 0; }
+    main { max-width: 68rem; margin: auto; padding: clamp(1rem, 4vw, 2.5rem); }
+    .aviso { border-left: .3rem solid #957000; padding: .8rem 1rem; background: #fff4cd; }
+    .cuenta { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid #bdcbbf; border-radius: 1rem; background: white; }
+    .acciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; }
+    .accion { border: 1px solid #d2dbd2; border-radius: .65rem; padding: .75rem; }
+    button { width: 100%; min-height: 2.75rem; font: inherit; }
+    button:disabled { color: #344a40; background: #e5eae5; border: 1px solid #9caea0; cursor: not-allowed; }
+    summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; }
+    summary:focus-visible { outline: .2rem solid #246a55; outline-offset: .2rem; }
+    .ayuda { margin: .25rem 0; }
+  </style>
+</head>
+<body>
+<main>
+  <p>TaxiRoute · Administración</p>
+  <h1>Cuentas de conductores</h1>
+  <p class="aviso"><strong>Maqueta en preparación.</strong> Los datos son ficticios y las acciones están deshabilitadas. El acceso protegido aún no está conectado.</p>
+  <section class="cuenta" aria-labelledby="cuenta-ejemplo">
+    <h2 id="cuenta-ejemplo">Cuenta de ejemplo</h2>
+    <p>Los estados reales y las cuentas aparecerán cuando se integre el acceso.</p>
+    <div class="acciones">
+      <div class="accion">
+        <button type="button" disabled aria-describedby="ayuda-desactivar">Desactivar</button>
+        <details><summary>¿Qué hace Desactivar?</summary><p class="ayuda" id="ayuda-desactivar">Impide el acceso y revoca las sesiones del conductor.</p></details>
+      </div>
+      <div class="accion">
+        <button type="button" disabled aria-describedby="ayuda-reactivar">Reactivar</button>
+        <details><summary>¿Qué hace Reactivar?</summary><p class="ayuda" id="ayuda-reactivar">Habilita la cuenta, pero conserva cualquier bloqueo por intentos.</p></details>
+      </div>
+      <div class="accion">
+        <button type="button" disabled aria-describedby="ayuda-desbloquear">Desbloquear</button>
+        <details><summary>¿Qué hace Desbloquear?</summary><p class="ayuda" id="ayuda-desbloquear">Borra el bloqueo, los fallos y la espera, pero no habilita una cuenta desactivada.</p></details>
+      </div>
+      <div class="accion">
+        <button type="button" disabled aria-describedby="ayuda-revocar">Revocar</button>
+        <details><summary>¿Qué hace Revocar?</summary><p class="ayuda" id="ayuda-revocar">Cierra las sesiones del conductor sin desactivar su cuenta.</p></details>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
