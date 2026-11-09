@@ -1,6 +1,6 @@
 """Primitivas internas para códigos de recuperación; no autorizan accesos.
 
-Su tabla forma parte de la base de cuentas desde la versión 11. El futuro
+Su tabla forma parte de la base de cuentas desde la versión 11. Cualquier
 flujo debe comprobar la contraseña, limitar intentos y consumir el código,
 desbloquear, revocar sesiones y auditar dentro de la misma transacción.
 """
