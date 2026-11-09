@@ -4,10 +4,12 @@ No crea cuentas, no busca credenciales, no inicia servidores y no prepara una
 instalación de producción. El integrador debe mantener la exclusión entre
 procesos, proporcionar HTTPS y gestionar el ciclo del control periódico.
 """
+from contextlib import contextmanager
 from pathlib import Path
 
 from taxiroute.acceso import _ahora
 from taxiroute.arranque_recuperacion import crear_flota_con_recuperacion
+from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.carrera import Carrera
 from taxiroute.configuracion import cargar_tarifas
 from taxiroute.control_periodico import ControlPeriodico
@@ -59,3 +61,30 @@ def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_h
     if durable:
         app.extensions["control_periodico"] = ControlPeriodico(flota, cuentas, intervalo=5, avisar=avisar)
     return app
+
+
+@contextmanager
+def abrir_app_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_hmac,
+                            enviar_pin, reloj=_ahora, avisar=None):
+    """Mantiene un bloqueo cooperativo y el control periódico mientras se use.
+
+    Comparte el archivo de bloqueo de demo_persistente si ambas utilizan la
+    misma carpeta. Otros programas que ignoren el bloqueo no quedan excluidos.
+    No configura TLS ni inicia un servidor y no está listo para datos reales.
+    """
+    ruta = Path(ruta_cuentas)
+    if ruta.is_symlink() or not ruta.is_file():
+        raise ValueError("La base de cuentas debe existir como archivo.")
+    carpeta = ruta.resolve().parent
+    if (carpeta / "servidor.lock").is_symlink():
+        raise ValueError("El bloqueo de la aplicación no puede ser un enlace.")
+    with bloqueo_historial(carpeta / "servidor", espera=0):
+        app = crear_app_configurada(ruta_cuentas=ruta, ruta_historial=ruta_historial,
+            ruta_tarifas=ruta_tarifas, clave_hmac=clave_hmac, enviar_pin=enviar_pin,
+            durable=True, reloj=reloj, avisar=avisar)
+        control = app.extensions["control_periodico"]
+        control.iniciar()
+        try:
+            yield app
+        finally:
+            control.detener()

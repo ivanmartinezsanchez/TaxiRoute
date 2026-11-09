@@ -6,9 +6,10 @@ import unittest
 from uuid import uuid4
 
 from taxiroute.base_cuentas import inicializar_base
-from taxiroute.composicion_experimental import crear_app_configurada
+from taxiroute.bloqueo import HistorialOcupado
+from taxiroute.composicion_experimental import abrir_app_experimental, crear_app_configurada
 from taxiroute.configuracion import guardar_tarifas
-from taxiroute.demo_integrada import CLAVE_CONDUCTOR_DEMO, crear_demo_temporal
+from taxiroute.demo_integrada import CLAVE_CONDUCTOR_DEMO, crear_demo_temporal, demo_persistente
 from taxiroute.historial_sqlite import HistorialSQLite
 
 
@@ -35,6 +36,66 @@ class PruebasComposicionExperimental(unittest.TestCase):
         with self.assertRaises(ValueError):
             crear_app_configurada(**self.argumentos)
         self.assertFalse(ruta.exists())
+
+    def test_mantiene_unica_instancia_y_detiene_control_al_salir(self):
+        argumentos = {k: v for k, v in self.argumentos.items() if k != "durable"}
+        with abrir_app_experimental(**argumentos) as app:
+            control = app.extensions["control_periodico"]
+            self.assertTrue(control._hilo.is_alive())
+            with self.assertRaises(HistorialOcupado):
+                with abrir_app_experimental(**argumentos):
+                    self.fail("No debe admitirse una segunda instancia")
+        self.assertFalse(control._hilo.is_alive())
+        with abrir_app_experimental(**argumentos) as app_nueva:
+            self.assertTrue(app_nueva.extensions["control_periodico"]._hilo.is_alive())
+
+    def test_error_del_llamador_detiene_control_y_libera_bloqueo(self):
+        argumentos = {k: v for k, v in self.argumentos.items() if k != "durable"}
+        with self.assertRaisesRegex(RuntimeError, "fallo simulado"):
+            with abrir_app_experimental(**argumentos) as app:
+                control = app.extensions["control_periodico"]
+                raise RuntimeError("fallo simulado")
+        self.assertFalse(control._hilo.is_alive())
+        with abrir_app_experimental(**argumentos):
+            pass
+
+    def test_historial_permanece_tras_cerrar_y_reabrir_contexto(self):
+        with TemporaryDirectory() as temporal:
+            carpeta = Path(temporal)
+            crear_demo_temporal(carpeta, mostrar_codigo=lambda _: None, durable=True)
+            argumentos = dict(ruta_cuentas=carpeta / "cuentas.sqlite3", ruta_historial=carpeta / "historial.sqlite3",
+                ruta_tarifas=carpeta / "tarifas.json", clave_hmac=token_bytes(32), enviar_pin=lambda correo, codigo: None)
+            origen = {"Origin": "https://localhost"}
+            def entrar(app):
+                app.testing = True
+                cliente = app.test_client()
+                acceso = cliente.post("/acceso/conductor", base_url="https://localhost", headers=origen,
+                    json={"usuario": "AnaDemo", "contrasena": CLAVE_CONDUCTOR_DEMO})
+                self.assertEqual(acceso.status_code, 200)
+                return cliente
+            with abrir_app_experimental(**argumentos) as app:
+                cliente = entrar(app)
+                inicio = cliente.post("/api/carrera/iniciar", base_url="https://localhost", headers=origen,
+                    json={"revision": 0, "id_operacion": str(uuid4())})
+                self.assertEqual(inicio.status_code, 200)
+                cierre = cliente.post("/api/carrera/finalizar", base_url="https://localhost", headers=origen,
+                    json={"revision": 1})
+                self.assertEqual(cierre.status_code, 200)
+            with abrir_app_experimental(**argumentos) as app:
+                cliente = entrar(app)
+                historial = cliente.get("/api/historial", base_url="https://localhost")
+                self.assertEqual(historial.status_code, 200)
+                self.assertEqual(len(historial.json["carreras"]), 1)
+
+    def test_comparte_bloqueo_con_demo_persistente(self):
+        with TemporaryDirectory() as temporal:
+            carpeta = Path(temporal) / "demo"
+            with demo_persistente(carpeta, mostrar_codigo=lambda _: None):
+                with self.assertRaises(HistorialOcupado):
+                    with abrir_app_experimental(ruta_cuentas=carpeta / "cuentas.sqlite3",
+                        ruta_historial=carpeta / "historial.sqlite3", ruta_tarifas=carpeta / "tarifas.json",
+                        clave_hmac=token_bytes(32), enviar_pin=lambda correo, codigo: None):
+                        self.fail("La demostración ya usa estos archivos")
 
     def test_rechaza_archivos_repetidos_y_configuracion_invalida(self):
         for cambios in ({"ruta_historial": self.argumentos["ruta_cuentas"]},
