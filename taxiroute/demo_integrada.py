@@ -9,16 +9,11 @@ from tempfile import TemporaryDirectory
 from werkzeug.serving import make_server
 
 from taxiroute.base_cuentas import conectar, inicializar_base
-from taxiroute.carrera import Carrera
-from taxiroute.configuracion import cargar_tarifas, guardar_tarifas
+from taxiroute.configuracion import guardar_tarifas
+from taxiroute.composicion_experimental import crear_app_configurada
 from taxiroute.cuentas import crear_cuenta
-from taxiroute.flota import FlotaEnMemoria
 from taxiroute.historial_sqlite import HistorialSQLite
 from taxiroute.inicializacion_administrador import preparar_primer_administrador
-from taxiroute.pin import ServicioPIN
-from taxiroute.servicio import ServicioCarreras
-from taxiroute.sesiones import ServicioSesiones
-from taxiroute.web_integrada import crear_app_integrada
 
 
 CLAVE_CONDUCTOR_DEMO = "ConductorDemo123!"
@@ -49,8 +44,6 @@ _MARCADOR_DEMO = "TaxiRoute demo persistente ficticia v1\n"
 
 def _armar_demo(carpeta, *, mostrar_codigo, durable):
     """Monta servicios sobre datos ya inicializados, sin reescribirlos."""
-    from taxiroute.arranque_recuperacion import crear_flota_con_recuperacion
-
     ruta = carpeta / "cuentas.sqlite3"
     ruta_tarifas = carpeta / "tarifas.json"
     ruta_historial = carpeta / "historial.sqlite3"
@@ -58,29 +51,10 @@ def _armar_demo(carpeta, *, mostrar_codigo, durable):
         if destinatario != "demo@example.invalid":
             raise ValueError("La demostración solo admite su buzón ficticio.")
         mostrar_codigo(codigo)
-    sesiones = ServicioSesiones(ruta)
-    pin = ServicioPIN(ruta, clave_hmac=token_bytes(32), enviar=entrega_ficticia)
-    def historial(usuario):
-        return HistorialSQLite(ruta_historial, usuario_id=usuario, exigir_existente=durable)
-    fabrica = lambda usuario: ServicioCarreras(
-        crear_carrera=lambda: Carrera(tarifas=cargar_tarifas(ruta_tarifas)),
-        historial=historial(usuario))
-    if durable:
-        # Comprobar antes de abrir rutas que las bases existen y son compatibles.
-        HistorialSQLite(ruta_historial, exigir_existente=True).consultar()
-        cargar_tarifas(ruta_tarifas)
-        flota = crear_flota_con_recuperacion(ruta, fabrica, modo_durable_experimental=True).flota
-    else:
-        flota = FlotaEnMemoria(fabrica)
-    app = crear_app_integrada(sesiones, pin, flota, historial, ruta_tarifas=ruta_tarifas,
-                              ruta_historial_durable=ruta_historial if durable else None,
-                              ruta_historial_flota=ruta_historial)
-    if durable:
-        from taxiroute.control_periodico import ControlPeriodico
-        app.extensions["control_periodico"] = ControlPeriodico(
-            flota, ruta, intervalo=5,
-            avisar=lambda: print("No se pudo guardar un punto; la carrera necesita revisión.", flush=True))
-    return app
+    return crear_app_configurada(ruta_cuentas=ruta, ruta_historial=ruta_historial,
+        ruta_tarifas=ruta_tarifas, clave_hmac=token_bytes(32), enviar_pin=entrega_ficticia,
+        durable=durable,
+        avisar=lambda: print("No se pudo guardar un punto; la carrera necesita revisión.", flush=True))
 
 
 @contextmanager

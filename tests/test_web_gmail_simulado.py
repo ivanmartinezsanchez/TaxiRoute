@@ -6,15 +6,19 @@ from email.parser import BytesParser
 from pathlib import Path
 import re
 from secrets import token_bytes
+from uuid import uuid4
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock
 
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.correo_gmail import EnviadorGmail
+from taxiroute.composicion_experimental import crear_app_configurada
+from taxiroute.configuracion import guardar_tarifas
 from taxiroute.cuentas import crear_cuenta
 from taxiroute.flota import FlotaEnMemoria
 from taxiroute.historial import HistorialCSV
+from taxiroute.historial_sqlite import HistorialSQLite
 from taxiroute.inicializacion_administrador import preparar_primer_administrador
 from taxiroute.pin import ServicioPIN
 from taxiroute.servicio import ServicioCarreras
@@ -99,13 +103,13 @@ class PruebasWebConGmailSimulado(unittest.TestCase):
                 contrasena="TemporalPrueba123!", correo="prueba@example.invalid")
             ahora = [datetime(2026, 11, 9, tzinfo=timezone.utc)]
             cliente_gmail = Mock()
-            pin = ServicioPIN(ruta, clave_hmac=token_bytes(32), enviar=EnviadorGmail(cliente_gmail),
-                              reloj=lambda: ahora[0])
-            sesiones = ServicioSesiones(ruta, reloj=lambda: ahora[0])
-            def historial(usuario):
-                return HistorialCSV(carpeta / usuario / "historial.csv")
-            flota = FlotaEnMemoria(lambda usuario: ServicioCarreras(historial=historial(usuario)))
-            app = crear_app_integrada(sesiones, pin, flota, historial)
+            historial_ruta = carpeta / "historial.sqlite3"
+            tarifas = carpeta / "tarifas.json"
+            HistorialSQLite(historial_ruta).inicializar()
+            guardar_tarifas(tarifas, {"parado": "0.02", "en_movimiento": "0.05"})
+            app = crear_app_configurada(ruta_cuentas=ruta, ruta_historial=historial_ruta,
+                ruta_tarifas=tarifas, clave_hmac=token_bytes(32), enviar_pin=EnviadorGmail(cliente_gmail),
+                durable=True, reloj=lambda: ahora[0])
             app.testing = True
             cliente = app.test_client()
             def post(ruta_web, datos):
@@ -132,6 +136,10 @@ class PruebasWebConGmailSimulado(unittest.TestCase):
             self.assertEqual(post("/acceso/administrador/pin", {"codigo": ultimo_codigo()}).json["paso"],
                              "acceso_completado")
             self.assertEqual(cliente.get("/administracion", base_url="https://localhost").status_code, 200)
+            inicio_carrera = post("/api/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+            self.assertEqual(inicio_carrera.status_code, 200)
+            self.assertEqual(post("/api/carrera/finalizar", {"revision": 1}).status_code, 200)
+            self.assertEqual(len(cliente.get("/api/historial", base_url="https://localhost").json["carreras"]), 1)
             self.assertEqual(cliente_gmail.users.return_value.messages.return_value.send.call_count, 2)
 
 
