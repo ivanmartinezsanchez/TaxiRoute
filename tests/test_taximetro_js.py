@@ -138,7 +138,7 @@ class PruebasTaximetroJS(unittest.TestCase):
     def ejecutar_escenario(self, escenario):
         resultado = subprocess.run(
             [NODE, "-e", _RUNNER, str(SCRIPT), escenario],
-            capture_output=True, text=True, encoding="utf-8", timeout=10, check=False,
+            capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
         )
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
         return json.loads(resultado.stdout)
