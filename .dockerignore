@@ -1,0 +1,26 @@
+# Enviar al proceso de construcción solo los archivos de ejecución.
+**
+!requirements.txt
+!taxiroute/
+!taxiroute/**
+!configuracion/
+!configuracion/tarifas.json
+
+# Excluir formatos habituales de datos y credenciales locales.
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*
+**/client_secret*.json
+**/credentials*.json
+**/token.json
+**/*.pem
+**/*.key
+**/*.sqlite3*
+**/*.p12
+**/*.pfx
+**/*.crt
+**/*.db
+**/*.db-*
+**/*.db-wal
+**/*.db-shm
