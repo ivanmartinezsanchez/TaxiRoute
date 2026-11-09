@@ -14,6 +14,7 @@ let generacionHistorial = 0;
 let revisionTarifas = null;
 let generacionTarifas = 0;
 let generacionTarifasNuevas = 0;
+let revisionReintento = null;
 
 function controles() {
   const disponible = conectado && !ocupado && !requiereRevision && actual !== null;
@@ -21,8 +22,9 @@ function controles() {
   $("#mover").disabled = !disponible || !actual.activa || actual.estado === "en movimiento";
   $("#parar").disabled = !disponible || !actual.activa || actual.estado === "parado";
   $("#finalizar").disabled = !disponible || !actual.activa;
-  $("#reintentar").hidden = !actual?.pendiente;
-  $("#reintentar").disabled = !disponible || !actual?.pendiente;
+  const reintentoDurable = requiereRevision && revisionReintento !== null;
+  $("#reintentar").hidden = !actual?.pendiente && !reintentoDurable;
+  $("#reintentar").disabled = reintentoDurable ? !conectado || ocupado : !disponible || !actual?.pendiente;
 }
 function mostrar(datos) {
   actual = datos;
@@ -81,11 +83,16 @@ async function mostrarPendiente() {
   if (consultandoPendiente || Date.now() - ultimaConsultaPendiente < 15000) return;
   consultandoPendiente = true; ultimaConsultaPendiente = Date.now();
   const generacion = generacionRevision;
+  revisionReintento = null; controles();
   $("#revision-pendiente").hidden = false;
   for (const id of ["#revision-inicio", "#revision-control", "#revision-estado", "#revision-situacion"]) $(id).textContent = "—";
   $("#revision-error").textContent = "Consultando los datos guardados…";
   try {
-    const datos = await solicitar("/api/recuperacion/pendiente");
+    let datos = null;
+    if (document.body?.dataset?.durable === "true") {
+      datos = await solicitar("/api/carrera/cierre-pendiente");
+    }
+    if (!datos?.pendiente) datos = await solicitar("/api/recuperacion/pendiente");
     if (!requiereRevision || generacion !== generacionRevision) return;
     const pendiente = datos.pendiente;
     if (!pendiente) {
@@ -93,12 +100,17 @@ async function mostrarPendiente() {
       return;
     }
     const situaciones = {activa:"Carrera interrumpida", revision_pendiente:"Pendiente de revisión",
-                         guardado_pendiente:"Finalizada, pendiente de guardar"};
+                         guardado_pendiente:"Finalizada, pendiente de guardar",
+                         guardada:"Guardada, pendiente de confirmar el cierre"};
     $("#revision-inicio").textContent = pendiente.inicio;
     $("#revision-control").textContent = pendiente.ultimo_control;
     $("#revision-estado").textContent = pendiente.estado_vehiculo;
     $("#revision-situacion").textContent = situaciones[pendiente.estado] || "Revisión necesaria";
-    $("#revision-error").textContent = "";
+    revisionReintento = pendiente.reintento_disponible === true && Number.isSafeInteger(pendiente.revision_reintento)
+      ? pendiente.revision_reintento : null;
+    $("#revision-error").textContent = revisionReintento !== null
+      ? "Puedes reintentar el guardado de esta carrera." : "La revisión todavía no está disponible en esta demostración.";
+    controles();
   } catch (error) {
     if (requiereRevision && generacion === generacionRevision) $("#revision-error").textContent = "No se pueden consultar los datos de recuperación. Inténtalo más tarde.";
   } finally { consultandoPendiente = false; }
@@ -113,6 +125,7 @@ async function consultar() {
     conectado = true;
     if (requiereRevision) generacionRevision += 1;
     requiereRevision = false;
+    revisionReintento = null;
     $("#revision-pendiente").hidden = true;
     ultimaConsultaPendiente = 0;
     mostrar(datos);
@@ -122,21 +135,22 @@ async function consultar() {
       const nuevaRevision = error.status === 409;
       if (nuevaRevision !== requiereRevision) generacionRevision += 1;
       requiereRevision = nuevaRevision;
-      if (!requiereRevision) $("#revision-pendiente").hidden = true;
+      if (!requiereRevision) { revisionReintento = null; $("#revision-pendiente").hidden = true; }
       if (requiereRevision) { $("#estado").textContent = "Pendiente de revisión"; $("#importe").textContent = "—"; $("#tarifas-actuales").textContent = "Pendientes de revisión."; revisionTarifas = null; generacionTarifas += 1; }
       conectado = requiereRevision;
       $("#conexion").textContent = requiereRevision ? "Revisión necesaria" : "Estado no disponible";
-      $("#mensaje").textContent = error.status ? error.message : "No se puede confirmar el estado. Comprueba la conexión.";
+      $("#mensaje").textContent = requiereRevision && ultimoError ? ultimoError + " La carrera necesita revisión." : (error.status ? error.message : "No se puede confirmar el estado. Comprueba la conexión.");
       controles();
       if (requiereRevision) void mostrarPendiente();
     }
   } finally { leyendo = false; }
 }
 async function actuar(ruta, adicionales = {}) {
-  if (ocupado || !conectado || !actual) return;
+  const reintentoDurable = ruta.endsWith("/reintentar") && requiereRevision && revisionReintento !== null;
+  if (ocupado || !conectado || (!actual && !reintentoDurable)) return;
   ocupado = true; ultimoError = ""; controles();
   try {
-    const cuerpo = {revision: actual.revision, ...adicionales};
+    const cuerpo = {revision: reintentoDurable ? revisionReintento : actual.revision, ...adicionales};
     if (document.body?.dataset?.durable === "true" && (ruta.endsWith("/iniciar") || ruta.endsWith("/estado"))) {
       if (!globalThis.crypto?.randomUUID) throw new Error("El navegador no permite generar un identificador seguro.");
       cuerpo.id_operacion = globalThis.crypto.randomUUID();

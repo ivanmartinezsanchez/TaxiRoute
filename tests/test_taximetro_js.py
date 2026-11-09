@@ -20,6 +20,9 @@ const escenario = process.argv[2];
 const elementos = new Map();
 let consultas = 0;
 let resolverConsulta;
+let reintentoCompletado = false;
+let cierreFallido = false;
+let revisionEnviada = null;
 function elemento(selector) {
   if (!elementos.has(selector)) {
     elementos.set(selector, {
@@ -31,9 +34,21 @@ function elemento(selector) {
 }
 const respuesta = (status, datos) => ({status, ok: status >= 200 && status < 300, json: async () => datos});
 const contexto = vm.createContext({
-  document: {querySelector: elemento, createElement: () => ({textContent: "", append() {}})},
+  document: {body:{dataset:{durable: ["reintento", "error_cierre"].includes(escenario) ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}})},
   fetch: async (ruta, opciones = {}) => {
     if (escenario === "error_accion" && opciones.method === "POST") throw new Error("Tiempo agotado");
+    if (ruta === "/api/carrera/finalizar" && escenario === "error_cierre") {
+      cierreFallido = true;
+      return respuesta(503, {error:"No se puede confirmar el resultado. No queda espacio en la unidad."});
+    }
+    if (ruta === "/api/carrera/reintentar" && escenario === "reintento") {
+      revisionEnviada = JSON.parse(opciones.body).revision;
+      reintentoCompletado = true;
+      return respuesta(200, {activa:false, estado:"sin carrera activa", importe:"0.20", pendiente:false, revision:2, mensaje:"Carrera guardada."});
+    }
+    if (ruta === "/api/carrera/cierre-pendiente" && ["reintento", "error_cierre"].includes(escenario)) return respuesta(200, {pendiente:{
+      inicio:"2026-11-09T12:00:00+00:00", ultimo_control:"2026-11-09T12:00:05+00:00",
+      estado_vehiculo:"parado", estado:"guardada", reintento_disponible:true, revision_reintento:1}});
     if (ruta === "/api/historial") return respuesta(200, {carreras: []});
     if (ruta === "/api/tarifas") return respuesta(200, {tarifas:{parado:"0.03", "en movimiento":"0.06"}});
     if (ruta === "/api/carrera/tarifas") return respuesta(200, {revision:1, tarifas:{parado:"0.02", "en movimiento":"0.05"}});
@@ -45,8 +60,9 @@ const contexto = vm.createContext({
     if (escenario === "error_accion" && consultas === 2) {
       await new Promise((resolve) => { resolverConsulta = resolve; });
     }
+    if (escenario === "error_cierre" && !cierreFallido) return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
     if (escenario === "tarifas") return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
-    if (escenario === "revision") {
+    if (escenario === "revision" || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido)) {
       return respuesta(409, {error: "La carrera necesita revisión antes de continuar."});
     }
     if (escenario === "reconexion" && consultas === 1) throw new Error("Red no disponible");
@@ -72,7 +88,9 @@ function estado() {
           revisionEstado: elemento("#revision-estado").textContent,
           revisionSituacion: elemento("#revision-situacion").textContent,
           tarifasActuales: elemento("#tarifas-actuales").textContent,
-          tarifasNuevas: elemento("#tarifas-nuevas").textContent};
+          tarifasNuevas: elemento("#tarifas-nuevas").textContent,
+          reintentoOculto: elemento("#reintentar").hidden,
+          reintentoDeshabilitado: elemento("#reintentar").disabled};
 }
 (async () => {
   await new Promise((resolve) => setImmediate(resolve));
@@ -86,7 +104,9 @@ function estado() {
     resolverConsulta();
     await accion;
   }
-  process.stdout.write(JSON.stringify({primero, durante, despues: estado()}));
+  if (escenario === "reintento") await vm.runInContext("actuar('/api/carrera/reintentar')", contexto);
+  if (escenario === "error_cierre") { await vm.runInContext("actuar('/api/carrera/finalizar')", contexto); await new Promise((resolve) => setImmediate(resolve)); }
+  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada}));
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 """
 
@@ -133,3 +153,16 @@ class PruebasTaximetroJS(unittest.TestCase):
         self.assertIn("0,05 €/s", estado["tarifasActuales"])
         self.assertIn("0,03 €/s", estado["tarifasNuevas"])
         self.assertIn("0,06 €/s", estado["tarifasNuevas"])
+
+    def test_reintento_durable_disponible_sin_estado_previo(self):
+        resultado = self.ejecutar_escenario("reintento")
+        self.assertFalse(resultado["primero"]["reintentoOculto"])
+        self.assertFalse(resultado["primero"]["reintentoDeshabilitado"])
+        self.assertEqual(resultado["revisionEnviada"], 1)
+        self.assertTrue(resultado["despues"]["reintentoOculto"])
+
+    def test_error_de_espacio_permanece_visible_al_mostrar_revision(self):
+        resultado = self.ejecutar_escenario("error_cierre")
+        self.assertIn("No queda espacio", resultado["despues"]["mensaje"])
+        self.assertEqual(resultado["despues"]["conexion"], "Revisión necesaria")
+        self.assertFalse(resultado["despues"]["reintentoDeshabilitado"])

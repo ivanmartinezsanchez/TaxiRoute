@@ -134,3 +134,51 @@ class PruebasApiDurable(unittest.TestCase):
             self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/estado", datos).status_code, 200)
         self.avanzar(30 * 60)
         self.assertEqual(self.ana_web.get("/api/durable/carrera", base_url=self.url).status_code, 401)
+
+    def test_reintenta_solo_su_guardado_sin_duplicar(self):
+        from unittest.mock import patch
+        self.login(self.ana_web, "Ana")
+        self.login(self.luis_web, "Luis")
+        self.post(self.ana_web, "/api/durable/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+        self.avanzar(10)
+        with patch("taxiroute.api_durable_experimental.conciliar_pendiente_sqlite", side_effect=OSError("simulado")):
+            respuesta = self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1})
+        self.assertEqual(respuesta.status_code, 503)
+        ruta = "/api/durable/carrera/reintentar"
+        info = self.ana_web.get("/api/durable/carrera/cierre-pendiente", base_url=self.url).json["pendiente"]
+        self.assertTrue(info["reintento_disponible"])
+        self.assertEqual((info["estado"], info["revision_reintento"]), ("guardado_pendiente", 1))
+        self.assertIsNone(self.luis_web.get("/api/durable/carrera/cierre-pendiente", base_url=self.url).json["pendiente"])
+        self.assertEqual(self.post(self.luis_web, ruta, {"revision": 1}).status_code, 409)
+        self.assertEqual(self.post(self.ana_web, ruta, {"revision": 0}).status_code, 409)
+        respuesta = self.post(self.ana_web, ruta, {"revision": 1})
+        self.assertEqual((respuesta.status_code, respuesta.json["revision"]), (200, 2))
+        self.assertEqual(self.post(self.ana_web, ruta, {"revision": 1}).status_code, 409)
+        self.assertEqual(len(HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True).consultar()), 1)
+
+    def test_reintenta_despues_de_guardar_sin_duplicados(self):
+        from unittest.mock import patch
+        self.login(self.ana_web, "Ana")
+        self.post(self.ana_web, "/api/durable/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+        self.avanzar(10)
+        with patch("taxiroute.api_durable_experimental.liberar_cierre_conciliado", side_effect=OSError("simulado")):
+            respuesta = self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1})
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(len(HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True).consultar()), 1)
+        info = self.ana_web.get("/api/durable/carrera/cierre-pendiente", base_url=self.url).json["pendiente"]
+        self.assertEqual((info["estado"], info["revision_reintento"]), ("guardada", 1))
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/reintentar", {"revision": 1}).status_code, 200)
+        self.assertEqual(len(HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True).consultar()), 1)
+
+    def test_error_de_espacio_informa_sin_mostrar_rutas(self):
+        import errno
+        from unittest.mock import patch
+        self.login(self.ana_web, "Ana")
+        self.post(self.ana_web, "/api/durable/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+        self.avanzar(5)
+        with patch("taxiroute.api_durable_experimental.conciliar_pendiente_sqlite", side_effect=OSError(errno.ENOSPC, "ruta privada simulada")):
+            respuesta = self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1})
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertIn("No queda espacio", respuesta.json["error"])
+        self.assertNotIn("ruta privada", respuesta.get_data(as_text=True))
+        self.assertTrue(self.flota.requiere_reconciliacion(self.ana.id))

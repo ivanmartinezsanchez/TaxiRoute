@@ -4,6 +4,7 @@ Solo se registra explícitamente en pruebas. El historial y las cuentas deben
 ser archivos temporales confiables. No implementa puntos periódicos, recuperación
 interactiva, exclusión entre procesos ni un servidor persistente de producción.
 """
+import errno
 import sqlite3
 
 from flask import Blueprint, abort, jsonify, request
@@ -65,7 +66,24 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
     @api.errorhandler(ValueError)
     @api.errorhandler(sqlite3.Error)
     def almacenamiento(error):
-        return jsonify(error="No se puede confirmar el resultado. La carrera puede requerir revisión."), 503
+        motivo = "No se puede determinar la causa con seguridad."
+        actual = error
+        vistos = set()
+        while actual is not None and id(actual) not in vistos:
+            vistos.add(id(actual))
+            codigo = getattr(actual, "sqlite_errorcode", None)
+            if (isinstance(actual, OSError) and
+                    (actual.errno == errno.ENOSPC or getattr(actual, "winerror", None) in (39, 112))) or codigo == sqlite3.SQLITE_FULL:
+                motivo = "No queda espacio en la unidad."
+                break
+            if isinstance(actual, PermissionError) or codigo in {sqlite3.SQLITE_READONLY, sqlite3.SQLITE_PERM}:
+                motivo = "No hay permiso para guardar los datos."
+                break
+            if codigo in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
+                motivo = "El almacenamiento está ocupado por otra operación."
+                break
+            actual = actual.__cause__
+        return jsonify(error=f"No se puede confirmar el resultado. {motivo} La carrera puede requerir revisión."), 503
 
     def registrar_interaccion(token, identidad):
         vigente = sesiones.consultar(token, interaccion=True)
@@ -165,6 +183,48 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial,
                                     identidad.usuario_id, resumen.punto.carrera_id)
         final = liberar_cierre_conciliado(flota, sesiones, token, ruta_historial)
+        registrar_interaccion(token, identidad)
+        return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
+
+    @api.get("/carrera/cierre-pendiente")
+    def consultar_cierre_propio():
+        from taxiroute.conciliacion_csv import _leer
+        from taxiroute.finalizacion_pendiente import resumen_para_historial
+        from taxiroute.historial import _fila
+        token, _ = token_y_identidad()
+        def leer(identidad, conexion):
+            # Cuentas → flota, el mismo orden de las acciones de carrera.
+            with flota._bloqueo:
+                marcador = flota._cierres_preparados.get(identidad.usuario_id)
+                if marcador is None or identidad.usuario_id not in flota._bloqueados:
+                    return None
+                punto = marcador.punto
+                _, estado, resumen = _leer(conexion, identidad.usuario_id, punto.carrera_id)
+                if _fila(resumen) != _fila(resumen_para_historial(marcador)):
+                    raise OperacionNoPermitida()
+                return {"estado": estado, "inicio": punto.inicio.isoformat(),
+                        "ultimo_control": punto.ultimo_control.isoformat(),
+                        "estado_vehiculo": punto.estado_vehiculo,
+                        "revision_reintento": punto.revision - 1,
+                        "reintento_disponible": True}
+        resultado = sesiones.ejecutar_con_sesion_y_conexion(token,
+            roles={"conductor", "administrador"}, operacion=leer)
+        return jsonify(pendiente=resultado)
+
+    @api.post("/carrera/reintentar")
+    def reintentar_guardado():
+        datos = datos_con_revision({"revision"})
+        token, identidad = token_y_identidad()
+        # El marcador procede exclusivamente del servidor y de la sesión; el
+        # navegador no elige ni la cuenta, ni la carrera, ni la ruta de archivos.
+        with flota._bloqueo:
+            pendiente = flota._cierres_preparados.get(identidad.usuario_id)
+            if (identidad.usuario_id not in flota._bloqueados or pendiente is None
+                    or pendiente.punto.revision != datos["revision"] + 1):
+                raise OperacionNoPermitida()
+        conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial,
+                                    identidad.usuario_id, pendiente.punto.carrera_id)
+        liberar_cierre_conciliado(flota, sesiones, token, ruta_historial)
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
 
