@@ -22,6 +22,8 @@ let consultas = 0;
 let resolverConsulta;
 let reintentoCompletado = false;
 let cierreFallido = false;
+let recuperacionCompletada = false;
+let cuerpoRecuperacion = null;
 let revisionEnviada = null;
 function elemento(selector) {
   if (!elementos.has(selector)) {
@@ -34,9 +36,17 @@ function elemento(selector) {
 }
 const respuesta = (status, datos) => ({status, ok: status >= 200 && status < 300, json: async () => datos});
 const contexto = vm.createContext({
-  document: {body:{dataset:{durable: ["reintento", "error_cierre"].includes(escenario) ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}})},
+  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar"].includes(escenario) ? "true" : "false", persistente: escenario === "recuperar" ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}})},
   fetch: async (ruta, opciones = {}) => {
     if (escenario === "error_accion" && opciones.method === "POST") throw new Error("Tiempo agotado");
+    if (ruta === "/api/carrera/confirmar-recuperacion" && escenario === "recuperar") {
+      cuerpoRecuperacion = JSON.parse(opciones.body); recuperacionCompletada = true;
+      return respuesta(200, {activa:false, estado:"sin carrera activa", importe:"0.42", pendiente:false, revision:2, mensaje:"Carrera recuperada."});
+    }
+    if (ruta === "/api/carrera/revision-recuperacion" && escenario === "recuperar") return respuesta(200, {pendiente:{
+      inicio:"2026-11-09T12:00:00+00:00", ultimo_control:"2026-11-09T12:00:05+00:00",
+      estado_vehiculo:"parado", estado:"activa", revision_disponible:true, revision_recuperacion:1, importe_recuperado:"0.42", huella:"a".repeat(64)}});
+    if (ruta === "/api/carrera/cierre-pendiente" && escenario === "recuperar") return respuesta(200, {pendiente:null});
     if (ruta === "/api/carrera/finalizar" && escenario === "error_cierre") {
       cierreFallido = true;
       return respuesta(503, {error:"No se puede confirmar el resultado. No queda espacio en la unidad."});
@@ -62,7 +72,7 @@ const contexto = vm.createContext({
     }
     if (escenario === "error_cierre" && !cierreFallido) return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
     if (escenario === "tarifas") return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
-    if (escenario === "revision" || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido)) {
+    if (escenario === "revision" || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido) || (escenario === "recuperar" && !recuperacionCompletada)) {
       return respuesta(409, {error: "La carrera necesita revisión antes de continuar."});
     }
     if (escenario === "reconexion" && consultas === 1) throw new Error("Red no disponible");
@@ -90,7 +100,10 @@ function estado() {
           tarifasActuales: elemento("#tarifas-actuales").textContent,
           tarifasNuevas: elemento("#tarifas-nuevas").textContent,
           reintentoOculto: elemento("#reintentar").hidden,
-          reintentoDeshabilitado: elemento("#reintentar").disabled};
+          reintentoDeshabilitado: elemento("#reintentar").disabled,
+          recuperacionOculta: elemento("#opciones-recuperacion").hidden,
+          recuperacionDeshabilitada: elemento("#finalizar-recuperada").disabled,
+          importeRecuperado: elemento("#importe-recuperado").textContent};
 }
 (async () => {
   await new Promise((resolve) => setImmediate(resolve));
@@ -104,9 +117,16 @@ function estado() {
     resolverConsulta();
     await accion;
   }
+  if (escenario === "recuperar") {
+    await vm.runInContext("confirmarRecuperacion()", contexto);
+    if (cuerpoRecuperacion !== null) throw new Error("La confirmación no debe enviarse sin aceptar");
+    elemento("#confirmar-recuperacion").checked = true;
+    vm.runInContext("controles()", contexto);
+    await vm.runInContext("confirmarRecuperacion()", contexto);
+  }
   if (escenario === "reintento") await vm.runInContext("actuar('/api/carrera/reintentar')", contexto);
   if (escenario === "error_cierre") { await vm.runInContext("actuar('/api/carrera/finalizar')", contexto); await new Promise((resolve) => setImmediate(resolve)); }
-  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada}));
+  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion}));
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 """
 
@@ -166,3 +186,11 @@ class PruebasTaximetroJS(unittest.TestCase):
         self.assertIn("No queda espacio", resultado["despues"]["mensaje"])
         self.assertEqual(resultado["despues"]["conexion"], "Revisión necesaria")
         self.assertFalse(resultado["despues"]["reintentoDeshabilitado"])
+
+    def test_recuperar_exige_confirmacion_y_envia_punto_mostrado(self):
+        resultado = self.ejecutar_escenario("recuperar")
+        self.assertFalse(resultado["primero"]["recuperacionOculta"])
+        self.assertTrue(resultado["primero"]["recuperacionDeshabilitada"])
+        self.assertEqual(resultado["primero"]["importeRecuperado"], "0,42")
+        self.assertEqual(resultado["cuerpoRecuperacion"], {"revision":1, "ultimo_control":"2026-11-09T12:00:05+00:00", "huella":"a" * 64, "confirmar":True})
+        self.assertTrue(resultado["despues"]["recuperacionOculta"])

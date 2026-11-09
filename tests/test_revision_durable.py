@@ -67,5 +67,32 @@ class PruebasRevisionDurable(unittest.TestCase):
             self.registrar(0)
 
 
+    def test_control_periodico_misma_revision_sobrevive_al_reinicio(self):
+        from datetime import timedelta
+        from dataclasses import replace
+        from taxiroute.puntos_control import guardar_punto
+        flota = FlotaEnMemoria(lambda _: ServicioCarreras())
+        anterior = flota.aplicar_intencion_experimental(self.sesiones, self.token, self.registrar(0))
+        punto = replace(anterior, ultimo_control=anterior.ultimo_control + timedelta(seconds=5),
+                        parado_ns=anterior.parado_ns + 5_000_000_000)
+        guardar_punto(self.base, punto)
+        reinicio = crear_flota_con_recuperacion(self.base, lambda _: ServicioCarreras())
+        self.assertTrue(reinicio.flota.requiere_reconciliacion(self.ana.id))
+        self.assertEqual(reinicio.flota._revisiones[self.ana.id], 1)
+
+    def test_control_corrupto_misma_revision_se_rechaza(self):
+        from datetime import timedelta
+        from dataclasses import replace
+        from taxiroute.puntos_control import guardar_punto
+        flota = FlotaEnMemoria(lambda _: ServicioCarreras())
+        anterior = flota.aplicar_intencion_experimental(self.sesiones, self.token, self.registrar(0))
+        punto = replace(anterior, ultimo_control=anterior.ultimo_control + timedelta(seconds=5),
+                        movimiento_ns=anterior.movimiento_ns + 1)
+        guardar_punto(self.base, punto)
+        with conectar(self.base) as c:
+            with self.assertRaises(RevisionDurableInvalida):
+                revision_durable(c, self.ana.id)
+
+
 if __name__ == "__main__":
     unittest.main()

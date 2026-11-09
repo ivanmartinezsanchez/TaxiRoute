@@ -28,9 +28,25 @@ def revision_durable(conexion, usuario_id):
         ):
             recibo = _recibo(fila)
             punto = puntos.get(recibo.punto.carrera_id)
-            if (punto is None or punto.revision < recibo.punto.revision
-                    or (punto.revision == recibo.punto.revision and punto != recibo.punto)):
+            anterior = recibo.punto
+            if (punto is None or punto.revision < anterior.revision
+                    or punto.usuario_id != anterior.usuario_id or punto.inicio != anterior.inicio
+                    or punto.tarifa_parado != anterior.tarifa_parado
+                    or punto.tarifa_movimiento != anterior.tarifa_movimiento
+                    or punto.ultimo_control < anterior.ultimo_control
+                    or punto.parado_ns < anterior.parado_ns or punto.movimiento_ns < anterior.movimiento_ns):
                 raise RevisionDurableInvalida("Un recibo no tiene punto compatible.")
+            if (punto.ultimo_control == anterior.ultimo_control and
+                    (punto.estado_vehiculo != anterior.estado_vehiculo or
+                     punto.parado_ns != anterior.parado_ns or punto.movimiento_ns != anterior.movimiento_ns)):
+                raise RevisionDurableInvalida("El instante coincide con tiempos incompatibles.")
+            if punto.revision == anterior.revision:
+                # Un control periódico avanza en el mismo estado y revisión.
+                otro_tramo = (punto.movimiento_ns != anterior.movimiento_ns if punto.estado_vehiculo == "parado"
+                              else punto.parado_ns != anterior.parado_ns)
+                if (punto.estado_vehiculo != anterior.estado_vehiculo or otro_tramo
+                        or (punto.ultimo_control == anterior.ultimo_control and punto != anterior)):
+                    raise RevisionDurableInvalida("El control periódico no coincide con el recibo.")
             mayor = max(mayor, recibo.punto.revision)
     except RevisionDurableInvalida:
         raise

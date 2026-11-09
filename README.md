@@ -194,6 +194,8 @@ Para probar el recorrido durable experimental se puede añadir `--durable`. En e
 
 Después se abre `https://127.0.0.1:8767/`. El servidor muestra las credenciales ficticias y el código de prueba en su terminal. El navegador puede advertir que el certificado de prueba no es de confianza. El código no debe reutilizarse como configuración de producción.
 
-Quedan pendientes la integración del correo real en el acceso, la recuperación tras interrupciones, la configuración persistente y el despliegue de la versión protegida. La comunicación entre ubicaciones distintas y la sesión única por cuenta están acordadas como una evolución posterior. El [estado de entrega](ESTADO_ENTREGA.md) distingue las funciones verificadas de las pendientes.
+Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
+
+Quedan pendientes la integración del correo real en el acceso, la recuperación completa, la configuración persistente de uso real y el despliegue de la versión protegida. La comunicación entre ubicaciones distintas y la sesión única por cuenta están acordadas como una evolución posterior. El [estado de entrega](ESTADO_ENTREGA.md) distingue las funciones verificadas de las pendientes.
 
 Las decisiones sobre cuentas, tarifas, permisos y límites de seguridad se detallan en [DISENO_CUENTAS.md](DISENO_CUENTAS.md), [ALCANCE_FASE_3.md](ALCANCE_FASE_3.md) y [DISENO_RECUPERACION.md](DISENO_RECUPERACION.md).

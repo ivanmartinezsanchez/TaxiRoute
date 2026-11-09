@@ -2,3 +2,5 @@
 .revision-pendiente{grid-column:1/-1;border-color:#ae6b00;background:#fff9eb}.revision-pendiente dt{font-weight:700;margin-top:.65rem}.revision-pendiente dd{margin:.2rem 0;overflow-wrap:anywhere}.revision-pendiente[hidden]{display:none}
 
 .tarifas-conductor{margin-top:1.5rem;padding-top:1rem;border-top:1px solid #d6e0e7}.tarifas-conductor h2{margin-bottom:.6rem}.tarifas-conductor p{margin-bottom:.5rem;overflow-wrap:anywhere}
+
+#opciones-recuperacion{border-top:1px solid #d6b77a;padding-top:1rem;margin-top:1rem}#opciones-recuperacion input{width:1.2rem;height:1.2rem;vertical-align:middle;margin-right:.5rem}#opciones-recuperacion button{margin-top:.75rem}#opciones-recuperacion[hidden]{display:none}

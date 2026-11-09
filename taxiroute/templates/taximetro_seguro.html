@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='taximetro_seguro.css') }}">
   <script src="{{ url_for('static', filename='taximetro_seguro.js') }}" defer></script>
 </head>
-<body data-durable="{{ 'true' if durable else 'false' }}">
+<body data-durable="{{ 'true' if durable else 'false' }}" data-persistente="{{ 'true' if persistente else 'false' }}">
 <a class="saltar" href="#principal">Saltar al taxímetro</a>
 <header><span class="marca">TaxiRoute</span><nav aria-label="Cuenta">{% if rol == "administrador" %}<a href="{{ url_for('administracion') }}">Administración</a>{% endif %} <button id="cerrar" class="secundario" type="button">Cerrar sesión</button></nav></header>
 <main id="principal">
-  <p class="aviso">Modo de pruebas: utiliza solo cuentas y datos ficticios. Al detener la demostración se borran sus datos.</p>
+  <p class="aviso">Modo de pruebas: utiliza solo cuentas y datos ficticios. {% if persistente %}Los datos de la demostración se conservan en la carpeta elegida.{% else %}Al detener la demostración se borran sus datos.{% endif %}</p>
   <section class="panel" aria-labelledby="titulo">
     <div class="fila"><h1 id="titulo">Tu taxímetro</h1><span id="conexion" role="status">Conectando…</span></div>
     <p class="leyenda">Estado de la carrera</p><p id="estado" class="estado">Consultando…</p>
@@ -38,6 +38,12 @@
     <p>Hay una carrera que necesita atención antes de continuar. Los datos mostrados corresponden al último punto fiable.</p>
     <p>Si la carrera quedó interrumpida, el tiempo posterior al último punto es desconocido y requiere revisión.</p>
     <dl><dt>Inicio</dt><dd id="revision-inicio">—</dd><dt>Último punto guardado</dt><dd id="revision-control">—</dd><dt>Último estado registrado</dt><dd id="revision-estado">—</dd><dt>Situación</dt><dd id="revision-situacion">—</dd></dl>
+    <section id="opciones-recuperacion" hidden aria-labelledby="titulo-recuperar">
+      <h3 id="titulo-recuperar">Revisar el último punto guardado</h3>
+      <p>Importe hasta ese punto: <strong id="importe-recuperado">—</strong> €. El tiempo posterior no se incluye.</p>
+      <label><input id="confirmar-recuperacion" type="checkbox"> He revisado el punto y acepto finalizar la carrera con este importe.</label>
+      <p><button id="finalizar-recuperada" type="button" disabled>Finalizar en el último punto guardado</button></p>
+    </section>
     <p id="revision-error" role="status" aria-live="polite"></p>
   </section>
   <section class="panel" aria-labelledby="titulo-historial">

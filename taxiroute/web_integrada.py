@@ -68,7 +68,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     @requerir_sesion(sesiones, roles={"conductor", "administrador"})
     def taximetro():
         return render_template("taximetro_seguro.html", nombre=g.identidad_taxiroute.nombre_visible,
-                               rol=g.identidad_taxiroute.rol, durable=ruta_historial_durable is not None)
+                               rol=g.identidad_taxiroute.rol, durable=ruta_historial_durable is not None,
+                               persistente=app.config.get("DEMO_PERSISTENTE", False))
 
     @app.get("/administracion")
     @requerir_sesion(sesiones, roles={"administrador"})

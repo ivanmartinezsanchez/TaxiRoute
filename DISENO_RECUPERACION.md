@@ -137,3 +137,9 @@ Tras una interrupción, el intervalo desde el último punto fiable se presentar�
 Se han preparado componentes internos para comprobar y guardar carreras pendientes en CSV o en un historial SQLite separado. Los dos archivos no forman una única transacción: si una interrupción ocurre después de escribir el historial y antes de confirmar la recuperación, el reintento verifica los datos y evita duplicar la carrera. En SQLite se coordinan los bloqueos y se comprueban la cuenta y todos los campos. Se han probado concurrencia, errores simulados y reintentos con datos temporales.
 
 Estos componentes aún no están conectados a la web. No permiten por sí solos reconstruir una carrera interrumpida, garantizar el guardado cada cinco segundos ni proteger archivos que se sustituyan fuera de la aplicación.
+
+## Demostración persistente y revisión — 9 de noviembre de 2026
+
+La opción `--carpeta-demo` conserva datos ficticios fuera de Git y evita que dos instancias cooperativas utilicen simultáneamente la misma carpeta. Tras reiniciar, una carrera activa con un punto válido queda bloqueada para revisión. La pantalla muestra el punto y el importe hasta ese instante y exige una confirmación expresa antes de finalizarla sin añadir el intervalo desconocido. Se ha probado el recorrido en navegador y con bases temporales.
+
+La confirmación valida de nuevo la revisión, el instante y una huella del punto mostrado, para rechazar cambios de sus datos antes de cerrar. El cierre y el historial se comprueban antes de desbloquear la cuenta; un reintento después de un fallo no debe duplicar la carrera. Las intenciones sin resolver, ciertos errores de almacenamiento, procesos que no respeten el bloqueo y el uso con datos reales siguen pendientes de resolver o verificar.

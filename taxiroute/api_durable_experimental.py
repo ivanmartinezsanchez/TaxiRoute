@@ -1,13 +1,13 @@
 """API aislada para probar la coordinación durable; no es un despliegue real.
 
-Solo se registra explícitamente en pruebas. El historial y las cuentas deben
-ser archivos temporales confiables. No implementa puntos periódicos, recuperación
-interactiva, exclusión entre procesos ni un servidor persistente de producción.
+Se usa en demostraciones ficticias. La recuperación interactiva se habilita
+solo en la demo persistente con bloqueo exclusivo. No configura por sí sola
+los puntos periódicos ni constituye un servidor de producción.
 """
 import errno
 import sqlite3
 
-from flask import Blueprint, abort, jsonify, request
+from flask import Blueprint, abort, current_app, jsonify, request
 
 from taxiroute.conciliacion_sqlite import conciliar_pendiente_sqlite
 from taxiroute.flota import FlotaBloqueada, OperacionNoPermitida, RevisionDesactualizada
@@ -185,6 +185,80 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         final = liberar_cierre_conciliado(flota, sesiones, token, ruta_historial)
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
+
+    def exigir_demo_persistente():
+        if current_app.config.get("DEMO_PERSISTENTE") is not True:
+            abort(404)
+
+    def consultar_guardada_bloqueada(token):
+        from taxiroute.conciliacion_csv import _leer
+        from taxiroute.puntos_control import _desde_fila
+        def leer(identidad, conexion):
+            with flota._bloqueo:
+                usuario = identidad.usuario_id
+                servicio = flota._servicios.get(usuario)
+                if (usuario not in flota._bloqueados or usuario in flota._cierres_preparados
+                        or (servicio is not None and (servicio.carrera is not None or servicio.pendiente is not None))
+                        or conexion.execute("SELECT 1 FROM intenciones_operacion WHERE usuario_id=?", (usuario,)).fetchone()
+                        or conexion.execute("SELECT 1 FROM carreras_recuperacion WHERE usuario_id=? AND estado_registro!='guardada'", (usuario,)).fetchone()):
+                    raise OperacionNoPermitida()
+                revision = flota._revisiones.get(usuario, 0)
+                filas = conexion.execute("SELECT * FROM carreras_recuperacion WHERE usuario_id=? AND estado_registro='guardada' AND revision=?", (usuario, revision)).fetchall()
+                if len(filas) != 1:
+                    raise OperacionNoPermitida()
+                _leer(conexion, usuario, filas[0]["id"])
+                return _desde_fila(filas[0]), "guardada"
+        return sesiones.ejecutar_con_sesion_y_conexion(token,
+            roles={"conductor", "administrador"}, operacion=leer)
+
+    @api.get("/carrera/revision-recuperacion")
+    def consultar_revision_recuperacion():
+        exigir_demo_persistente()
+        from taxiroute.finalizacion_pendiente import _importe
+        from taxiroute.recuperacion_ultima_captura import revisar_ultima_captura, huella_revision
+        token, _ = token_y_identidad()
+        try:
+            punto, estado = revisar_ultima_captura(sesiones, token, flota)
+        except OperacionNoPermitida:
+            punto, estado = consultar_guardada_bloqueada(token)
+        revision = punto.revision - 1 if estado in {"guardado_pendiente", "guardada"} else punto.revision
+        return jsonify(pendiente={"estado": estado, "inicio": punto.inicio.isoformat(),
+            "ultimo_control": punto.ultimo_control.isoformat(), "estado_vehiculo": punto.estado_vehiculo,
+            "revision_recuperacion": revision, "importe_recuperado": str(_importe(punto)),
+            "huella": huella_revision(punto, revision),
+            "revision_disponible": True})
+
+    @api.post("/carrera/confirmar-recuperacion")
+    def confirmar_recuperacion():
+        exigir_demo_persistente()
+        from datetime import datetime
+        from taxiroute.recuperacion_ultima_captura import cerrar_en_ultima_captura, liberar_recuperada
+        datos = datos_con_revision({"revision", "ultimo_control", "confirmar", "huella"})
+        if (datos["confirmar"] is not True or not isinstance(datos["ultimo_control"], str)
+                or not isinstance(datos["huella"], str) or len(datos["huella"]) != 64
+                or any(c not in "0123456789abcdef" for c in datos["huella"])):
+            abort(400)
+        try:
+            instante = datetime.fromisoformat(datos["ultimo_control"])
+            if instante.tzinfo is None or instante.utcoffset() is None:
+                abort(400)
+        except ValueError:
+            abort(400)
+        token, identidad = token_y_identidad()
+        try:
+            resumen = cerrar_en_ultima_captura(sesiones, token, flota,
+                revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
+        except OperacionNoPermitida:
+            # Puede haber quedado guardada antes de que se perdiera la respuesta.
+            liberar_recuperada(sesiones, token, flota, ruta_historial,
+                revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
+        else:
+            conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial,
+                identidad.usuario_id, resumen.punto.carrera_id)
+            liberar_recuperada(sesiones, token, flota, ruta_historial,
+                revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
+        registrar_interaccion(token, identidad)
+        return jsonify(**estado_actual(token), mensaje="Carrera recuperada y guardada hasta el último punto fiable.")
 
     @api.get("/carrera/cierre-pendiente")
     def consultar_cierre_propio():

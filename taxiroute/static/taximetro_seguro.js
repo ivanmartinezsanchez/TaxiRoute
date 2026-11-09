@@ -15,6 +15,7 @@ let revisionTarifas = null;
 let generacionTarifas = 0;
 let generacionTarifasNuevas = 0;
 let revisionReintento = null;
+let puntoRecuperacion = null;
 
 function controles() {
   const disponible = conectado && !ocupado && !requiereRevision && actual !== null;
@@ -25,6 +26,7 @@ function controles() {
   const reintentoDurable = requiereRevision && revisionReintento !== null;
   $("#reintentar").hidden = !actual?.pendiente && !reintentoDurable;
   $("#reintentar").disabled = reintentoDurable ? !conectado || ocupado : !disponible || !actual?.pendiente;
+  $("#finalizar-recuperada").disabled = !conectado || ocupado || !requiereRevision || !puntoRecuperacion || !$("#confirmar-recuperacion").checked;
 }
 function mostrar(datos) {
   actual = datos;
@@ -93,9 +95,16 @@ async function mostrarPendiente() {
       datos = await solicitar("/api/carrera/cierre-pendiente");
     }
     if (!datos?.pendiente) datos = await solicitar("/api/recuperacion/pendiente");
+    if (document.body?.dataset?.persistente === "true" && !datos?.pendiente?.reintento_disponible) {
+      try {
+        const revision = await solicitar("/api/carrera/revision-recuperacion");
+        if (revision?.pendiente?.revision_disponible) datos = revision;
+      } catch (error) { /* Se conserva la información disponible para revisión. */ }
+    }
     if (!requiereRevision || generacion !== generacionRevision) return;
     const pendiente = datos.pendiente;
     if (!pendiente) {
+      puntoRecuperacion = null; $("#opciones-recuperacion").hidden = true; controles();
       $("#revision-error").textContent = "No se ha podido identificar la carrera pendiente. Consulta con administración.";
       return;
     }
@@ -106,10 +115,19 @@ async function mostrarPendiente() {
     $("#revision-control").textContent = pendiente.ultimo_control;
     $("#revision-estado").textContent = pendiente.estado_vehiculo;
     $("#revision-situacion").textContent = situaciones[pendiente.estado] || "Revisión necesaria";
+    const revisionValida = pendiente.revision_disponible === true && Number.isSafeInteger(pendiente.revision_recuperacion)
+      && typeof pendiente.ultimo_control === "string" && typeof pendiente.importe_recuperado === "string"
+      && typeof pendiente.huella === "string" && /^[0-9a-f]{64}$/.test(pendiente.huella);
+    const nuevoPunto = revisionValida ? {revision:pendiente.revision_recuperacion, instante:pendiente.ultimo_control, huella:pendiente.huella} : null;
+    if (!nuevoPunto || !puntoRecuperacion || nuevoPunto.revision !== puntoRecuperacion.revision || nuevoPunto.instante !== puntoRecuperacion.instante || nuevoPunto.huella !== puntoRecuperacion.huella)
+      $("#confirmar-recuperacion").checked = false;
+    puntoRecuperacion = nuevoPunto;
+    $("#opciones-recuperacion").hidden = !revisionValida;
+    $("#importe-recuperado").textContent = revisionValida ? pendiente.importe_recuperado.replace(".", ",") : "—";
     revisionReintento = pendiente.reintento_disponible === true && Number.isSafeInteger(pendiente.revision_reintento)
       ? pendiente.revision_reintento : null;
     $("#revision-error").textContent = revisionReintento !== null
-      ? "Puedes reintentar el guardado de esta carrera." : "La revisión todavía no está disponible en esta demostración.";
+      ? "Puedes reintentar el guardado de esta carrera." : (puntoRecuperacion ? "Revisa los datos antes de confirmar." : "La revisión todavía no está disponible en esta demostración.");
     controles();
   } catch (error) {
     if (requiereRevision && generacion === generacionRevision) $("#revision-error").textContent = "No se pueden consultar los datos de recuperación. Inténtalo más tarde.";
@@ -125,7 +143,8 @@ async function consultar() {
     conectado = true;
     if (requiereRevision) generacionRevision += 1;
     requiereRevision = false;
-    revisionReintento = null;
+    revisionReintento = null; puntoRecuperacion = null;
+    $("#opciones-recuperacion").hidden = true;
     $("#revision-pendiente").hidden = true;
     ultimaConsultaPendiente = 0;
     mostrar(datos);
@@ -135,7 +154,7 @@ async function consultar() {
       const nuevaRevision = error.status === 409;
       if (nuevaRevision !== requiereRevision) generacionRevision += 1;
       requiereRevision = nuevaRevision;
-      if (!requiereRevision) { revisionReintento = null; $("#revision-pendiente").hidden = true; }
+      if (!requiereRevision) { revisionReintento = null; puntoRecuperacion = null; $("#opciones-recuperacion").hidden = true; $("#revision-pendiente").hidden = true; }
       if (requiereRevision) { $("#estado").textContent = "Pendiente de revisión"; $("#importe").textContent = "—"; $("#tarifas-actuales").textContent = "Pendientes de revisión."; revisionTarifas = null; generacionTarifas += 1; }
       conectado = requiereRevision;
       $("#conexion").textContent = requiereRevision ? "Revisión necesaria" : "Estado no disponible";
@@ -165,6 +184,22 @@ async function actuar(ruta, adicionales = {}) {
     $("#mensaje").textContent = error.message + " La acción podría seguir procesándose. Consulta el estado antes de volver a intentarlo.";
   } finally { ocupado = false; controles(); await consultar(); }
 }
+async function confirmarRecuperacion() {
+  if (ocupado || !conectado || !requiereRevision || !puntoRecuperacion || !$("#confirmar-recuperacion").checked) return;
+  const confirmado = {...puntoRecuperacion};
+  ocupado = true; ultimoError = ""; controles();
+  try {
+    const datos = await solicitar("/api/carrera/confirmar-recuperacion", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({revision:confirmado.revision,
+        ultimo_control:confirmado.instante, huella:confirmado.huella, confirmar:true})});
+    conectado = true; mostrar(datos); await cargarHistorial();
+  } catch (error) {
+    conectado = false; ultimoError = error.message;
+    $("#mensaje").textContent = error.message + " Comprueba el estado antes de volver a intentarlo.";
+  } finally {
+    ocupado = false; ultimaConsultaPendiente = 0; controles(); await consultar();
+  }
+}
 async function cargarHistorial() {
   const generacion = ++generacionHistorial;
   try {
@@ -187,6 +222,8 @@ $("#parar").addEventListener("click", () => actuar("/api/carrera/estado", {estad
 $("#finalizar").addEventListener("click", () => actuar("/api/carrera/finalizar"));
 $("#reintentar").addEventListener("click", () => actuar("/api/carrera/reintentar"));
 $("#actualizar").addEventListener("click", cargarHistorial);
+$("#confirmar-recuperacion").addEventListener("change", controles);
+$("#finalizar-recuperada").addEventListener("click", confirmarRecuperacion);
 $("#cerrar").addEventListener("click", async () => {
   try { await solicitar("/acceso/cerrar", {method: "POST"}); window.location.assign("/acceso"); }
   catch (error) { $("#mensaje").textContent = error.message; }
