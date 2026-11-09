@@ -23,7 +23,7 @@ _RECURSOS = frozenset({"acceso.css", "acceso.js", "taximetro_seguro.css", "taxim
                         "administracion.css", "administracion.js"})
 
 
-def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None, ruta_historial_durable=None):
+def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None, ruta_historial_durable=None, ruta_historial_flota=None):
     """Servicios inyectados por el integrador; no usar como aplicación final."""
     if not callable(historial_por_usuario):
         raise ValueError("Se necesita un historial por usuario.")
@@ -74,7 +74,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     @app.get("/administracion")
     @requerir_sesion(sesiones, roles={"administrador"})
     def administracion():
-        return render_template("administracion.html")
+        return render_template("administracion.html", persistente=app.config.get("DEMO_PERSISTENTE", False),
+                               historial_flota=ruta_historial_flota is not None)
     app.register_blueprint(crear_acceso_conductor(sesiones))
     app.register_blueprint(crear_cambio_conductor(sesiones.ruta, reloj=sesiones._reloj))
     app.register_blueprint(crear_acceso_administrador(pin))
@@ -86,6 +87,9 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     app.register_blueprint(crear_administracion_web(sesiones))
     app.register_blueprint(crear_alta_conductor_web(sesiones))
     app.register_blueprint(crear_web_pendientes(sesiones))
+    if ruta_historial_flota is not None:
+        from taxiroute.web_historial_flota import crear_historial_flota_web
+        app.register_blueprint(crear_historial_flota_web(sesiones, ruta_historial_flota))
     if ruta_tarifas is not None:
         app.register_blueprint(crear_tarifas_web(sesiones, ruta_tarifas))
     return app

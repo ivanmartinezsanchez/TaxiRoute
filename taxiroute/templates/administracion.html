@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='administracion.css') }}">
 <script src="{{ url_for('static', filename='administracion.js') }}" defer></script></head>
 <body><a class="saltar" href="#principal">Saltar al contenido</a><header><a class="marca" href="{{ url_for('taximetro') }}">TaxiRoute</a><a href="{{ url_for('taximetro') }}">Volver al taxímetro</a></header>
-<main id="principal"><p class="aviso">Modo de pruebas: utiliza únicamente cuentas ficticias. Los datos se borran al detener la demostración.</p>
+<main id="principal"><p class="aviso">Modo de pruebas: utiliza únicamente cuentas ficticias. {% if persistente %}Los datos de la demostración se conservan en la carpeta elegida.{% else %}Los datos se borran al detener la demostración.{% endif %}</p>
 <section class="cuenta" aria-labelledby="titulo-tarifas"><h1 id="titulo-tarifas">Tarifas para nuevas carreras</h1>
 <p>Las carreras que ya están en marcha mantienen las tarifas con las que comenzaron.</p>
 <form id="form-tarifas"><div class="tarifas"><label>Parado (€ por segundo)<input id="tarifa-parado" type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]+)?" required></label>
@@ -17,6 +17,16 @@
 <label>Repite la contraseña<input id="alta-confirmar" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label></div>
 <p id="alta-reglas">Al menos una mayúscula, tres minúsculas, tres números y un símbolo. Comparte la clave por un medio seguro.</p>
 <button type="submit">Crear conductor</button></form></section>
+{% if historial_flota %}<section class="cuenta" aria-labelledby="titulo-historial-flota">
+<h2 id="titulo-historial-flota">Historial de la flota</h2>
+<p>Consulta las carreras de todas las cuentas. Las carreras antiguas sin propietario se muestran como «Sin asignar».</p>
+<div class="filtro-historial"><label for="periodo-historial">Periodo</label>
+<select id="periodo-historial"><option value="hoy">Finalizadas hoy</option><option value="todas">Todas las carreras</option></select>
+<button id="actualizar-historial" type="button">Actualizar historial</button></div>
+<p id="estado-historial-flota" role="status" aria-live="polite">Cargando historial…</p>
+<nav class="paginacion-historial" aria-label="Páginas del historial"><button id="historial-anterior" type="button" disabled>Anterior</button><span id="pagina-historial">Página 1</span><button id="historial-siguiente" type="button" disabled>Siguiente</button></nav>
+<div class="tabla-historial"><table><thead><tr><th scope="col">Conductor</th><th scope="col">Inicio</th><th scope="col">Finalización</th><th scope="col">Duración (s)</th><th scope="col">Importe</th></tr></thead><tbody id="filas-historial-flota"></tbody></table></div>
+</section>{% endif %}
 <h2>Cuentas de conductores</h2><p>Consulta el estado de cada cuenta y administra su acceso.</p>
 <p id="mensaje" role="status" aria-live="polite">Cargando cuentas…</p>
 <button id="actualizar" type="button">Actualizar cuentas</button><section id="cuentas" aria-label="Cuentas de conductores"></section>

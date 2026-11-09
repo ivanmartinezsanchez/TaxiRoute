@@ -40,8 +40,7 @@ def crear_demo_temporal(carpeta, *, mostrar_codigo, durable=False):
                          (admin.id, "demo@example.invalid"))
     ruta_tarifas = carpeta / "tarifas.json"
     guardar_tarifas(ruta_tarifas, {"parado": "0.02", "en_movimiento": "0.05"})
-    if durable:
-        HistorialSQLite(carpeta / "historial.sqlite3", exigir_existente=True).inicializar()
+    HistorialSQLite(carpeta / "historial.sqlite3", exigir_existente=True).inicializar()
     return _armar_demo(carpeta, mostrar_codigo=mostrar_codigo, durable=durable)
 
 
@@ -74,7 +73,8 @@ def _armar_demo(carpeta, *, mostrar_codigo, durable):
     else:
         flota = FlotaEnMemoria(fabrica)
     app = crear_app_integrada(sesiones, pin, flota, historial, ruta_tarifas=ruta_tarifas,
-                              ruta_historial_durable=ruta_historial if durable else None)
+                              ruta_historial_durable=ruta_historial if durable else None,
+                              ruta_historial_flota=ruta_historial)
     if durable:
         from taxiroute.control_periodico import ControlPeriodico
         app.extensions["control_periodico"] = ControlPeriodico(

@@ -8,6 +8,7 @@ const descripciones = {
   revocar: ["Revocar sesiones", "Cierra las sesiones del conductor sin desactivar su cuenta."]
 };
 let ocupado = false;
+let actualizarBotonesHistorial = () => {};
 async function solicitar(ruta, opciones = {}) {
   const respuesta = await fetch(ruta, {...opciones, cache:"no-store", signal:AbortSignal.timeout(5000)});
   if (respuesta.status === 401) { window.location.assign("/acceso"); throw new Error("Sesión no disponible."); }
@@ -38,7 +39,7 @@ async function cargar() {
             const actualizado = await cargar();
             mensaje.textContent = actualizado ? resultado.mensaje : "Acción realizada, pero no se pudo actualizar la lista. Inténtalo de nuevo.";
           } catch (error) { mensaje.textContent = error.message; }
-          finally { ocupado = false; document.querySelectorAll("button").forEach((x) => { x.disabled = false; }); }
+          finally { ocupado = false; document.querySelectorAll("button").forEach((x) => { x.disabled = false; }); actualizarBotonesHistorial(); }
         });
         bloque.append(boton, ayuda); acciones.append(bloque);
       }
@@ -120,3 +121,60 @@ document.querySelector("#form-tarifas").addEventListener("submit", async (evento
 });
 cargarTarifas();document.querySelector("#actualizar").addEventListener("click", cargar);
 cargar();
+const selectorHistorial = document.querySelector("#periodo-historial");
+if (selectorHistorial) {
+  let generacionHistorial = 0;
+  let pagina = 1;
+  let hayAnterior = false;
+  let hayMas = false;
+  let cargandoHistorial = false;
+  const anterior = document.querySelector("#historial-anterior");
+  const siguiente = document.querySelector("#historial-siguiente");
+  actualizarBotonesHistorial = () => {
+    anterior.disabled = cargandoHistorial || !hayAnterior;
+    siguiente.disabled = cargandoHistorial || !hayMas;
+  };
+  const estadoHistorial = document.querySelector("#estado-historial-flota");
+  const filasHistorial = document.querySelector("#filas-historial-flota");
+  function fechaLocal(valor) {
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? "Fecha no válida" : new Intl.DateTimeFormat("es-ES", {
+      dateStyle:"short", timeStyle:"medium"}).format(fecha);
+  }
+  async function cargarHistorialFlota() {
+    const generacion = ++generacionHistorial;
+    const periodo = selectorHistorial.value;
+    cargandoHistorial = true; actualizarBotonesHistorial();
+    estadoHistorial.textContent = "Cargando historial…";
+    try {
+      const datos = await solicitar("/api/administracion/historial?periodo=" + encodeURIComponent(periodo) + "&pagina=" + pagina);
+      if (generacion !== generacionHistorial) return;
+      filasHistorial.replaceChildren();
+      for (const carrera of datos.carreras) {
+        const fila = document.createElement("tr");
+        for (const valor of [carrera.conductor, fechaLocal(carrera.inicio), fechaLocal(carrera.fin),
+                             carrera.duracion_segundos, String(carrera.importe).replace(".", ",") + " €"]) {
+          const celda = document.createElement("td"); celda.textContent = String(valor); fila.append(celda);
+        }
+        filasHistorial.append(fila);
+      }
+      hayAnterior = datos.hay_anterior; hayMas = datos.hay_mas;
+      document.querySelector("#pagina-historial").textContent = "Página " + datos.pagina;
+      estadoHistorial.textContent = datos.carreras.length
+        ? "Carreras en esta página: " + datos.carreras.length + "."
+        : "No hay carreras en esta página.";
+    } catch (error) {
+      if (generacion === generacionHistorial) {
+        filasHistorial.replaceChildren();
+        estadoHistorial.textContent = error.message;
+      }
+    } finally {
+      if (generacion === generacionHistorial) { cargandoHistorial = false; actualizarBotonesHistorial(); }
+    }
+  }
+  selectorHistorial.addEventListener("change", () => { pagina = 1; cargarHistorialFlota(); });
+  anterior.addEventListener("click", () => { if (hayAnterior && !cargandoHistorial) { pagina -= 1; cargarHistorialFlota(); } });
+  siguiente.addEventListener("click", () => { if (hayMas && !cargandoHistorial) { pagina += 1; cargarHistorialFlota(); } });
+  document.querySelector("#actualizar-historial").addEventListener("click", cargarHistorialFlota);
+  cargarHistorialFlota();
+}
