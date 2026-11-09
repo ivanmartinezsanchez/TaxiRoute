@@ -14,6 +14,7 @@ from taxiroute.configuracion import cargar_tarifas, guardar_tarifas
 from taxiroute.cuentas import crear_cuenta
 from taxiroute.flota import FlotaEnMemoria
 from taxiroute.historial_sqlite import HistorialSQLite
+from taxiroute.inicializacion_administrador import preparar_primer_administrador
 from taxiroute.pin import ServicioPIN
 from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
@@ -29,15 +30,14 @@ def crear_demo_temporal(carpeta, *, mostrar_codigo, durable=False):
     carpeta = Path(carpeta)
     ruta = carpeta / "cuentas.sqlite3"
     inicializar_base(ruta)
+    admin = preparar_primer_administrador(ruta, nombre_usuario="AdminDemo",
+        nombre_visible="Administración de prueba", contrasena=CLAVE_ADMIN_DEMO,
+        correo="demo@example.invalid")
     conductor = crear_cuenta(ruta, nombre_usuario="AnaDemo", nombre_visible="Ana de prueba",
                              contrasena=CLAVE_CONDUCTOR_DEMO)
-    admin = crear_cuenta(ruta, nombre_usuario="AdminDemo", nombre_visible="Administración de prueba",
-                         contrasena=CLAVE_ADMIN_DEMO, rol="administrador")
     with conectar(ruta) as conexion:
         conexion.execute("UPDATE usuarios SET cambio_obligatorio=0 WHERE id IN (?, ?)",
                          (conductor.id, admin.id))
-        conexion.execute("INSERT INTO configuracion_administrador VALUES (?, ?)",
-                         (admin.id, "demo@example.invalid"))
     ruta_tarifas = carpeta / "tarifas.json"
     guardar_tarifas(ruta_tarifas, {"parado": "0.02", "en_movimiento": "0.05"})
     HistorialSQLite(carpeta / "historial.sqlite3", exigir_existente=True).inicializar()
