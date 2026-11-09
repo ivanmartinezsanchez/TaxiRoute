@@ -25,6 +25,7 @@ let cierreFallido = false;
 let recuperacionCompletada = false;
 let cuerpoRecuperacion = null;
 let revisionEnviada = null;
+let eventosCarrera = [];
 function elemento(selector) {
   if (!elementos.has(selector)) {
     elementos.set(selector, {
@@ -36,7 +37,8 @@ function elemento(selector) {
 }
 const respuesta = (status, datos) => ({status, ok: status >= 200 && status < 300, json: async () => datos});
 const contexto = vm.createContext({
-  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar"].includes(escenario) ? "true" : "false", persistente: escenario === "recuperar" ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}})},
+  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar"].includes(escenario) ? "true" : "false", persistente: escenario === "recuperar" ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}}), dispatchEvent(evento) {eventosCarrera.push(evento.detail.activa);}},
+  CustomEvent: class {constructor(tipo, opciones) {this.type = tipo; this.detail = opciones.detail;}},
   fetch: async (ruta, opciones = {}) => {
     if (escenario === "error_accion" && opciones.method === "POST") throw new Error("Tiempo agotado");
     if (ruta === "/api/carrera/confirmar-recuperacion" && escenario === "recuperar") {
@@ -126,7 +128,7 @@ function estado() {
   }
   if (escenario === "reintento") await vm.runInContext("actuar('/api/carrera/reintentar')", contexto);
   if (escenario === "error_cierre") { await vm.runInContext("actuar('/api/carrera/finalizar')", contexto); await new Promise((resolve) => setImmediate(resolve)); }
-  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion}));
+  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, eventosCarrera}));
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 """
 
@@ -140,6 +142,10 @@ class PruebasTaximetroJS(unittest.TestCase):
         )
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
         return json.loads(resultado.stdout)
+
+    def test_notifica_si_la_carrera_esta_activa(self):
+        resultado = self.ejecutar_escenario("tarifas")
+        self.assertEqual(resultado["eventosCarrera"], [True])
 
     def test_conflicto_de_revision_muestra_motivo_y_bloquea_acciones(self):
         estado = self.ejecutar_escenario("revision")["primero"]

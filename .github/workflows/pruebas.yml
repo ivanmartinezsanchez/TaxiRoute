@@ -34,3 +34,6 @@ jobs:
 
       - name: Ejecutar las pruebas
         run: python -m unittest discover -s tests -v
+
+      - name: Comprobar pantalla activa
+        run: node --test tests/test_pantalla_activa.cjs
