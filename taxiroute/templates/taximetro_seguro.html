@@ -6,6 +6,7 @@
   <title>TaxiRoute · Taxímetro</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='taximetro_seguro.css') }}">
   <script src="{{ url_for('static', filename='taximetro_seguro.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='pantalla_activa.js') }}" defer></script>
 </head>
 <body data-durable="{{ 'true' if durable else 'false' }}" data-persistente="{{ 'true' if persistente else 'false' }}">
 <a class="saltar" href="#principal">Saltar al taxímetro</a>
@@ -25,6 +26,12 @@
       <button id="reintentar" class="secundario" type="button" hidden>Reintentar guardado</button>
     </div>
     <p class="nota">El estado y el importe se actualizan automáticamente mientras el servicio está disponible.</p>
+    <section class="pantalla-activa" aria-labelledby="titulo-pantalla">
+      <h2 id="titulo-pantalla">Pantalla durante la carrera</h2>
+      <label><input id="mantener-pantalla" type="checkbox"> Mantener la pantalla encendida durante una carrera</label>
+      <p id="estado-pantalla" role="status" aria-live="polite">Opción desactivada.</p>
+      <p class="nota">Depende del navegador y del dispositivo. No impide el bloqueo manual ni garantiza que el equipo no se suspenda.</p>
+    </section>
     <section class="tarifas-conductor" aria-labelledby="titulo-tarifas-conductor">
       <h2 id="titulo-tarifas-conductor">Tarifas</h2>
       <p><strong>Carrera actual:</strong> <span id="tarifas-actuales">Consultando…</span></p>

@@ -20,7 +20,7 @@ from taxiroute.web_pendientes import crear_web_pendientes
 
 
 _RECURSOS = frozenset({"acceso.css", "acceso.js", "taximetro_seguro.css", "taximetro_seguro.js",
-                        "administracion.css", "administracion.js"})
+                        "administracion.css", "administracion.js", "pantalla_activa.js"})
 
 
 def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None, ruta_historial_durable=None, ruta_historial_flota=None):

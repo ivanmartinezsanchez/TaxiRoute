@@ -30,6 +30,7 @@ function controles() {
 }
 function mostrar(datos) {
   actual = datos;
+  document.dispatchEvent(new CustomEvent("taxiroute:carrera", {detail: {activa: datos.activa === true}}));
   if (revisionTarifas !== datos.revision) {
     revisionTarifas = datos.revision;
     void cargarTarifasActuales(datos.revision, datos.activa);

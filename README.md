@@ -184,6 +184,8 @@ Pendiente de decidir. La visibilidad pública del repositorio no define por sí 
 
 En la rama de desarrollo hay una demostración HTTPS local que reúne acceso de conductor y administrador, código administrativo ficticio, taxímetro, historial por cuenta, tarifas y gestión básica de conductores. La demostración crea datos temporales y los borra al detenerse; no envía correo real ni debe utilizarse con carreras reales.
 
+El taxímetro de esta demo ofrece una opción para solicitar que la pantalla permanezca encendida durante una carrera. Depende del navegador y del dispositivo; no impide el bloqueo manual ni garantiza que el equipo no se suspenda. La preferencia solo se mantiene mientras la pestaña esté abierta. Sus pruebas simuladas se ejecutan con `node --test tests/test_pantalla_activa.cjs`; todavía falta comprobarla en una tablet real.
+
 La aplicación habitual `python -m taxiroute.web` corresponde a la web anterior, sin cuentas. La demostración protegida requiere un certificado y una clave locales de prueba, conservados fuera del repositorio:
 
 ```bash
