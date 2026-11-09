@@ -14,7 +14,7 @@ Actualizado el 9 de noviembre de 2026. Fecha de entrega indicada: 15 de noviembr
 - La espera entre intentos de acceso se comprueba de nuevo al guardar los fallos concurrentes; se ha añadido una prueba específica.
 - La web integrada permite consultar la carrera pendiente de la propia cuenta y muestra una sección informativa cuando la flota está bloqueada. Hay un modo opcional de demostración durable: se han comprobado en navegador dos carreras consecutivas y su historial. La variante persistente de prueba detecta una carrera interrumpida al arrancar y permite confirmar su cierre en el último punto fiable; se ha comprobado en navegador. El reintento de cierre en memoria se limita al proceso actual.
 - Existe una migración experimental de CSV a SQLite probada con archivos temporales. No se ha ejecutado sobre el historial real y las carreras históricas permanecen sin propietario.
-- Docker construye una imagen y se ha probado inicio, finalización e historial tras reiniciar un contenedor temporal. Esa imagen arranca el prototipo web anterior, que no incluye todavía el acceso integrado; no constituye el despliegue final de fase 4.
+- Docker construye una imagen para la web anterior. Existe además un archivo Compose separado para la demo integrada, con acceso HTTPS local y un volumen de datos ficticios. Se han probado el acceso del conductor, inicio y cierre de una carrera y su historial tras reiniciar el contenedor. La demo usa credenciales conocidas, PIN ficticio en los registros y servidor de desarrollo; no es el despliegue final de fase 4.
 
 ## Prioridades hasta la entrega
 

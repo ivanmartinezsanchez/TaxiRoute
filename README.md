@@ -196,6 +196,17 @@ Después se abre `https://127.0.0.1:8767/`. El servidor muestra las credenciales
 
 Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
 
+### Demostración integrada con Docker
+
+Con Docker Desktop abierto, desde la raíz del proyecto se puede iniciar la demostración ficticia con:
+
+```bash
+docker compose -f compose.demo.yaml up --build
+```
+
+La aplicación se abre en `https://127.0.0.1:18767/`. El conductor de prueba es `AnaDemo` y el administrador es `AdminDemo`; sus contraseñas ficticias se encuentran en `taxiroute/demo_integrada.py`. El código ficticio de acceso administrativo aparece en los mensajes de Docker. Para detenerla, pulsa Ctrl+C. Docker conserva sus datos ficticios en un volumen independiente para el siguiente arranque.
+
+Esta opción genera un certificado autofirmado de corta duración que cambia al reiniciar: el navegador avisará de que no es de confianza. El puerto se publica solo en el ordenador, aunque otros contenedores de la misma red Docker podrían alcanzar el servicio. La demostración usa contraseñas conocidas y un PIN visible en los registros, no envía correo real y no debe contener datos ni carreras reales. El servidor es de desarrollo y la recuperación sigue siendo experimental.
 Quedan pendientes la integración del correo real en el acceso, la recuperación completa, la configuración persistente de uso real y el despliegue de la versión protegida. La comunicación entre ubicaciones distintas y la sesión única por cuenta están acordadas como una evolución posterior. El [estado de entrega](ESTADO_ENTREGA.md) distingue las funciones verificadas de las pendientes.
 
 Las decisiones sobre cuentas, tarifas, permisos y límites de seguridad se detallan en [DISENO_CUENTAS.md](DISENO_CUENTAS.md), [ALCANCE_FASE_3.md](ALCANCE_FASE_3.md) y [DISENO_RECUPERACION.md](DISENO_RECUPERACION.md).
