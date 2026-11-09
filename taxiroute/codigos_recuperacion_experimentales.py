@@ -39,14 +39,18 @@ def _fecha(ahora):
     return instante.astimezone(timezone.utc).isoformat()
 
 
-def generar_codigos_en_transaccion(conexion, usuario_id, *, cantidad=5, ahora=None):
-    """Crea un primer lote para un administrador; mostrar solo tras confirmar.
+def _crear_lote(cantidad):
+    if type(cantidad) is not int or not 1 <= cantidad <= 10:
+        raise ValueError("La cantidad de códigos no es válida.")
+    return tuple(secrets.token_urlsafe(32) for _ in range(cantidad))
 
-    El llamador debe autorizar el alta y confirmar la transacción antes de
-    mostrar los códigos. No permite regenerar ni reemplazar lotes existentes.
-    """
+
+def _guardar_lote_en_transaccion(conexion, usuario_id, codigos, *, ahora=None):
+    """Guarda un lote generado internamente; nunca autoriza por sí mismo."""
     _requiere_transaccion(conexion)
-    if not isinstance(usuario_id, str) or not usuario_id.strip() or type(cantidad) is not int or not 1 <= cantidad <= 10:
+    if (not isinstance(usuario_id, str) or not usuario_id.strip() or not isinstance(codigos, tuple)
+            or not 1 <= len(codigos) <= 10 or len(set(codigos)) != len(codigos)
+            or not all(isinstance(codigo, str) and _FORMATO.fullmatch(codigo) for codigo in codigos)):
         raise ValueError("Los datos de generación no son válidos.")
     usuario = conexion.execute("SELECT rol FROM usuarios WHERE id=?", (usuario_id,)).fetchone()
     if usuario is None or usuario[0] != "administrador":
@@ -54,9 +58,19 @@ def generar_codigos_en_transaccion(conexion, usuario_id, *, cantidad=5, ahora=No
     if conexion.execute("SELECT 1 FROM codigos_recuperacion WHERE usuario_id=? LIMIT 1", (usuario_id,)).fetchone():
         raise ValueError("La cuenta ya tiene códigos; no se sustituirán.")
     fecha = _fecha(ahora)
-    codigos = tuple(secrets.token_urlsafe(32) for _ in range(cantidad))
     conexion.executemany("""INSERT INTO codigos_recuperacion (usuario_id, verificador, creado_en)
         VALUES (?, ?, ?)""", [(usuario_id, _verificador(usuario_id, codigo), fecha) for codigo in codigos])
+
+
+def generar_codigos_en_transaccion(conexion, usuario_id, *, cantidad=5, ahora=None):
+    """Crea un primer lote para un administrador; mostrar solo tras confirmar.
+
+    El llamador debe autorizar el alta y confirmar la transacción antes de
+    mostrar los códigos. No permite regenerar ni reemplazar lotes existentes.
+    """
+    _requiere_transaccion(conexion)
+    codigos = _crear_lote(cantidad)
+    _guardar_lote_en_transaccion(conexion, usuario_id, codigos, ahora=ahora)
     return codigos
 
 

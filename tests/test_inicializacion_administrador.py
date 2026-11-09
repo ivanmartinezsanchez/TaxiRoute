@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.cuentas import DatosCuentaInvalidos, _PROTECTOR, crear_cuenta
-from taxiroute.inicializacion_administrador import (InicializacionDenegada, preparar_primer_administrador,
+from taxiroute.inicializacion_administrador import (InicializacionCancelada, InicializacionDenegada, preparar_primer_administrador,
     preparar_primer_administrador_con_codigos)
 from taxiroute.codigos_recuperacion_experimentales import consumir_codigo_en_transaccion
 from taxiroute.cambio_administrador import cambiar_contrasena_administrador
@@ -64,6 +64,40 @@ class PruebasPrimerAdministrador(unittest.TestCase):
             conexion.execute("BEGIN IMMEDIATE")
             self.assertTrue(consumir_codigo_en_transaccion(conexion, resultado.cuenta.id, resultado.codigos[0]))
             conexion.rollback()
+
+    def test_confirmacion_de_codigos_ocurre_antes_de_crear_la_cuenta(self):
+        vistos = []
+        def confirmar(codigos):
+            vistos.extend(codigos)
+            with conectar(self.ruta) as conexion:
+                self.assertEqual(conexion.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0], 0)
+            return True
+        resultado = preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos,
+                                                             confirmar_codigos=confirmar)
+        self.assertEqual(tuple(vistos), resultado.codigos)
+        with conectar(self.ruta) as conexion:
+            conexion.execute("BEGIN IMMEDIATE")
+            self.assertTrue(consumir_codigo_en_transaccion(conexion, resultado.cuenta.id, vistos[0]))
+            conexion.rollback()
+
+    def test_cancelar_confirmacion_no_crea_ningun_dato(self):
+        with self.assertRaises(InicializacionCancelada):
+            preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos,
+                                                     confirmar_codigos=lambda codigos: False)
+        with conectar(self.ruta) as conexion:
+            for tabla in ("usuarios", "configuracion_administrador", "codigos_recuperacion"):
+                self.assertEqual(conexion.execute(f"SELECT COUNT(*) FROM {tabla}").fetchone()[0], 0)
+
+    def test_cuenta_creada_durante_confirmacion_no_se_sobrescribe(self):
+        def confirmar(codigos):
+            crear_cuenta(self.ruta, nombre_usuario="Otro", nombre_visible="Prueba",
+                         contrasena="ConductorPrueba123!")
+            return True
+        with self.assertRaises(InicializacionDenegada):
+            preparar_primer_administrador_con_codigos(self.ruta, **self.argumentos, confirmar_codigos=confirmar)
+        with conectar(self.ruta) as conexion:
+            self.assertEqual(conexion.execute("SELECT nombre_usuario FROM usuarios").fetchone()[0], "Otro")
+            self.assertEqual(conexion.execute("SELECT COUNT(*) FROM codigos_recuperacion").fetchone()[0], 0)
 
     def test_error_al_generar_codigos_revierte_toda_la_inicializacion(self):
         with patch("taxiroute.inicializacion_administrador.generar_codigos_en_transaccion",

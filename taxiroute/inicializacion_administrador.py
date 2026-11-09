@@ -11,12 +11,18 @@ import unicodedata
 from uuid import uuid4
 
 from taxiroute.base_cuentas import IDENTIFICADOR_APLICACION, VERSION_ESQUEMA
-from taxiroute.codigos_recuperacion_experimentales import generar_codigos_en_transaccion
+from taxiroute.codigos_recuperacion_experimentales import (
+    _crear_lote, _guardar_lote_en_transaccion, generar_codigos_en_transaccion,
+)
 from taxiroute.cuentas import CuentaCreada, DatosCuentaInvalidos, _PROTECTOR, normalizar_usuario, validar_contrasena
 
 
 class InicializacionDenegada(ValueError):
     """La base no está disponible para inicializar la primera cuenta."""
+
+
+class InicializacionCancelada(ValueError):
+    """La persona usuaria no confirmó que había guardado los códigos."""
 
 
 @dataclass(frozen=True)
@@ -39,19 +45,23 @@ def preparar_primer_administrador(ruta, *, nombre_usuario, nombre_visible, contr
     return cuenta
 
 
-def preparar_primer_administrador_con_codigos(ruta, *, nombre_usuario, nombre_visible, contrasena, correo):
+def preparar_primer_administrador_con_codigos(ruta, *, nombre_usuario, nombre_visible, contrasena, correo,
+                                             confirmar_codigos=None):
     """Crea cuenta, correo y códigos juntos; devuelve los códigos tras confirmar.
 
     Es una operación interna, sin interfaz de entrega ni recuperación todavía.
     La persona integradora debe entregar los códigos de forma privada; si se
     pierden, este componente aún no ofrece un procedimiento para reemplazarlos.
     """
+    if confirmar_codigos is not None and not callable(confirmar_codigos):
+        raise TypeError("La confirmación de códigos debe ser una función.")
     cuenta, codigos = _preparar(ruta, nombre_usuario=nombre_usuario, nombre_visible=nombre_visible,
-                               contrasena=contrasena, correo=correo, emitir_codigos=True)
+                               contrasena=contrasena, correo=correo, emitir_codigos=True,
+                               confirmar_codigos=confirmar_codigos)
     return PreparacionConCodigos(cuenta, codigos)
 
 
-def _preparar(ruta, *, nombre_usuario, nombre_visible, contrasena, correo, emitir_codigos):
+def _preparar(ruta, *, nombre_usuario, nombre_visible, contrasena, correo, emitir_codigos, confirmar_codigos=None):
     ruta = Path(ruta)
     if ruta.is_symlink() or not ruta.is_file():
         raise InicializacionDenegada("Se necesita una base de cuentas existente y preparada.")
@@ -68,6 +78,21 @@ def _preparar(ruta, *, nombre_usuario, nombre_visible, contrasena, correo, emiti
         raise DatosCuentaInvalidos("El correo no es válido.")
     validar_contrasena(contrasena)
     protegido = _PROTECTOR.hash(contrasena)
+    preparados = None
+    if confirmar_codigos is not None:
+        # Comprobar antes de mostrar códigos; se repetirá dentro de la escritura.
+        lectura = sqlite3.connect(ruta.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)
+        try:
+            if (lectura.execute("PRAGMA application_id").fetchone()[0] != IDENTIFICADOR_APLICACION
+                    or lectura.execute("PRAGMA user_version").fetchone()[0] != VERSION_ESQUEMA
+                    or lectura.execute("SELECT 1 FROM usuarios LIMIT 1").fetchone()
+                    or lectura.execute("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='codigos_recuperacion'").fetchone() is None):
+                raise InicializacionDenegada("La base no está disponible para preparar la cuenta.")
+        finally:
+            lectura.close()
+        preparados = _crear_lote(5)
+        if confirmar_codigos(preparados) is not True:
+            raise InicializacionCancelada("No se ha confirmado la conservación de los códigos.")
     identificador = str(uuid4())
     fecha = datetime.now(timezone.utc).isoformat()
     uri = ruta.resolve().as_uri() + "?mode=rw"
@@ -88,7 +113,11 @@ def _preparar(ruta, *, nombre_usuario, nombre_visible, contrasena, correo, emiti
                 (identificador, nombre, normalizado, visible, protegido, fecha, fecha))
             conexion.execute("INSERT INTO configuracion_administrador (usuario_id, correo_verificacion) VALUES (?, ?)",
                              (identificador, correo))
-            codigos = generar_codigos_en_transaccion(conexion, identificador) if emitir_codigos else ()
+            if preparados is not None:
+                _guardar_lote_en_transaccion(conexion, identificador, preparados)
+                codigos = preparados
+            else:
+                codigos = generar_codigos_en_transaccion(conexion, identificador) if emitir_codigos else ()
             conexion.commit()
         except BaseException:
             conexion.rollback()
