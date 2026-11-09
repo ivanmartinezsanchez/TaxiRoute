@@ -83,6 +83,8 @@ Si la aplicación se cierra antes de guardar o exportar la carrera pendiente, lo
 
 ### Fase 3. Interfaz y protección de acceso
 
+**Ampliación de alcance — 7 de noviembre de 2026.** Se han aprobado cuentas con roles, acceso administrativo con contraseña y código por correo, HTTPS y carreras simultáneas en vehículos diferentes. El [documento de alcance de fase 3](ALCANCE_FASE_3.md) recoge los requisitos, sus límites y las decisiones aún pendientes. Esta ampliación sustituye la premisa de una sola carrera compartida; no cambia todavía el código ni habilita acceso de red. El acceso desde distintas ubicaciones y la sesión única por cuenta se han aprobado como evolución posterior: se partirá del ordenador del administrador como servidor y una red privada. Su implementación queda aplazada mientras se desarrolla la versión local. Los apartados siguientes conservan el diseño y los resultados previos.
+
 En esta etapa se organizará la aplicación en componentes con responsabilidades delimitadas y se añadirá un mecanismo de acceso mediante contraseña. Las contraseñas no se almacenarán en texto plano.
 
 Se desarrollará una interfaz adecuada para su uso en una tablet. El conductor deberá poder identificar el estado del vehículo y el importe de un vistazo, interactuar mediante controles táctiles y utilizar la aplicación sin que la pantalla se bloquee durante el cálculo.

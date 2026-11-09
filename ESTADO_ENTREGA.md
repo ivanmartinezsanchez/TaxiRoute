@@ -1,0 +1,30 @@
+# Estado de entrega de TaxiRoute
+
+Actualizado el 9 de noviembre de 2026. Fecha de entrega indicada: 15 de noviembre de 2026. Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
+
+## Lo que existe
+
+- Las fases 1 y 2 están integradas según el README y conservan su historial CSV.
+- Hay una demo web integrada local con datos temporales: acceso de conductor y administrador, PIN ficticio, taxímetro, historial SQLite separado por conductor, reintento de guardado, alta y cambio inicial de contraseña de conductores, panel experimental de cuentas y tarifas para nuevas carreras. No se utiliza correo real ni se guardan datos de uso al detenerla.
+- El recorrido básico de conductor se ha comprobado por HTTPS local mediante un cliente que confía únicamente en el certificado de prueba. También hay pruebas de Flask con HTTPS simulado. En el navegador se ha comprobado una carrera ficticia: inicio, cambio a movimiento, finalización y aparición en el historial. Quedan pendientes los demás recorridos y tamaños de pantalla.
+- El taxímetro de la demo muestra por separado las tarifas de la carrera activa y las tarifas para carreras nuevas; se ha comprobado en navegador con una carrera ficticia y mediante pruebas de cambio de tarifa.
+- El restablecimiento de contraseñas de conductores está conectado al panel experimental y tiene pruebas de autorización, revocación de sesión y cambio obligatorio. El campo y el botón se han comprobado visualmente en navegador; el envío se ha probado con el cliente de pruebas, no mediante interacción manual.
+- La espera entre intentos de acceso se comprueba de nuevo al guardar los fallos concurrentes; se ha añadido una prueba específica.
+- La web integrada permite consultar la carrera pendiente de la propia cuenta y muestra una sección informativa cuando la flota está bloqueada. Hay un modo opcional de demostración durable: se han comprobado en navegador dos carreras consecutivas y su historial. Este modo aún no activa la recuperación al arrancar ni permite resolver una carrera interrumpida.
+- Existe una migración experimental de CSV a SQLite probada con archivos temporales. No se ha ejecutado sobre el historial real y las carreras históricas permanecen sin propietario.
+- Docker construye una imagen y se ha probado inicio, finalización e historial tras reiniciar un contenedor temporal. Esa imagen arranca el prototipo web anterior, que no incluye todavía el acceso integrado; no constituye el despliegue final de fase 4.
+
+## Prioridades hasta la entrega
+
+1. Completar un recorrido integrado de inicio de sesión, carrera, historial y administración, con permisos en servidor y sin datos ficticios en la configuración de uso.
+2. Completar y probar la gestión de cuentas y las tarifas acordadas; el alta y el cambio inicial de contraseña ya están integrados en la demo experimental.
+3. Conectar la finalización y la recuperación con el almacenamiento persistente. Validar fallos, reinicios, reconexión y datos pendientes sin atribuir carreras antiguas a un conductor.
+4. Completar la API y el historial relacional, la migración controlada, el panel de consulta y el arranque con un comando. Acordar y comprobar la conectividad en red local del taxi exigida por el enunciado sin confundirla con el acceso remoto desde ubicaciones distintas, aplazado para después.
+5. Probar el recorrido en navegador y tamaños de pantalla relevantes, teclado, errores y seguridad; ejecutar la batería completa y las comprobaciones de GitHub Actions que correspondan.
+6. Actualizar README, documentación técnica, tablero, demostración y manual de usuario con lo realmente implementado y probado.
+
+## Límites actuales
+
+La web habitual anterior continúa sin autenticación. La nueva fábrica integrada es experimental y necesita configuración de cuentas, credenciales, TLS y arranque de uso real. El PIN real se ha probado por separado, no como parte del acceso web integrado. Existe además un diario experimental de intenciones y una migración del esquema de cuentas a la versión 10, que incorpora comprobantes de operaciones. El arranque experimental detecta esas intenciones y bloquea la cuenta afectada. Hay una confirmación interna que guarda punto y comprobante en una transacción y permite reconocer un reintento idéntico. También se ha probado una coordinación experimental con la carrera en memoria, que aún no está lista para la web: el modo durable experimental bloquea las vías anteriores y solo se activa en la demostración web opcional; no coordina varios procesos. Se ha probado una segunda carrera con revisión persistente tras preparar el cierre, conciliar el historial SQLite y liberar la cuenta en el mismo proceso. Se mantienen bloqueadas las carreras si faltan datos, el historial no coincide, la sesión no es válida o falla el cierre de la transacción. El recorrido también se ha probado desde la web opcional con datos temporales. El modo opcional de demostración web utiliza el protocolo en inicio, cambios y cierre; la demostración habitual no. No constituye una recuperación completa. Existen conciliaciones experimentales de carreras pendientes hacia CSV y hacia un historial SQLite independiente. Se han probado reintentos tras interrupciones; todavía no están conectadas a la web y cada archivo tiene su propia transacción. En la demostración durable se intenta guardar un punto cada cinco segundos mientras el proceso está activo; el intervalo no está garantizado ante fallos o retrasos. La recuperación interactiva tras una caída no está conectada y la demostración borra sus datos temporales al detenerse, por lo que no protege carreras reales. Siguen pendientes la gestión completa de vehículos, el historial global del administrador y la sesión única por cuenta en acceso remoto.
+
+Los archivos y componentes de prueba no deben usarse con datos reales hasta completar y verificar su integración. Las mejoras acordadas siguen en el alcance del proyecto; se priorizan por fecha y no se presentan como realizadas por existir solo un prototipo.

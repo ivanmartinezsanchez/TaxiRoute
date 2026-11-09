@@ -16,8 +16,8 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 |---|---|---|
 | 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Implementada y probada |
 | 2 | Historial persistente, registros, tarifas configurables y pruebas | Completada e integrada |
-| 3 | Componentes orientados a objetos, acceso con contraseña e interfaz táctil | Pendiente |
-| 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Pendiente |
+| 3 | Componentes orientados a objetos, acceso protegido e interfaz táctil para flota | En desarrollo en la rama de fase 3 |
+| 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Componentes experimentales en desarrollo |
 
 Cada entrega requerirá código, una demostración y un tablero GitHub Projects actualizado. El seguimiento se realiza en el [tablero público de TaxiRoute](https://github.com/users/ivanmartinezsanchez/projects/2).
 
@@ -25,7 +25,7 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 - Python 3.13, versión utilizada en las pruebas automatizadas de GitHub. La compatibilidad con otras versiones no se da por verificada.
 - Git y una cuenta de GitHub para gestionar el código.
-- Docker y Docker Compose se evaluarán para la fase de despliegue; todavía no son necesarios para el MVP.
+- Docker y Docker Compose son opcionales para probar la imagen experimental; no son necesarios para ejecutar la aplicación por terminal.
 
 ## Instalación y ejecución
 
@@ -64,6 +64,8 @@ python -m taxiroute
 Dentro del entorno activado se utiliza `python`. Para salir del entorno después de cerrar TaxiRoute, ejecuta `deactivate`. Las pruebas automatizadas se han superado en los tres sistemas; la comprobación interactiva de la terminal se ha realizado en Windows.
 
 ## Interfaz web local de fase 3
+
+El [alcance de acceso protegido y flota](ALCANCE_FASE_3.md) recoge las decisiones del 7 de noviembre de 2026. Hay una demostración experimental con cuentas y HTTPS local; el registro y la asignación de vehículos siguen pendientes. El acceso desde distintas ubicaciones mediante una red privada, con el ordenador del administrador como servidor y una única sesión válida por cuenta, queda aprobado para una entrega posterior. Por ahora se continúa con la versión local.
 
 La interfaz Flask comparte las operaciones con la terminal mediante ServicioCarreras. Con el entorno activado, ejecuta **python -m taxiroute.web** y abre http://127.0.0.1:8765/.
 
@@ -150,7 +152,7 @@ La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_mo
 
 ## Seguridad, accesibilidad y datos
 
-La versión actual funciona localmente y no incorpora autenticación ni servicios de red. En fases posteriores se diseñarán autenticación, protección del historial y controles de acceso antes de exponer la aplicación. La interfaz visual tendrá objetivos de accesibilidad, adaptación a distintos tamaños de pantalla y navegación mediante teclado; su conformidad se comprobará cuando exista.
+La versión de terminal y la web anterior funcionan localmente; esta última no tiene autenticación. Existe una demostración web separada con acceso protegido y cuentas ficticias. La interfaz se adapta a distintos tamaños y admite navegación por teclado, aunque aún queda pendiente una revisión completa de accesibilidad. El servicio experimental no está preparado para exponerlo a redes externas ni para gestionar datos reales.
 
 ## Documentación y gestión
 
@@ -177,3 +179,21 @@ Se utilizan ramas para las tareas y mensajes de commit descriptivos en español,
 ## Licencia
 
 Pendiente de decidir. La visibilidad pública del repositorio no define por sí sola una licencia de reutilización.
+
+## Acceso protegido y demostración integrada
+
+En la rama de desarrollo hay una demostración HTTPS local que reúne acceso de conductor y administrador, código administrativo ficticio, taxímetro, historial por cuenta, tarifas y gestión básica de conductores. La demostración crea datos temporales y los borra al detenerse; no envía correo real ni debe utilizarse con carreras reales.
+
+La aplicación habitual `python -m taxiroute.web` corresponde a la web anterior, sin cuentas. La demostración protegida requiere un certificado y una clave locales de prueba, conservados fuera del repositorio:
+
+```bash
+python -m taxiroute.demo_integrada --certificado RUTA_CERTIFICADO --clave RUTA_CLAVE
+```
+
+Para probar el recorrido durable experimental se puede añadir `--durable`. En este modo se intenta guardar un punto de control cada cinco segundos mientras la demostración está en marcha. El intervalo no está garantizado y la recuperación interactiva todavía no está disponible; los datos siguen siendo temporales.
+
+Después se abre `https://127.0.0.1:8767/`. El servidor muestra las credenciales ficticias y el código de prueba en su terminal. El navegador puede advertir que el certificado de prueba no es de confianza. El código no debe reutilizarse como configuración de producción.
+
+Quedan pendientes la integración del correo real en el acceso, la recuperación tras interrupciones, la configuración persistente y el despliegue de la versión protegida. La comunicación entre ubicaciones distintas y la sesión única por cuenta están acordadas como una evolución posterior. El [estado de entrega](ESTADO_ENTREGA.md) distingue las funciones verificadas de las pendientes.
+
+Las decisiones sobre cuentas, tarifas, permisos y límites de seguridad se detallan en [DISENO_CUENTAS.md](DISENO_CUENTAS.md), [ALCANCE_FASE_3.md](ALCANCE_FASE_3.md) y [DISENO_RECUPERACION.md](DISENO_RECUPERACION.md).
