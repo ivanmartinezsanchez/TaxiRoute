@@ -23,7 +23,7 @@ from taxiroute.web_acceso import NOMBRE_COOKIE
 
 
 def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="/api/durable",
-                                   formato_historial="sqlite"):
+                                   formato_historial="sqlite", registro_actividad=None):
     """Integra el protocolo experimental con una ruta y formato del servidor.
 
     En CSV el integrador debe verificar previamente el vínculo de instalación,
@@ -35,6 +35,17 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
     if formato_historial not in {"sqlite", "csv"}:
         raise ValueError("El formato de historial no es válido.")
     api = Blueprint("api_durable_experimental", __name__, url_prefix=prefijo)
+
+    def registrar(evento, *, estado=None):
+        if registro_actividad is None:
+            return None
+        try:
+            return registro_actividad.registrar(evento, estado=estado)
+        except Exception:
+            return "Aviso: no se están pudiendo guardar los registros de actividad."
+
+    def con_aviso(mensaje, aviso):
+        return mensaje if not aviso else mensaje + " " + aviso
 
     @api.before_request
     def validar_solicitud():
@@ -66,13 +77,15 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
 
     @api.errorhandler(FlotaBloqueada)
     def bloqueada(error):
-        return jsonify(error="La carrera necesita revisión antes de continuar."), 409
+        aviso = registrar("error_operacion") if request.method == "POST" else None
+        return jsonify(error=con_aviso("La carrera necesita revisión antes de continuar.", aviso)), 409
 
     @api.errorhandler(OperacionNoPermitida)
     @api.errorhandler(RevisionDesactualizada)
     @api.errorhandler(IntencionNoPermitida)
     def rechazada(error):
-        return jsonify(error="La operación no coincide con el estado disponible. Revisa la carrera."), 409
+        aviso = registrar("error_operacion") if request.method == "POST" else None
+        return jsonify(error=con_aviso("La operación no coincide con el estado disponible. Revisa la carrera.", aviso)), 409
 
     @api.errorhandler(OSError)
     @api.errorhandler(ValueError)
@@ -95,7 +108,8 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
                 motivo = "El almacenamiento está ocupado por otra operación."
                 break
             actual = actual.__cause__
-        return jsonify(error=f"No se puede confirmar el resultado. {motivo} La carrera puede requerir revisión."), 503
+        aviso = registrar("error_operacion") if request.method == "POST" else None
+        return jsonify(error=con_aviso(f"No se puede confirmar el resultado. {motivo} La carrera puede requerir revisión.", aviso)), 503
 
     def registrar_interaccion(token, identidad):
         vigente = sesiones.consultar(token, interaccion=True)
@@ -193,8 +207,10 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         registrar_intencion(sesiones, token, id_intencion=datos["id_operacion"],
                             accion=accion, revision=datos["revision"], carrera_id=carrera_id)
         punto = flota.aplicar_intencion_experimental(sesiones, token, datos["id_operacion"])
+        aviso = registrar("carrera_iniciada", estado="parado") if accion == "iniciar" else registrar(
+            "estado_cambiado", estado="en movimiento" if accion == "mover" else "parado")
         registrar_interaccion(token, identidad)
-        return jsonify(**estado_actual(token), repetida=False, mensaje="Operación registrada.")
+        return jsonify(**estado_actual(token), repetida=False, mensaje=con_aviso("Operación registrada.", aviso))
 
     @api.post("/carrera/iniciar")
     def iniciar():
@@ -215,8 +231,9 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         resumen = flota.preparar_cierre_durable_experimental(sesiones, token, datos["revision"])
         conciliar(token, identidad, resumen.punto.carrera_id)
         liberar_cierre(token)
+        aviso = registrar("carrera_finalizada")
         registrar_interaccion(token, identidad)
-        return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
+        return jsonify(**estado_actual(token), mensaje=con_aviso("Carrera guardada en el historial.", aviso))
 
     def exigir_demo_persistente():
         if current_app.config.get("DEMO_PERSISTENTE") is not True:
@@ -277,17 +294,22 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         except ValueError:
             abort(400)
         token, identidad = token_y_identidad()
+        nueva_confirmacion = True
         try:
             resumen = cerrar_en_ultima_captura(sesiones, token, flota,
                 revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
         except OperacionNoPermitida:
             # Puede haber quedado guardada antes de que se perdiera la respuesta.
+            nueva_confirmacion = False
             liberar_revisada(token, revision=datos["revision"], instante=instante, huella=datos["huella"])
         else:
             conciliar(token, identidad, resumen.punto.carrera_id)
             liberar_revisada(token, revision=datos["revision"], instante=instante, huella=datos["huella"])
+        # El archivo es un registro de eventos independiente de SQLite: una
+        # confirmación simultánea o un corte aún pueden causar huecos o duplicados.
+        aviso = registrar("carrera_recuperada") if nueva_confirmacion else None
         registrar_interaccion(token, identidad)
-        return jsonify(**estado_actual(token), mensaje="Carrera recuperada y guardada hasta el último punto fiable.")
+        return jsonify(**estado_actual(token), mensaje=con_aviso("Carrera recuperada y guardada hasta el último punto fiable.", aviso))
 
     @api.get("/carrera/cierre-pendiente")
     def consultar_cierre_propio():
@@ -327,7 +349,8 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
                 raise OperacionNoPermitida()
         conciliar(token, identidad, pendiente.punto.carrera_id)
         liberar_cierre(token)
+        aviso = registrar("carrera_finalizada")
         registrar_interaccion(token, identidad)
-        return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
+        return jsonify(**estado_actual(token), mensaje=con_aviso("Carrera guardada en el historial.", aviso))
 
     return api

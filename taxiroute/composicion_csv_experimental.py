@@ -20,6 +20,7 @@ from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_integrada import crear_app_integrada
 from taxiroute.vinculo_historial import verificar_vinculo_csv
+from taxiroute.registro_web_durable import RegistroWebDurable
 
 
 @contextmanager
@@ -50,13 +51,14 @@ def abrir_app_csv_experimental(*, ruta_cuentas, carpeta_historial, ruta_tarifas,
         cargar_tarifas(tarifas)
         sesiones = ServicioSesiones(cuentas, reloj=reloj)
         pin = ServicioPIN(cuentas, clave_hmac=clave_hmac, enviar=enviar_pin, reloj=reloj)
+        registro = RegistroWebDurable(cuentas.parent / "actividad.jsonl")
 
         def historial(usuario):
             return _historial_de_cuenta(carpeta, usuario)
 
         def servicio(usuario):
             return ServicioCarreras(crear_carrera=lambda: Carrera(tarifas=cargar_tarifas(tarifas)),
-                                    historial=historial(usuario))
+                                    historial=historial(usuario), registro=None if durable else registro)
 
         # Validar la identidad, el esquema y todos los registros pendientes.
         preparada = crear_flota_con_recuperacion(cuentas, servicio, modo_durable_experimental=durable)
@@ -65,18 +67,27 @@ def abrir_app_csv_experimental(*, ruta_cuentas, carpeta_historial, ruta_tarifas,
                 for tabla in ("carreras_recuperacion", "intenciones_operacion", "recibos_operacion"):
                     if conexion.execute(f"SELECT 1 FROM {tabla} LIMIT 1").fetchone():
                         raise ValueError("La base contiene registros durables; no se puede abrir en modo CSV.")
-            yield crear_app_integrada(sesiones, pin, FlotaEnMemoria(servicio), historial, ruta_tarifas=tarifas)
+            app = crear_app_integrada(sesiones, pin, FlotaEnMemoria(servicio), historial, ruta_tarifas=tarifas)
+            registro.registrar("aplicacion_iniciada")
+            try:
+                yield app
+            finally:
+                registro.registrar("aplicacion_finalizada")
             return
         from taxiroute.verificar_arranque_csv import verificar_historiales_guardados_csv
         verificar_historiales_guardados_csv(cuentas, carpeta)
         flota = preparada.flota
         app = crear_app_integrada(sesiones, pin, flota, historial, ruta_tarifas=tarifas,
-            ruta_historial_durable=carpeta, formato_historial_durable="csv")
+            ruta_historial_durable=carpeta, formato_historial_durable="csv", registro_actividad=registro)
         app.config["DEMO_PERSISTENTE"] = True
-        control = ControlPeriodico(flota, cuentas, intervalo=5)
+        control = ControlPeriodico(flota, cuentas, intervalo=5, avisar=lambda: registro.registrar("error_operacion"))
         app.extensions["control_periodico"] = control
         control.iniciar()
+        registro.registrar("aplicacion_iniciada")
         try:
             yield app
         finally:
-            control.detener()
+            try:
+                control.detener()
+            finally:
+                registro.registrar("aplicacion_finalizada")

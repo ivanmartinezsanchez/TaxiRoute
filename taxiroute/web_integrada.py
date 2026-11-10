@@ -28,7 +28,7 @@ _RUTAS_ACCESO = frozenset({"/acceso/conductor", "/acceso/conductor/cambio", "/ac
 
 def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None,
                         ruta_historial_durable=None, ruta_historial_flota=None, limitador_acceso=None,
-                        formato_historial_durable="sqlite"):
+                        formato_historial_durable="sqlite", registro_actividad=None):
     """Servicios inyectados por el integrador; no usar como aplicación final."""
     if not callable(historial_por_usuario):
         raise ValueError("Se necesita un historial por usuario.")
@@ -38,6 +38,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     if not callable(getattr(limitador, "esperar_segundos", None)):
         raise ValueError("Se necesita un limitador de acceso válido.")
     app = Flask(__name__, static_folder=None)
+    if registro_actividad is not None:
+        app.extensions["registro_actividad"] = registro_actividad
     app.config.update(TRUSTED_HOSTS=["localhost", "127.0.0.1"], MAX_CONTENT_LENGTH=4096)
 
     @app.before_request
@@ -102,7 +104,7 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     else:
         from taxiroute.api_durable_experimental import crear_api_durable_experimental
         app.register_blueprint(crear_api_durable_experimental(sesiones, flota, ruta_historial_durable,
-            prefijo="/api", formato_historial=formato_historial_durable))
+            prefijo="/api", formato_historial=formato_historial_durable, registro_actividad=registro_actividad))
         from taxiroute.web_resolucion_intencion import crear_web_resolucion_intencion
         app.register_blueprint(crear_web_resolucion_intencion(sesiones, flota))
     app.register_blueprint(crear_administracion_web(sesiones))

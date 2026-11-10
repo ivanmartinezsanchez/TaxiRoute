@@ -20,6 +20,7 @@ from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_integrada import crear_app_integrada
 from taxiroute.vinculo_historial import rechazar_base_vinculada
+from taxiroute.registro_web_durable import RegistroWebDurable
 
 
 def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_hmac,
@@ -45,13 +46,14 @@ def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_h
     cargar_tarifas(tarifas)
     sesiones = ServicioSesiones(cuentas, reloj=reloj)
     pin = ServicioPIN(cuentas, clave_hmac=clave_hmac, enviar=enviar_pin, reloj=reloj)
+    registro = RegistroWebDurable(cuentas.resolve().parent / "actividad.jsonl")
 
     def historial(usuario):
         return HistorialSQLite(historial_ruta, usuario_id=usuario, exigir_existente=True)
 
     def servicio(usuario):
         return ServicioCarreras(crear_carrera=lambda: Carrera(tarifas=cargar_tarifas(tarifas)),
-                               historial=historial(usuario))
+                               historial=historial(usuario), registro=None if durable else registro)
 
     # También valida el esquema y los pendientes antes de cualquier modo.
     preparada = crear_flota_con_recuperacion(cuentas, servicio, modo_durable_experimental=durable)
@@ -59,9 +61,14 @@ def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_h
         raise ValueError("Hay operaciones pendientes; no se puede iniciar el modo sin recuperación.")
     flota = preparada.flota if durable else FlotaEnMemoria(servicio)
     app = crear_app_integrada(sesiones, pin, flota, historial, ruta_tarifas=tarifas,
-        ruta_historial_durable=historial_ruta if durable else None, ruta_historial_flota=historial_ruta)
+        ruta_historial_durable=historial_ruta if durable else None, ruta_historial_flota=historial_ruta,
+        registro_actividad=registro)
     if durable:
-        app.extensions["control_periodico"] = ControlPeriodico(flota, cuentas, intervalo=5, avisar=avisar)
+        def avisar_control():
+            registro.registrar("error_operacion")
+            if avisar is not None:
+                avisar()
+        app.extensions["control_periodico"] = ControlPeriodico(flota, cuentas, intervalo=5, avisar=avisar_control)
     return app
 
 
@@ -86,7 +93,12 @@ def abrir_app_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_
             durable=True, reloj=reloj, avisar=avisar)
         control = app.extensions["control_periodico"]
         control.iniciar()
+        registro = app.extensions["registro_actividad"]
+        registro.registrar("aplicacion_iniciada")
         try:
             yield app
         finally:
-            control.detener()
+            try:
+                control.detener()
+            finally:
+                registro.registrar("aplicacion_finalizada")
