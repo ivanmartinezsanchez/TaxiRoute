@@ -33,6 +33,8 @@ class PruebasEsquemaRecuperacion(unittest.TestCase):
             conexion.execute("DROP TABLE intenciones_operacion")
             conexion.execute("DROP TABLE carreras_recuperacion")
             conexion.execute("DROP TABLE codigos_recuperacion")
+            conexion.execute("DROP TABLE intenciones_descartadas")
+            conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("DROP TABLE vinculo_historial")
             conexion.execute("PRAGMA user_version = 5")
 

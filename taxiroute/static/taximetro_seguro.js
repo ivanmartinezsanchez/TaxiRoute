@@ -16,6 +16,7 @@ let generacionTarifas = 0;
 let generacionTarifasNuevas = 0;
 let revisionReintento = null;
 let puntoRecuperacion = null;
+let intencionRevision = null;
 
 function controles() {
   const disponible = conectado && !ocupado && !requiereRevision && actual !== null;
@@ -27,6 +28,7 @@ function controles() {
   $("#reintentar").hidden = !actual?.pendiente && !reintentoDurable;
   $("#reintentar").disabled = reintentoDurable ? !conectado || ocupado : !disponible || !actual?.pendiente;
   $("#finalizar-recuperada").disabled = !conectado || ocupado || !requiereRevision || !puntoRecuperacion || !$("#confirmar-recuperacion").checked;
+  $("#revisar-intencion").disabled = !conectado || ocupado || !requiereRevision || !intencionRevision || !$("#confirmar-intencion").checked;
 }
 function mostrar(datos) {
   actual = datos;
@@ -120,9 +122,27 @@ async function mostrarPendiente() {
         ? "El estado y el tiempo posteriores al último punto son desconocidos."
         : "No hay un punto fiable para determinar el estado ni el tiempo.";
       $("#revision-error").textContent = `No se pudo confirmar si se completó la acción de ${accion}. ${incertidumbre} Consulta con administración.`;
+      const huella = datos.intencion.huella;
+      const propiaAdmin = datos.intencion.accion === "iniciar" && !pendiente && document.body?.dataset?.rol === "administrador";
+      const cambio = ["mover", "parar"].includes(datos.intencion.accion) && pendiente != null;
+      const valida = document.body?.dataset?.durable === "true" && document.body?.dataset?.persistente === "true" && (propiaAdmin || cambio)
+        && typeof huella === "string" && /^[0-9a-f]{64}$/.test(huella);
+      if (!valida || !intencionRevision || intencionRevision.huella !== huella)
+        $("#confirmar-intencion").checked = false;
+      intencionRevision = valida ? {huella, accion: datos.intencion.accion} : null;
+      $("#opciones-intencion").hidden = !valida;
+      if (propiaAdmin) {
+        $("#ayuda-intencion").textContent = "Esta revisión no crea ninguna carrera ni calcula un importe para el intervalo sin datos.";
+        $("#texto-confirmar-intencion").textContent = "He revisado mi situación y entiendo que no hay un punto ni un importe fiable.";
+      } else if (cambio) {
+        $("#ayuda-intencion").textContent = "La carrera seguirá bloqueada para revisar y cerrar el último punto fiable. No se cobrará automáticamente el intervalo desconocido.";
+        $("#texto-confirmar-intencion").textContent = "He revisado los datos y entiendo que no se conoce el estado ni el tiempo posterior al último punto.";
+      }
       controles();
       return;
     }
+    intencionRevision = null; $("#opciones-intencion").hidden = true;
+    $("#confirmar-intencion").checked = false;
     if (!pendiente) {
       puntoRecuperacion = null; $("#opciones-recuperacion").hidden = true; controles();
       $("#revision-error").textContent = "No se ha podido identificar la carrera pendiente. Consulta con administración.";
@@ -164,6 +184,7 @@ async function consultar() {
     if (requiereRevision) generacionRevision += 1;
     requiereRevision = false;
     revisionReintento = null; puntoRecuperacion = null;
+    intencionRevision = null; $("#opciones-intencion").hidden = true; $("#confirmar-intencion").checked = false;
     $("#opciones-recuperacion").hidden = true;
     $("#revision-pendiente").hidden = true;
     ultimaConsultaPendiente = 0;
@@ -174,7 +195,7 @@ async function consultar() {
       const nuevaRevision = error.status === 409;
       if (nuevaRevision !== requiereRevision) generacionRevision += 1;
       requiereRevision = nuevaRevision;
-      if (!requiereRevision) { revisionReintento = null; puntoRecuperacion = null; $("#opciones-recuperacion").hidden = true; $("#revision-pendiente").hidden = true; }
+      if (!requiereRevision) { revisionReintento = null; puntoRecuperacion = null; intencionRevision = null; $("#opciones-intencion").hidden = true; $("#confirmar-intencion").checked = false; $("#opciones-recuperacion").hidden = true; $("#revision-pendiente").hidden = true; }
       if (requiereRevision) { $("#estado").textContent = "Pendiente de revisión"; $("#importe").textContent = "—"; $("#tarifas-actuales").textContent = "Pendientes de revisión."; revisionTarifas = null; generacionTarifas += 1; }
       conectado = requiereRevision;
       $("#conexion").textContent = requiereRevision ? "Revisión necesaria" : "Estado no disponible";
@@ -220,6 +241,23 @@ async function confirmarRecuperacion() {
     ocupado = false; ultimaConsultaPendiente = 0; controles(); await consultar();
   }
 }
+async function confirmarIntencion() {
+  if (ocupado || !conectado || !requiereRevision || !intencionRevision || !$("#confirmar-intencion").checked) return;
+  const confirmada = {...intencionRevision};
+  ocupado = true; ultimoError = ""; generacionRevision += 1; controles();
+  try {
+    const datos = await solicitar("/api/recuperacion/intencion/confirmar", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({huella:confirmada.huella, confirmar:true})});
+    intencionRevision = null; $("#confirmar-intencion").checked = false;
+    $("#opciones-intencion").hidden = true;
+    $("#mensaje").textContent = datos.mensaje;
+  } catch (error) {
+    ultimoError = error.message;
+    $("#mensaje").textContent = error.message + " Comprueba el estado antes de volver a intentarlo.";
+  } finally {
+    ocupado = false; ultimaConsultaPendiente = 0; controles(); await consultar();
+  }
+}
 async function cargarHistorial() {
   const generacion = ++generacionHistorial;
   try {
@@ -244,6 +282,8 @@ $("#reintentar").addEventListener("click", () => actuar("/api/carrera/reintentar
 $("#actualizar").addEventListener("click", cargarHistorial);
 $("#confirmar-recuperacion").addEventListener("change", controles);
 $("#finalizar-recuperada").addEventListener("click", confirmarRecuperacion);
+$("#confirmar-intencion").addEventListener("change", controles);
+$("#revisar-intencion").addEventListener("click", confirmarIntencion);
 $("#cerrar").addEventListener("click", async () => {
   try { await solicitar("/acceso/cerrar", {method: "POST"}); window.location.assign("/acceso"); }
   catch (error) { $("#mensaje").textContent = error.message; }

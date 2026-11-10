@@ -20,14 +20,16 @@ class PruebasMigracionVinculo(unittest.TestCase):
                                     contrasena="Conductor123!")
         # Reconstruir una base v11 sin asignarle un historial ficticio.
         with conectar(self.ruta) as conexion:
+            conexion.execute("DROP TABLE intenciones_descartadas")
+            conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("DROP TABLE vinculo_historial")
             conexion.execute("PRAGMA user_version=11")
 
     def test_migra_sin_inferir_formato_y_conserva_datos(self):
         inicializar_base(self.ruta)
         with conectar(self.ruta) as conexion:
-            self.assertEqual(VERSION_ESQUEMA, 12)
-            self.assertEqual(conexion.execute("PRAGMA user_version").fetchone()[0], 12)
+            self.assertEqual(VERSION_ESQUEMA, 13)
+            self.assertEqual(conexion.execute("PRAGMA user_version").fetchone()[0], 13)
             self.assertEqual(conexion.execute("SELECT nombre_usuario FROM usuarios WHERE id=?",
                                              (self.usuario.id,)).fetchone()[0], "Ana")
             self.assertEqual(conexion.execute("SELECT count(*) FROM vinculo_historial").fetchone()[0], 0)

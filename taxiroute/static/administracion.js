@@ -9,6 +9,7 @@ const descripciones = {
 };
 let ocupado = false;
 let actualizarBotonesHistorial = () => {};
+let actualizarConfirmacionesRevision = () => {};
 async function solicitar(ruta, opciones = {}) {
   const respuesta = await fetch(ruta, {...opciones, cache:"no-store", signal:AbortSignal.timeout(5000)});
   if (respuesta.status === 401) { window.location.assign("/acceso"); throw new Error("Sesión no disponible."); }
@@ -20,6 +21,8 @@ async function cargar() {
   try {
     const datos = await solicitar("/api/administracion/conductores");
     contenedor.replaceChildren();
+    const actualizadoresRevision = [];
+    actualizarConfirmacionesRevision = () => actualizadoresRevision.forEach((actualizar) => actualizar());
     for (const cuenta of datos.conductores) {
       const tarjeta = document.createElement("article"); tarjeta.className = "cuenta";
       const titulo = document.createElement("h2"); titulo.textContent = cuenta.nombre_visible + " (" + cuenta.usuario + ")";
@@ -39,7 +42,7 @@ async function cargar() {
             const actualizado = await cargar();
             mensaje.textContent = actualizado ? resultado.mensaje : "Acción realizada, pero no se pudo actualizar la lista. Inténtalo de nuevo.";
           } catch (error) { mensaje.textContent = error.message; }
-          finally { ocupado = false; document.querySelectorAll("button").forEach((x) => { x.disabled = false; }); actualizarBotonesHistorial(); }
+          finally { ocupado = false; document.querySelectorAll("button").forEach((x) => { x.disabled = false; }); actualizarBotonesHistorial(); actualizarConfirmacionesRevision(); }
         });
         bloque.append(boton, ayuda); acciones.append(bloque);
       }
@@ -64,7 +67,71 @@ async function cargar() {
         } catch (error) { mensaje.textContent = error.message; }
         finally { datos.contrasena = ""; ocupado = false; botonClave.disabled = false; }
       });
-      tarjeta.append(titulo, estado, acciones, formulario); contenedor.append(tarjeta);
+      tarjeta.append(titulo, estado, acciones, formulario);
+      if (document.body?.dataset?.durable === "true" && document.body?.dataset?.persistente === "true") {
+        const revision = document.createElement("section"); revision.className = "revision-cuenta";
+        const subtitulo = document.createElement("h3"); subtitulo.textContent = "Acción pendiente de revisión";
+        const consultarRevision = document.createElement("button"); consultarRevision.type = "button";
+        consultarRevision.textContent = "Consultar acción pendiente";
+        const detalle = document.createElement("p"); detalle.setAttribute("role", "status"); detalle.setAttribute("aria-live", "polite");
+        const opciones = document.createElement("div"); opciones.hidden = true;
+        const advertencia = document.createElement("p");
+        const etiquetaRevision = document.createElement("label");
+        const aceptar = document.createElement("input"); aceptar.type = "checkbox";
+        const textoAceptar = document.createElement("span"); etiquetaRevision.append(aceptar, textoAceptar);
+        const confirmarRevision = document.createElement("button"); confirmarRevision.type = "button";
+        confirmarRevision.textContent = "Confirmar revisión"; confirmarRevision.disabled = true;
+        let diagnostico = null;
+        const activar = () => { confirmarRevision.disabled = ocupado || !diagnostico || !aceptar.checked; };
+        actualizadoresRevision.push(activar);
+        aceptar.addEventListener("change", activar);
+        const ruta = "/api/recuperacion/administracion/" + encodeURIComponent(cuenta.id) + "/intencion";
+        consultarRevision.addEventListener("click", async () => {
+          if (ocupado) return;
+          ocupado = true; consultarRevision.disabled = true; diagnostico = null; aceptar.checked = false; opciones.hidden = true; activar();
+          detalle.textContent = "Consultando la acción pendiente…";
+          try {
+            const datos = await solicitar(ruta);
+            const intencion = datos.intencion;
+            if (!intencion) { detalle.textContent = "No hay una acción pendiente de revisión para esta cuenta."; return; }
+            if (!["iniciar", "mover", "parar"].includes(intencion.accion) || typeof intencion.huella !== "string" || !/^[0-9a-f]{64}$/.test(intencion.huella))
+              throw new Error("No se puede verificar el diagnóstico. Vuelve a consultarlo.");
+            const nombres = {iniciar:"iniciar la carrera", mover:"poner el vehículo en movimiento", parar:"parar el vehículo"};
+            const punto = datos.pendiente;
+            if (intencion.accion === "iniciar" && punto != null) throw new Error("El diagnóstico necesita revisión adicional.");
+            if (intencion.accion !== "iniciar" && (!punto || typeof punto.ultimo_control !== "string" || typeof punto.estado_vehiculo !== "string"))
+              throw new Error("No hay datos fiables suficientes para revisar la carrera.");
+            detalle.textContent = "No se pudo confirmar si se completó la acción de " + nombres[intencion.accion] + ".";
+            if (intencion.accion === "iniciar") {
+              advertencia.textContent = "No existe un punto ni un importe fiable. Confirmar no crea una carrera ni calcula el intervalo sin datos.";
+              textoAceptar.textContent = " He revisado lo ocurrido con el conductor y entiendo que no existe un punto ni un importe fiable.";
+            } else {
+              const importe = typeof punto.importe_recuperado === "string" ? " Importe hasta ese punto: " + punto.importe_recuperado.replace(".", ",") + " €." : "";
+              advertencia.textContent = "Último punto: " + punto.ultimo_control + "; estado registrado: " + punto.estado_vehiculo + "." + importe + " El intervalo posterior es desconocido y no se cobrará automáticamente. La carrera seguirá pendiente de cierre.";
+              textoAceptar.textContent = " He revisado los datos y entiendo que no se conoce el estado ni el tiempo posterior al último punto.";
+            }
+            diagnostico = {accion:intencion.accion, huella:intencion.huella}; opciones.hidden = false;
+          } catch (error) { detalle.textContent = error.message; }
+          finally { ocupado = false; consultarRevision.disabled = false; activar(); }
+        });
+        confirmarRevision.addEventListener("click", async () => {
+          if (ocupado || !diagnostico || !aceptar.checked) return;
+          const revisada = {...diagnostico}; ocupado = true; consultarRevision.disabled = true; activar();
+          detalle.textContent = "Registrando la revisión…";
+          try {
+            await solicitar(ruta + "/resolver", {method:"POST", headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({huella:revisada.huella, confirmar:true})});
+            diagnostico = null; aceptar.checked = false; opciones.hidden = true;
+            detalle.textContent = revisada.accion === "iniciar"
+              ? "Revisión registrada. No se ha creado una carrera para el intervalo sin datos."
+              : "Revisión registrada. La carrera sigue pendiente de cerrar en el último punto fiable.";
+          } catch (error) { detalle.textContent = error.message + " Comprueba el estado antes de volver a intentarlo."; }
+          finally { ocupado = false; consultarRevision.disabled = false; activar(); }
+        });
+        opciones.append(advertencia, etiquetaRevision, confirmarRevision);
+        revision.append(subtitulo, consultarRevision, detalle, opciones); tarjeta.append(revision);
+      }
+      contenedor.append(tarjeta);
     }
     mensaje.textContent = datos.conductores.length ? "Cuentas actualizadas." : "No hay conductores registrados.";
     return true;

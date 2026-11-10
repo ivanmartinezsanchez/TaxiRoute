@@ -12,6 +12,7 @@ from taxiroute.cuentas import crear_cuenta
 from taxiroute.flota import FlotaEnMemoria
 from taxiroute.historial import HistorialCSV
 from taxiroute.intenciones_operacion import registrar_intencion
+from taxiroute.lectura_pendientes import PendienteInvalida, leer_estado_pendiente_en_transaccion, huella_intencion
 from taxiroute.pin import ServicioPIN
 from taxiroute.puntos_control import PuntoControl, guardar_punto
 from taxiroute.servicio import ServicioCarreras
@@ -101,7 +102,8 @@ class PruebasWebPendientes(unittest.TestCase):
         respuesta = self.get(self.clientes[0])
         self.assertEqual(respuesta.status_code, 200)
         self.assertIsNone(respuesta.json["pendiente"])
-        self.assertEqual(respuesta.json["intencion"], {"accion": "iniciar"})
+        self.assertEqual(respuesta.json["intencion"]["accion"], "iniciar")
+        self.assertRegex(respuesta.json["intencion"]["huella"], r"^[0-9a-f]{64}$")
         self.assertNotIn(identificador, respuesta.get_data(as_text=True))
         self.assertNotIn(self.ana.id, respuesta.get_data(as_text=True))
         for cliente in self.clientes[1:]:
@@ -115,7 +117,8 @@ class PruebasWebPendientes(unittest.TestCase):
                             accion="mover", revision=1, carrera_id=self.punto.carrera_id)
         respuesta = self.get(self.clientes[0])
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.json["intencion"], {"accion": "mover"})
+        self.assertEqual(respuesta.json["intencion"]["accion"], "mover")
+        self.assertRegex(respuesta.json["intencion"]["huella"], r"^[0-9a-f]{64}$")
         self.assertEqual(respuesta.json["pendiente"]["estado_vehiculo"], "parado")
 
     def test_intencion_corrupta_o_sesion_revocada_no_da_diagnostico(self):
@@ -138,12 +141,65 @@ class PruebasWebPendientes(unittest.TestCase):
                             accion="parar", revision=1, carrera_id=punto.carrera_id)
         respuesta = self.get(self.clientes[0])
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.json["intencion"], {"accion": "parar"})
+        self.assertEqual(respuesta.json["intencion"]["accion"], "parar")
+        self.assertRegex(respuesta.json["intencion"]["huella"], r"^[0-9a-f]{64}$")
         with conectar(self.ruta) as conexion:
             conexion.execute("UPDATE intenciones_operacion SET carrera_id='carrera-ajena'")
         respuesta = self.get(self.clientes[0])
         self.assertEqual(respuesta.status_code, 503)
         self.assertNotIn("carrera-ajena", respuesta.get_data(as_text=True))
+
+    def test_huella_es_estable_por_consulta_y_cambia_con_intencion(self):
+        identificador = str(uuid4())
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=identificador,
+                            accion="iniciar", revision=0)
+        primera = self.get(self.clientes[0]).json["intencion"]["huella"]
+        self.assertEqual(primera, self.get(self.clientes[0]).json["intencion"]["huella"])
+        with conectar(self.ruta) as conexion:
+            fecha = conexion.execute("SELECT creada_en FROM intenciones_operacion").fetchone()[0]
+            # Un instante equivalente debe tener la misma representación canónica.
+            conexion.execute("UPDATE intenciones_operacion SET creada_en=?", (fecha.replace("+00:00", "Z"),))
+        self.assertEqual(primera, self.get(self.clientes[0]).json["intencion"]["huella"])
+        with conectar(self.ruta) as conexion:
+            conexion.execute("UPDATE intenciones_operacion SET id=?", (str(uuid4()),))
+        self.assertNotEqual(primera, self.get(self.clientes[0]).json["intencion"]["huella"])
+
+    def test_huella_cambia_si_se_modifica_el_punto_sin_cambiar_revision(self):
+        guardar_punto(self.ruta, self.punto)
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=str(uuid4()),
+                            accion="mover", revision=1, carrera_id=self.punto.carrera_id)
+        primera = self.get(self.clientes[0]).json["intencion"]["huella"]
+        with conectar(self.ruta) as conexion:
+            conexion.execute("UPDATE carreras_recuperacion SET parado_ns=parado_ns+1 WHERE id=?",
+                             (self.punto.carrera_id,))
+        segunda = self.get(self.clientes[0]).json["intencion"]["huella"]
+        self.assertNotEqual(primera, segunda)
+
+    def test_huella_difiere_entre_cuentas_y_no_revela_los_identificadores(self):
+        ids = [str(uuid4()), str(uuid4())]
+        for token, identificador in zip(self.tokens, ids):
+            registrar_intencion(self.sesiones, token, id_intencion=identificador, accion="iniciar", revision=0)
+        ana = self.get(self.clientes[0])
+        luis = self.get(self.clientes[1])
+        self.assertNotEqual(ana.json["intencion"]["huella"], luis.json["intencion"]["huella"])
+        self.assertNotIn(ids[0], ana.get_data(as_text=True))
+        self.assertNotIn(ids[1], luis.get_data(as_text=True))
+        self.assertNotIn(self.ana.id, ana.get_data(as_text=True))
+
+    def test_lectura_transaccional_comparte_huella_y_no_confirma(self):
+        identificador = str(uuid4())
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=identificador,
+                            accion="iniciar", revision=0)
+        esperado = self.get(self.clientes[0]).json["intencion"]["huella"]
+        with conectar(self.ruta) as conexion:
+            with self.assertRaises(PendienteInvalida):
+                leer_estado_pendiente_en_transaccion(conexion, self.ana.id)
+            conexion.execute("BEGIN IMMEDIATE")
+            punto, intencion = leer_estado_pendiente_en_transaccion(conexion, self.ana.id)
+            self.assertIsNone(punto)
+            self.assertEqual(huella_intencion(intencion, punto), esperado)
+            self.assertTrue(conexion.in_transaction)
+            conexion.rollback()
 
 
 if __name__ == "__main__":

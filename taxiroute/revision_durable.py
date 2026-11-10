@@ -17,6 +17,12 @@ def revision_durable(conexion, usuario_id):
     puntos = {}
     mayor = 0
     try:
+        barrera = conexion.execute("SELECT revision FROM barrera_revision WHERE usuario_id=?", (usuario_id,)).fetchone()
+        if barrera is not None:
+            revision = barrera[0]
+            if type(revision) is not int or not 0 <= revision < 2**63:
+                raise RevisionDurableInvalida("La barrera de revisión no es válida.")
+            mayor = revision
         for fila in conexion.execute(
             "SELECT * FROM carreras_recuperacion WHERE usuario_id=?", (usuario_id,)
         ):

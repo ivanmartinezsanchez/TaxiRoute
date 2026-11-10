@@ -92,7 +92,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     @requerir_sesion(sesiones, roles={"administrador"})
     def administracion():
         return render_template("administracion.html", persistente=app.config.get("DEMO_PERSISTENTE", False),
-                               historial_flota=ruta_historial_flota is not None)
+                               historial_flota=ruta_historial_flota is not None,
+                               durable=ruta_historial_durable is not None)
     app.register_blueprint(crear_acceso_conductor(sesiones))
     app.register_blueprint(crear_cambio_conductor(sesiones.ruta, reloj=sesiones._reloj))
     app.register_blueprint(crear_acceso_administrador(pin))
@@ -102,6 +103,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
         from taxiroute.api_durable_experimental import crear_api_durable_experimental
         app.register_blueprint(crear_api_durable_experimental(sesiones, flota, ruta_historial_durable,
             prefijo="/api", formato_historial=formato_historial_durable))
+        from taxiroute.web_resolucion_intencion import crear_web_resolucion_intencion
+        app.register_blueprint(crear_web_resolucion_intencion(sesiones, flota))
     app.register_blueprint(crear_administracion_web(sesiones))
     app.register_blueprint(crear_alta_conductor_web(sesiones))
     app.register_blueprint(crear_web_pendientes(sesiones))

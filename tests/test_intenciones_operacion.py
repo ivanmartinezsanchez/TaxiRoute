@@ -120,6 +120,8 @@ class PruebasIntenciones(unittest.TestCase):
             conexion.execute("DROP TABLE recibos_operacion")
             conexion.execute("DROP TABLE intenciones_operacion")
             conexion.execute("DROP TABLE codigos_recuperacion")
+            conexion.execute("DROP TABLE intenciones_descartadas")
+            conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("DROP TABLE vinculo_historial")
             conexion.execute("PRAGMA user_version=8")
         with patch("taxiroute.base_cuentas.MIGRACION_INTENCIONES_V9",

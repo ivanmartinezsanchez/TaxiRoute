@@ -5,7 +5,7 @@ import sqlite3
 
 from taxiroute.codigos_recuperacion_experimentales import CREAR_TABLA_CODIGOS
 
-VERSION_ESQUEMA = 12
+VERSION_ESQUEMA = 13
 # Marca propia para no confundir una base ajena con la de TaxiRoute.
 IDENTIFICADOR_APLICACION = 0x54585254
 
@@ -182,6 +182,30 @@ MIGRACION_VINCULO_V12 = """CREATE TABLE vinculo_historial (
     estado TEXT NOT NULL CHECK(estado IN ('preparando', 'listo'))
 ) STRICT"""
 
+MIGRACION_DESCARTES_V13 = (
+    """CREATE TABLE intenciones_descartadas (
+        id TEXT PRIMARY KEY NOT NULL CHECK(
+            length(id)=36 AND substr(id,9,1)='-' AND substr(id,14,1)='-'
+            AND substr(id,19,1)='-' AND substr(id,24,1)='-'
+            AND length(replace(id,'-',''))=32 AND replace(id,'-','') NOT GLOB '*[^0-9a-f]*'),
+        usuario_id TEXT NOT NULL REFERENCES usuarios(id),
+        actor_id TEXT NOT NULL REFERENCES usuarios(id),
+        accion TEXT NOT NULL CHECK(accion IN ('iniciar', 'mover', 'parar')),
+        revision INTEGER NOT NULL CHECK(revision >= 0),
+        carrera_id TEXT,
+        creada_en TEXT NOT NULL CHECK(length(trim(creada_en)) > 0),
+        resuelta_en TEXT NOT NULL CHECK(length(trim(resuelta_en)) > 0),
+        huella TEXT NOT NULL CHECK(length(huella)=64 AND huella NOT GLOB '*[^0-9a-f]*'),
+        CHECK((accion='iniciar' AND carrera_id IS NULL)
+            OR (accion IN ('mover', 'parar') AND carrera_id IS NOT NULL
+                AND length(trim(carrera_id)) > 0))
+    ) STRICT""",
+    """CREATE TABLE barrera_revision (
+        usuario_id TEXT PRIMARY KEY NOT NULL REFERENCES usuarios(id),
+        revision INTEGER NOT NULL CHECK(revision >= 0)
+    ) STRICT""",
+)
+
 
 class EsquemaCuentasError(RuntimeError):
     """La base no puede utilizarse con esta versión del programa."""
@@ -286,11 +310,16 @@ def inicializar_base(ruta: str | Path) -> None:
                 # No se infiere el formato ni se atribuye un historial existente.
                 conexion.execute(MIGRACION_VINCULO_V12)
                 version = 12
+            if version == 12:
+                for sentencia in MIGRACION_DESCARTES_V13:
+                    conexion.execute(sentencia)
+                version = 13
                 conexion.execute(f"PRAGMA user_version = {version}")
             for tabla in ("usuarios", "configuracion_administrador", "desafios_acceso",
                           "autorizaciones_cambio", "sesiones", "auditoria_cuentas",
                           "carreras_recuperacion", "intenciones_operacion", "recibos_operacion",
-                          "codigos_recuperacion", "vinculo_historial"):
+                          "codigos_recuperacion", "vinculo_historial", "intenciones_descartadas",
+                          "barrera_revision"):
                 if conexion.execute(
                     "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?", (tabla,)
                 ).fetchone() is None:

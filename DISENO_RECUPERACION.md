@@ -143,3 +143,11 @@ Estos componentes aún no están conectados a la web. No permiten por sí solos 
 La opción `--carpeta-demo` conserva datos ficticios fuera de Git y evita que dos instancias cooperativas utilicen simultáneamente la misma carpeta. Tras reiniciar, una carrera activa con un punto válido queda bloqueada para revisión. La pantalla muestra el punto y el importe hasta ese instante y exige una confirmación expresa antes de finalizarla sin añadir el intervalo desconocido. Se ha probado el recorrido en navegador y con bases temporales.
 
 La confirmación valida de nuevo la revisión, el instante y una huella del punto mostrado, para rechazar cambios de sus datos antes de cerrar. El cierre y el historial se comprueban antes de desbloquear la cuenta; un reintento después de un fallo no debe duplicar la carrera. Las intenciones sin resolver, ciertos errores de almacenamiento, procesos que no respeten el bloqueo y el uso con datos reales siguen pendientes de resolver o verificar.
+
+## Decisión sobre acciones interrumpidas — 10 de noviembre de 2026
+
+Si se interrumpe la orden de iniciar y no existe un punto de control, solo el administrador podrá desbloquear la cuenta después de revisar lo sucedido con el conductor. La ausencia de un punto no demuestra qué ocurrió fuera de la aplicación y no debe utilizarse para inventar una carrera o un importe.
+
+Si se interrumpe un cambio entre parado y movimiento, se revisará la carrera y se cerrará en el último punto fiable. El intervalo posterior es desconocido y no se cobrará automáticamente. La acción pendiente no se repetirá por suposición.
+
+Para llevar estas decisiones a la aplicación hay que conservar constancia de la revisión e impedir que vuelvan a ejecutarse solicitudes antiguas, incluso si llegan con otro identificador. También debe protegerse contra cambios después de mostrar los datos, sesiones no autorizadas, fallos de confirmación y operaciones simultáneas. Estas decisiones no implican que el procedimiento ya esté implementado ni autorizado para datos reales.

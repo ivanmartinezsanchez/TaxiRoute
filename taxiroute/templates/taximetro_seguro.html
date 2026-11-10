@@ -8,7 +8,7 @@
   <script src="{{ url_for('static', filename='taximetro_seguro.js') }}" defer></script>
   <script src="{{ url_for('static', filename='pantalla_activa.js') }}" defer></script>
 </head>
-<body data-durable="{{ 'true' if durable else 'false' }}" data-persistente="{{ 'true' if persistente else 'false' }}">
+<body data-durable="{{ 'true' if durable else 'false' }}" data-persistente="{{ 'true' if persistente else 'false' }}" data-rol="{{ rol }}">
 <a class="saltar" href="#principal">Saltar al taxímetro</a>
 <header><span class="marca">TaxiRoute</span><nav aria-label="Cuenta">{% if rol == "administrador" %}<a href="{{ url_for('administracion') }}">Administración</a>{% endif %} <button id="cerrar" class="secundario" type="button">Cerrar sesión</button></nav></header>
 <main id="principal">
@@ -50,6 +50,12 @@
       <p>Importe hasta ese punto: <strong id="importe-recuperado">—</strong> €. El tiempo posterior no se incluye.</p>
       <label><input id="confirmar-recuperacion" type="checkbox"> He revisado el punto y acepto finalizar la carrera con este importe.</label>
       <p><button id="finalizar-recuperada" type="button" disabled>Finalizar en el último punto guardado</button></p>
+    </section>
+    <section id="opciones-intencion" hidden aria-labelledby="titulo-intencion">
+      <h3 id="titulo-intencion">Revisar la acción pendiente</h3>
+      <p id="ayuda-intencion"></p>
+      <label><input id="confirmar-intencion" type="checkbox"> <span id="texto-confirmar-intencion"></span></label>
+      <p><button id="revisar-intencion" type="button" disabled>Confirmar revisión</button></p>
     </section>
     <p id="revision-error" role="status" aria-live="polite"></p>
   </section>

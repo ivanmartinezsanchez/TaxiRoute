@@ -26,6 +26,7 @@ let recuperacionCompletada = false;
 let cuerpoRecuperacion = null;
 let revisionEnviada = null;
 let consultasRevision = 0;
+let cuerpoIntencion = null;
 let eventosCarrera = [];
 function elemento(selector) {
   if (!elementos.has(selector)) {
@@ -38,9 +39,13 @@ function elemento(selector) {
 }
 const respuesta = (status, datos) => ({status, ok: status >= 200 && status < 300, json: async () => datos});
 const contexto = vm.createContext({
-  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar", "intencion_sola", "intencion_punto"].includes(escenario) ? "true" : "false", persistente: ["recuperar", "intencion_sola", "intencion_punto"].includes(escenario) ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}}), dispatchEvent(evento) {eventosCarrera.push(evento.detail.activa);}},
+  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar", "intencion_sola", "intencion_punto", "confirmar_intencion", "inicio_admin", "inicio_conductor"].includes(escenario) ? "true" : "false", persistente: ["recuperar", "intencion_sola", "intencion_punto", "confirmar_intencion", "inicio_admin", "inicio_conductor"].includes(escenario) ? "true" : "false", rol: escenario === "inicio_admin" ? "administrador" : "conductor"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}}), dispatchEvent(evento) {eventosCarrera.push(evento.detail.activa);}},
   CustomEvent: class {constructor(tipo, opciones) {this.type = tipo; this.detail = opciones.detail;}},
   fetch: async (ruta, opciones = {}) => {
+    if (ruta === "/api/recuperacion/intencion/confirmar") { cuerpoIntencion = JSON.parse(opciones.body); return respuesta(200, {mensaje:"Revisión registrada."}); }
+    if (ruta === "/api/carrera/cierre-pendiente" && ["confirmar_intencion", "inicio_admin", "inicio_conductor"].includes(escenario)) return respuesta(200, {pendiente:null});
+    if (ruta === "/api/recuperacion/pendiente" && escenario === "confirmar_intencion") return respuesta(200, {pendiente:{inicio:"2026-11-09T12:00:00+00:00", ultimo_control:"2026-11-09T12:00:05+00:00", estado_vehiculo:"parado", estado:"activa"}, intencion:{accion:"mover", huella:"b".repeat(64)}});
+    if (ruta === "/api/recuperacion/pendiente" && ["inicio_admin", "inicio_conductor"].includes(escenario)) return respuesta(200, {pendiente:null, intencion:{accion:"iniciar", huella:"c".repeat(64)}});
     if (ruta === "/api/carrera/revision-recuperacion") consultasRevision += 1;
     if (ruta === "/api/carrera/cierre-pendiente" && ["intencion_sola", "intencion_punto"].includes(escenario)) return respuesta(200, {pendiente:null});
     if (ruta === "/api/recuperacion/pendiente" && escenario === "intencion_sola") return respuesta(200, {pendiente:null, intencion:{accion:"iniciar"}});
@@ -79,7 +84,7 @@ const contexto = vm.createContext({
     }
     if (escenario === "error_cierre" && !cierreFallido) return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
     if (escenario === "tarifas") return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
-    if (["revision", "intencion_sola", "intencion_punto"].includes(escenario) || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido) || (escenario === "recuperar" && !recuperacionCompletada)) {
+    if (["revision", "intencion_sola", "intencion_punto", "confirmar_intencion", "inicio_admin", "inicio_conductor"].includes(escenario) || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido) || (escenario === "recuperar" && !recuperacionCompletada)) {
       return respuesta(409, {error: "La carrera necesita revisión antes de continuar."});
     }
     if (escenario === "reconexion" && consultas === 1) throw new Error("Red no disponible");
@@ -111,6 +116,9 @@ function estado() {
           reintentoDeshabilitado: elemento("#reintentar").disabled,
           recuperacionOculta: elemento("#opciones-recuperacion").hidden,
           recuperacionDeshabilitada: elemento("#finalizar-recuperada").disabled,
+          intencionOculta: elemento("#opciones-intencion").hidden,
+          intencionDeshabilitada: elemento("#revisar-intencion").disabled,
+          intencionTexto: elemento("#texto-confirmar-intencion").textContent,
           importeRecuperado: elemento("#importe-recuperado").textContent};
 }
 (async () => {
@@ -132,9 +140,16 @@ function estado() {
     vm.runInContext("controles()", contexto);
     await vm.runInContext("confirmarRecuperacion()", contexto);
   }
+  if (["confirmar_intencion", "inicio_admin", "inicio_conductor"].includes(escenario)) {
+    await vm.runInContext("confirmarIntencion()", contexto);
+    if (cuerpoIntencion !== null) throw new Error("La intención requiere aceptación");
+    elemento("#confirmar-intencion").checked = true;
+    vm.runInContext("controles()", contexto);
+    await vm.runInContext("confirmarIntencion()", contexto);
+  }
   if (escenario === "reintento") await vm.runInContext("actuar('/api/carrera/reintentar')", contexto);
   if (escenario === "error_cierre") { await vm.runInContext("actuar('/api/carrera/finalizar')", contexto); await new Promise((resolve) => setImmediate(resolve)); }
-  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, eventosCarrera, consultasRevision}));
+  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, cuerpoIntencion, eventosCarrera, consultasRevision}));
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 """
 
@@ -225,3 +240,19 @@ class PruebasTaximetroJS(unittest.TestCase):
         self.assertTrue(estado["recuperacionOculta"])
         self.assertTrue(estado["recuperacionDeshabilitada"])
         self.assertEqual(resultado["consultasRevision"], 0)
+
+    def test_revisar_cambio_exige_casilla_y_envia_huella(self):
+        resultado = self.ejecutar_escenario("confirmar_intencion")
+        self.assertFalse(resultado["primero"]["intencionOculta"])
+        self.assertTrue(resultado["primero"]["intencionDeshabilitada"])
+        self.assertEqual(resultado["cuerpoIntencion"], {"huella": "b" * 64, "confirmar": True})
+
+    def test_inicio_sin_punto_solo_muestra_control_a_admin(self):
+        admin = self.ejecutar_escenario("inicio_admin")
+        conductor = self.ejecutar_escenario("inicio_conductor")
+        self.assertFalse(admin["primero"]["intencionOculta"])
+        self.assertTrue(admin["primero"]["intencionDeshabilitada"])
+        self.assertIn("no hay un punto ni un importe fiable", admin["primero"]["intencionTexto"])
+        self.assertEqual(admin["cuerpoIntencion"], {"huella": "c" * 64, "confirmar": True})
+        self.assertTrue(conductor["primero"]["intencionOculta"])
+        self.assertIsNone(conductor["cuerpoIntencion"])

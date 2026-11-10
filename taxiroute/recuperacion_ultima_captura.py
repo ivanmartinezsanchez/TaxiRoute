@@ -58,7 +58,7 @@ def _acceso(sesiones, token, flota):
                 filas = conexion.execute("""SELECT * FROM carreras_recuperacion WHERE usuario_id=?
                     AND estado_registro IN ('activa','revision_pendiente','guardado_pendiente')""",
                     (usuario_id,)).fetchall()
-                if len(filas) != 1 or filas[0]["estado_registro"] not in {"activa", "guardado_pendiente"}:
+                if len(filas) != 1 or filas[0]["estado_registro"] not in {"activa", "revision_pendiente", "guardado_pendiente"}:
                     raise OperacionNoPermitida("No hay una carrera recuperable sin ambigüedades.")
                 yield conexion, usuario_id, filas[0]
         except BaseException:
@@ -105,8 +105,8 @@ def cerrar_en_ultima_captura(sesiones, token, flota, *, revision_esperada, ultim
         if punto.revision >= 2**63 - 1:
             raise OperacionNoPermitida("La revisión no admite un cierre nuevo.")
         actualizado = conexion.execute("""UPDATE carreras_recuperacion SET revision=revision+1
-            WHERE id=? AND usuario_id=? AND estado_registro='activa' AND revision=?""",
-            (punto.carrera_id, usuario_id, punto.revision))
+            WHERE id=? AND usuario_id=? AND estado_registro=? AND revision=?""",
+            (punto.carrera_id, usuario_id, fila["estado_registro"], punto.revision))
         if actualizado.rowcount != 1:
             raise OperacionNoPermitida("No se pudo preparar la revisión del cierre.")
         fila_actual = conexion.execute("SELECT * FROM carreras_recuperacion WHERE id=? AND usuario_id=?",
@@ -115,7 +115,11 @@ def cerrar_en_ultima_captura(sesiones, token, flota, *, revision_esperada, ultim
         from dataclasses import replace
         if punto_final != replace(punto, revision=punto.revision + 1):
             raise OperacionNoPermitida("La captura ha cambiado durante la recuperación.")
-        resumen = _finalizar_en_transaccion(conexion, punto_final, punto_final.ultimo_control)
+        if fila["estado_registro"] == "revision_pendiente":
+            resumen = _finalizar_en_transaccion(conexion, punto_final, punto_final.ultimo_control,
+                                                permitir_revision=True)
+        else:
+            resumen = _finalizar_en_transaccion(conexion, punto_final, punto_final.ultimo_control)
         conexion.commit()
         flota._revisiones[usuario_id] = punto_final.revision
         return resumen

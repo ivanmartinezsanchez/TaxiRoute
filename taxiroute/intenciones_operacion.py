@@ -74,6 +74,8 @@ def registrar_intencion(sesiones, token, *, id_intencion, accion, revision, carr
             identidad = _identidad_vigente(conexion, sesion, ahora)
             if identidad is None or identidad.rol not in {"conductor", "administrador"}:
                 raise SesionNoAutorizada()
+            if conexion.execute("SELECT 1 FROM intenciones_descartadas WHERE id=?", (id_intencion,)).fetchone():
+                raise IntencionNoPermitida("El identificador corresponde a una acción descartada.")
             if conexion.execute("SELECT 1 FROM recibos_operacion WHERE id=?", (id_intencion,)).fetchone():
                 raise IntencionNoPermitida("El identificador corresponde a una operación terminada.")
             anterior = conexion.execute("SELECT * FROM intenciones_operacion WHERE id=?", (id_intencion,)).fetchone()
@@ -87,15 +89,15 @@ def registrar_intencion(sesiones, token, *, id_intencion, accion, revision, carr
                 if conexion.execute("SELECT 1 FROM intenciones_operacion WHERE usuario_id=?",
                                     (identidad.usuario_id,)).fetchone():
                     raise IntencionNoPermitida("La cuenta tiene una intención pendiente de revisión.")
+                from taxiroute.revision_durable import revision_durable
+                if revision_durable(conexion, identidad.usuario_id) != revision:
+                    raise IntencionNoPermitida("La revisión durable ha cambiado.")
                 fila = conexion.execute("""SELECT * FROM carreras_recuperacion WHERE usuario_id=?
                     AND estado_registro IN ('activa','revision_pendiente','guardado_pendiente')""",
                     (identidad.usuario_id,)).fetchone()
                 if accion == "iniciar":
                     if fila is not None:
                         raise IntencionNoPermitida("La cuenta ya tiene una carrera sin resolver.")
-                    from taxiroute.revision_durable import revision_durable
-                    if revision_durable(conexion, identidad.usuario_id) != revision:
-                        raise IntencionNoPermitida("La revisión durable ha cambiado.")
                 else:
                     if fila is None or fila["estado_registro"] != "activa":
                         raise IntencionNoPermitida("No hay una carrera activa disponible.")

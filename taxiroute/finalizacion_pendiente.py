@@ -66,8 +66,14 @@ def resumen_para_historial(pendiente: ResumenPendiente) -> ResumenCarrera:
             importe=importe_canonico,
         )
 
-def _finalizar_en_transaccion(conexion, punto: PuntoControl, fin: datetime) -> ResumenPendiente:
-    """Marca pendiente un punto ya guardado; la transacción la controla el llamador."""
+def _finalizar_en_transaccion(conexion, punto: PuntoControl, fin: datetime, *, permitir_revision=False) -> ResumenPendiente:
+    """Marca pendiente un punto guardado en la transacción del llamador.
+
+    Solo la recuperación autenticada puede habilitar explícitamente el cierre
+    de un punto en revisión; los demás llamadores conservan su regla anterior.
+    """
+    if type(permitir_revision) is not bool:
+        raise ValueError("La opción de revisión debe ser booleana.")
     if not conexion.in_transaction:
         raise ValueError("Se necesita una transacción de escritura activa.")
     _, control = _validar(punto)
@@ -90,11 +96,11 @@ def _finalizar_en_transaccion(conexion, punto: PuntoControl, fin: datetime) -> R
     if fila["estado_registro"] == "guardado_pendiente":
         if fila["fin"] != fin_utc.isoformat() or fila["importe_final"] != str(importe):
             raise PuntoControlInvalido("El resumen pendiente presenta datos diferentes.")
-    elif fila["estado_registro"] == "activa":
+    elif fila["estado_registro"] == "activa" or (permitir_revision and fila["estado_registro"] == "revision_pendiente"):
         resultado = conexion.execute("""UPDATE carreras_recuperacion
             SET estado_registro='guardado_pendiente', fin=?, importe_final=?
-            WHERE id=? AND usuario_id=? AND estado_registro='activa'""",
-            (fin_utc.isoformat(), str(importe), punto.carrera_id, punto.usuario_id))
+            WHERE id=? AND usuario_id=? AND estado_registro=?""",
+            (fin_utc.isoformat(), str(importe), punto.carrera_id, punto.usuario_id, fila["estado_registro"]))
         if resultado.rowcount != 1:
             raise PuntoControlInvalido("No se ha podido guardar el resumen pendiente.")
     else:

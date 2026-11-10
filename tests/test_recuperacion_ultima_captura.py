@@ -59,6 +59,67 @@ class PruebasUltimaCaptura(unittest.TestCase):
         self.assertEqual(self.revisar(), (resumen.punto, "guardado_pendiente"))
         self.assertTrue(self.flota.requiere_reconciliacion(self.ana.id))
 
+    def marcar_revision(self):
+        with conectar(self.base) as conexion:
+            conexion.execute("UPDATE carreras_recuperacion SET estado_registro='revision_pendiente' WHERE id=?", (self.punto.carrera_id,))
+
+    def test_punto_en_revision_se_cierra_en_ultimo_instante_y_reintenta(self):
+        self.marcar_revision()
+        self.assertEqual(self.revisar(), (self.punto, "revision_pendiente"))
+        resumen = self.cerrar()
+        self.assertEqual(resumen.fin, self.punto.ultimo_control)
+        self.assertEqual(str(resumen.importe), "1.20")
+        self.assertEqual((resumen.punto.parado_ns, resumen.punto.movimiento_ns),
+                         (self.punto.parado_ns, self.punto.movimiento_ns))
+        self.assertEqual(resumen.punto.revision, self.punto.revision + 1)
+        self.assertEqual(self.cerrar(), resumen)
+        self.assertEqual(self.revisar(), (resumen.punto, "guardado_pendiente"))
+        self.assertTrue(self.flota.requiere_reconciliacion(self.ana.id))
+
+    def test_revision_revocada_o_ajena_no_modifica_carrera(self):
+        self.marcar_revision()
+        with self.assertRaises(OperacionNoPermitida):
+            self.cerrar(self.token_luis)
+        self.sesiones.cerrar(self.token)
+        with self.assertRaises(SesionNoAutorizada):
+            self.cerrar()
+        with conectar(self.base) as conexion:
+            fila = conexion.execute("SELECT estado_registro, revision, fin FROM carreras_recuperacion WHERE id=?", (self.punto.carrera_id,)).fetchone()
+            self.assertEqual(tuple(fila), ("revision_pendiente", self.punto.revision, None))
+
+    def test_revision_con_intencion_no_permite_cierre(self):
+        registrar_intencion(self.sesiones, self.token, id_intencion=str(uuid4()),
+                            accion="parar", revision=1, carrera_id=self.punto.carrera_id)
+        self.marcar_revision()
+        with self.assertRaises(FlotaBloqueada):
+            self.cerrar()
+        with conectar(self.base) as conexion:
+            fila = conexion.execute("SELECT estado_registro, revision FROM carreras_recuperacion WHERE id=?", (self.punto.carrera_id,)).fetchone()
+            self.assertEqual(tuple(fila), ("revision_pendiente", 1))
+            self.assertEqual(conexion.execute("SELECT count(*) FROM intenciones_operacion").fetchone()[0], 1)
+
+    def test_revision_error_antes_de_confirmar_revierte_y_admite_reintento(self):
+        self.marcar_revision()
+        with patch("taxiroute.recuperacion_ultima_captura._finalizar_en_transaccion", side_effect=OSError("fallo simulado")):
+            with self.assertRaises(OSError):
+                self.cerrar()
+        with conectar(self.base) as conexion:
+            fila = conexion.execute("SELECT estado_registro, revision, fin FROM carreras_recuperacion WHERE id=?", (self.punto.carrera_id,)).fetchone()
+            self.assertEqual(tuple(fila), ("revision_pendiente", 1, None))
+        self.assertTrue(self.flota.requiere_reconciliacion(self.ana.id))
+        self.assertEqual(str(self.cerrar().importe), "1.20")
+
+    def test_revision_desactualizada_o_huella_distinta_no_cierra(self):
+        self.marcar_revision()
+        with self.assertRaises(OperacionNoPermitida):
+            self.cerrar(revision=0)
+        with self.assertRaises(OperacionNoPermitida):
+            cerrar_en_ultima_captura(self.sesiones, self.token, self.flota, revision_esperada=1,
+                                    ultimo_control_esperado=self.punto.ultimo_control, huella_esperada="0" * 64)
+        with conectar(self.base) as conexion:
+            fila = conexion.execute("SELECT estado_registro, revision, fin FROM carreras_recuperacion WHERE id=?", (self.punto.carrera_id,)).fetchone()
+            self.assertEqual(tuple(fila), ("revision_pendiente", 1, None))
+
     def test_usuario_ajeno_y_sesion_revocada_sin_cambios(self):
         with self.assertRaises(OperacionNoPermitida):
             self.revisar(self.token_luis)

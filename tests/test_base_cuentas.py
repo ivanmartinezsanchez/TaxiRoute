@@ -110,6 +110,8 @@ class PruebasBaseCuentas(unittest.TestCase):
             conexion.execute("INSERT INTO auditoria_cuentas(id, actor_id, afectado_id, accion, fecha) VALUES (7, ?, ?, 'revocar', ?)",
                              ("admin", "conductor", "2026-11-08T10:00:00+00:00"))
             conexion.execute("DROP TABLE codigos_recuperacion")
+            conexion.execute("DROP TABLE intenciones_descartadas")
+            conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("DROP TABLE vinculo_historial")
             conexion.execute("PRAGMA user_version=6")
 
