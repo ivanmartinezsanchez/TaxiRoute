@@ -6,7 +6,6 @@ las carreras; esta variante no recupera una carrera activa tras un reinicio.
 from contextlib import closing, contextmanager
 from pathlib import Path
 import sqlite3
-from uuid import UUID
 
 from taxiroute.acceso import _ahora
 from taxiroute.arranque_recuperacion import crear_flota_con_recuperacion
@@ -14,26 +13,11 @@ from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.carrera import Carrera
 from taxiroute.configuracion import cargar_tarifas
 from taxiroute.flota import FlotaEnMemoria
-from taxiroute.historial import HistorialCSV
+from taxiroute.rutas_csv import _historial_de_cuenta
 from taxiroute.pin import ServicioPIN
 from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_integrada import crear_app_integrada
-
-
-def _historial_de_cuenta(carpeta, usuario):
-    try:
-        if not isinstance(usuario, str) or str(UUID(usuario)) != usuario:
-            raise ValueError
-    except (ValueError, AttributeError, TypeError):
-        raise ValueError("Identificador de cuenta no válido para el historial.") from None
-    directorio = carpeta / usuario
-    archivo = directorio / "historial.csv"
-    if directorio.is_symlink() or archivo.is_symlink() or (directorio / "historial.csv.lock").is_symlink():
-        raise ValueError("El historial no puede usar enlaces simbólicos.")
-    if directorio.exists() and not directorio.is_dir():
-        raise ValueError("El directorio de historial no es válido.")
-    return HistorialCSV(archivo)
 
 
 @contextmanager
