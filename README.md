@@ -152,7 +152,7 @@ La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_mo
 
 ## Seguridad, accesibilidad y datos
 
-La versión de terminal y la web anterior funcionan localmente; esta última no tiene autenticación. Existe una demostración web separada con acceso protegido y cuentas ficticias. La interfaz se adapta a distintos tamaños y admite navegación por teclado, aunque aún queda pendiente una revisión completa de accesibilidad. El servicio experimental no está preparado para exponerlo a redes externas ni para gestionar datos reales.
+La versión de terminal y la web anterior funcionan localmente; esta última no tiene autenticación. Existe una demostración web separada con acceso protegido y cuentas ficticias. La interfaz se adapta a distintos tamaños y admite navegación por teclado, aunque aún queda pendiente una revisión completa de accesibilidad. El servicio experimental no está preparado para exponerlo a redes externas ni para gestionar datos reales. La web integrada aplica un máximo compartido de 30 solicitudes de acceso en 60 segundos por proceso; si se alcanza, indica cuánto esperar. Este contador se reinicia al detener el proceso, no se comparte entre procesos y puede afectar a otras cuentas si alguien agota la cuota.
 
 ## Documentación y gestión
 

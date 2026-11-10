@@ -1,14 +1,15 @@
 """Fábrica experimental HTTPS para integrar acceso, API y pantallas.
 
 No inicia servidor ni crea cuentas. La configuración real, recuperación de
-carreras, limitación global de accesos y despliegue permanecen pendientes.
+carreras, limitación de accesos entre procesos y despliegue siguen pendientes.
 El servidor que la ejecute debe proporcionar TLS directo y seguro.
 """
 from pathlib import Path
 
-from flask import Flask, abort, g, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, url_for
 
 from taxiroute.api_flota import crear_api_flota
+from taxiroute.limitador_acceso import LimitadorAcceso
 from taxiroute.web_acceso import requerir_sesion
 from taxiroute.web_admin_login import crear_acceso_administrador
 from taxiroute.web_login import crear_acceso_conductor
@@ -21,14 +22,20 @@ from taxiroute.web_pendientes import crear_web_pendientes
 
 _RECURSOS = frozenset({"acceso.css", "acceso.js", "taximetro_seguro.css", "taximetro_seguro.js",
                         "administracion.css", "administracion.js", "pantalla_activa.js"})
+_RUTAS_ACCESO = frozenset({"/acceso/conductor", "/acceso/conductor/cambio", "/acceso/administrador",
+                            "/acceso/administrador/pin", "/acceso/administrador/cambio"})
 
 
-def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None, ruta_historial_durable=None, ruta_historial_flota=None):
+def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None,
+                        ruta_historial_durable=None, ruta_historial_flota=None, limitador_acceso=None):
     """Servicios inyectados por el integrador; no usar como aplicación final."""
     if not callable(historial_por_usuario):
         raise ValueError("Se necesita un historial por usuario.")
     if Path(sesiones.ruta).resolve() != Path(pin.ruta).resolve():
         raise ValueError("El PIN y las sesiones deben usar la misma base de cuentas.")
+    limitador = LimitadorAcceso() if limitador_acceso is None else limitador_acceso
+    if not callable(getattr(limitador, "esperar_segundos", None)):
+        raise ValueError("Se necesita un limitador de acceso válido.")
     app = Flask(__name__, static_folder=None)
     app.config.update(TRUSTED_HOSTS=["localhost", "127.0.0.1"], MAX_CONTENT_LENGTH=4096)
 
@@ -38,6 +45,15 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
         # en cabeceras reenviadas sin un proxy expresamente configurado.
         if not request.is_secure:
             abort(400)
+        if (request.method == "POST" and request.path in _RUTAS_ACCESO
+                and request.headers.get("Origin") == request.host_url.rstrip("/")
+                and request.headers.get("Sec-Fetch-Site") != "cross-site"):
+            espera = limitador.esperar_segundos()
+            if espera:
+                respuesta = jsonify(error=f"Hay demasiados intentos de acceso. Espera {espera} segundos y vuelve a intentarlo.")
+                respuesta.status_code = 429
+                respuesta.headers["Retry-After"] = str(espera)
+                return respuesta
 
     @app.after_request
     def proteger_respuestas(respuesta):
