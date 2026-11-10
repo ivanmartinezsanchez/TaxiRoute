@@ -5,3 +5,4 @@
 
 #opciones-recuperacion{border-top:1px solid #d6b77a;padding-top:1rem;margin-top:1rem}#opciones-recuperacion input{width:1.2rem;height:1.2rem;vertical-align:middle;margin-right:.5rem}#opciones-recuperacion button{margin-top:.75rem}#opciones-recuperacion[hidden]{display:none}
 .pantalla-activa{margin-top:1.5rem;padding-top:1rem;border-top:1px solid #d6e0e7}.pantalla-activa label{display:flex;align-items:center;gap:.65rem;min-height:3rem;cursor:pointer}.pantalla-activa input{width:1.4rem;height:1.4rem;flex:none}.pantalla-activa input:focus-visible{outline:3px solid #d38800;outline-offset:3px}.pantalla-activa [role=status]{margin:.5rem 0}
+.periodo-historial{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem}.periodo-historial select{max-width:100%;min-height:2.75rem;border:1px solid #8295a5;border-radius:.5rem;padding:.5rem .75rem;background:#fff;color:#142239;font:inherit}.periodo-historial select:focus-visible{outline:3px solid #d38800;outline-offset:3px}

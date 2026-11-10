@@ -73,6 +73,18 @@ El servidor puede activar de forma explícita un **modo de recuperación experim
 
 La preparación experimental crea los archivos en una carpeta nueva fuera de Git, pero no configura Gmail ni inicia el servidor. No importa automáticamente historiales anteriores sin propietario. Los permisos efectivos en Windows, la configuración completa de correo y el uso con datos reales siguen pendientes de comprobar; esta composición no es todavía una instalación final.
 
+### Demostración CSV con datos ficticios
+
+Con las dependencias instaladas y el entorno virtual activo, inicia la demostración local con:
+
+```bash
+python -m taxiroute.demo_csv
+```
+
+Abre `https://127.0.0.1:8768/`. La terminal muestra las cuentas de prueba y el PIN ficticio cuando el administrador lo solicita; no se envía ningún correo. El certificado es autofirmado y el navegador puede mostrar una advertencia. Detén la aplicación con `Ctrl+C`: por defecto, los datos de esta demostración son temporales.
+
+Para conservar exclusivamente datos ficticios y poder revisar una carrera tras reiniciar, añade `--carpeta-demo RUTA_NUEVA`, indicando una carpeta nueva fuera de Git cuyo directorio padre exista. La demo solo reutiliza carpetas que identifica como propias y no sobrescribe una carpeta ajena. Puede cambiarse el puerto local con `--puerto`. Esta demostración no es para producción ni para datos reales.
+
 ### Interfaz web anterior sin autenticación
 
 La interfaz web anterior comparte las operaciones con la terminal mediante `ServicioCarreras`. **No tiene autenticación y es distinta de la composición protegida descrita arriba**. Solo debe usarse con datos ficticios y desde el propio ordenador. Con el entorno activado, ejecuta `python -m taxiroute.web --demo` y abre `http://127.0.0.1:8765/`.
@@ -204,7 +216,7 @@ Para probar el recorrido durable experimental se puede añadir `--durable`. En e
 
 Después se abre `https://127.0.0.1:8767/`. El servidor muestra las credenciales ficticias y el código de prueba en su terminal. El navegador puede advertir que el certificado de prueba no es de confianza. El código no debe reutilizarse como configuración de producción.
 
-Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. Al abrir una demo ficticia anterior reconocida, actualiza la base de cuentas de la versión 10 a la 11 con una transacción, sin generar códigos de recuperación. Una versión antigua de la aplicación puede no reconocer la base actualizada. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
+Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. Al abrir una demo ficticia anterior reconocida, actualiza su base de cuentas desde versiones compatibles hasta el esquema 13 mediante una transacción, sin generar códigos de recuperación. Una versión antigua de la aplicación puede no reconocer la base actualizada. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
 
 ### Demostración integrada con Docker
 

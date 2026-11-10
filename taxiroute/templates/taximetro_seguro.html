@@ -61,6 +61,12 @@
   </section>
   <section class="panel" aria-labelledby="titulo-historial">
     <div class="fila"><h2 id="titulo-historial">Mis carreras</h2><button id="actualizar" class="secundario" type="button">Actualizar</button></div>
+    <div class="periodo-historial"><label for="periodo-historial-propio">Periodo de mis carreras</label>
+    <select id="periodo-historial-propio" aria-describedby="ayuda-periodo-historial">
+      <option value="todas">Todas las carreras</option>
+      <option value="hoy">Finalizadas hoy</option>
+    </select></div>
+    <p id="ayuda-periodo-historial" class="nota">Hoy se calcula por la fecha de finalización en la zona horaria de este dispositivo.</p>
     <p id="aviso-historial" role="status">Cargando historial…</p>
     <div class="tabla-contenedor"><table><thead><tr><th scope="col">Inicio (hora local)</th><th scope="col">Duración (s)</th><th scope="col">Importe</th></tr></thead><tbody id="historial"></tbody></table></div>
   </section>

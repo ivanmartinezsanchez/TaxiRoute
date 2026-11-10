@@ -11,6 +11,7 @@ let consultandoPendiente = false;
 let ultimaConsultaPendiente = 0;
 let generacionRevision = 0;
 let generacionHistorial = 0;
+let diaHistorial = null;
 let revisionTarifas = null;
 let generacionTarifas = 0;
 let generacionTarifasNuevas = 0;
@@ -259,31 +260,69 @@ async function confirmarIntencion() {
   }
 }
 function fechaHistorial(valor) {
+  if (typeof valor !== "string" || !valor.trim()) return "—";
   const fecha = new Date(valor);
   if (Number.isNaN(fecha.getTime())) return String(valor);
   return new Intl.DateTimeFormat("es-ES", {day:"2-digit", month:"2-digit", year:"numeric",
     hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(fecha);
 }
 function duracionHistorial(valor) {
+  if (valor === null || valor === undefined || (typeof valor === "string" && !valor.trim())) return "—";
   const numero = Number(valor);
   return Number.isFinite(numero) && numero >= 0
     ? new Intl.NumberFormat("es-ES", {maximumFractionDigits:2}).format(numero)
     : String(valor);
+}
+function fechaFinValida(valor) {
+  if (typeof valor !== "string") return null;
+  const partes = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/i.exec(valor);
+  if (!partes) return null;
+  const [anio, mes, dia, hora, minuto, segundo] = partes.slice(1).map(Number);
+  const bisiesto = anio % 4 === 0 && (anio % 100 !== 0 || anio % 400 === 0);
+  const diasMes = [31, bisiesto ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (anio < 1 || mes < 1 || mes > 12 || dia < 1 || dia > diasMes[mes - 1]
+      || hora > 23 || minuto > 59 || segundo > 59) return null;
+  const fecha = new Date(valor);
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+}
+function diaLocal(fecha) {
+  return `${fecha.getFullYear()}-${fecha.getMonth() + 1}-${fecha.getDate()}`;
 }
 async function cargarHistorial() {
   const generacion = ++generacionHistorial;
   try {
     const datos = await solicitar("/api/historial");
     if (generacion !== generacionHistorial) return;
+    if (!Array.isArray(datos.carreras)) throw new Error("El historial recibido no es válido.");
     const cuerpo = $("#historial"); cuerpo.replaceChildren();
+    const soloHoy = $("#periodo-historial-propio").value === "hoy";
+    const hoy = diaLocal(new Date());
+    diaHistorial = hoy;
+    let invalidas = 0, mostradas = 0;
     for (const carrera of datos.carreras) {
+      const registroValido = carrera !== null && typeof carrera === "object" && !Array.isArray(carrera);
+      const fin = registroValido ? fechaFinValida(carrera.fin) : null;
+      if (!fin) invalidas += 1;
+      // No ocultar una carrera cuando no podemos determinar su fecha final.
+      if (soloHoy && fin && diaLocal(fin) !== hoy) continue;
       const fila = document.createElement("tr");
-      for (const valor of [fechaHistorial(carrera.inicio), duracionHistorial(carrera.duracion_segundos), String(carrera.importe).replace(".", ",") + " €"]) {
+      const importe = registroValido && carrera.importe !== null && carrera.importe !== undefined
+        ? String(carrera.importe).replace(".", ",") + " €" : "—";
+      const valores = registroValido
+        ? [fechaHistorial(carrera.inicio), duracionHistorial(carrera.duracion_segundos), importe]
+        : ["Registro no válido", "—", "—"];
+      for (const valor of valores) {
         const celda = document.createElement("td"); celda.textContent = String(valor); fila.append(celda);
       }
       cuerpo.append(fila);
+      mostradas += 1;
     }
-    $("#aviso-historial").textContent = datos.carreras.length ? "Carreras guardadas." : "Todavía no hay carreras guardadas.";
+    let aviso = datos.carreras.length === 0 ? "Todavía no hay carreras guardadas."
+      : soloHoy && mostradas === 0 ? "No hay carreras finalizadas hoy según la hora local."
+      : soloHoy ? "Mostrando carreras finalizadas hoy."
+      : "Carreras guardadas.";
+    if (invalidas) aviso += ` Hay ${invalidas} ${invalidas === 1 ? "carrera" : "carreras"} con fecha de finalización no válida; ${invalidas === 1 ? "se incluye" : "se incluyen"} para revisión.`;
+    $("#aviso-historial").textContent = aviso;
   } catch (error) { if (generacion === generacionHistorial) $("#aviso-historial").textContent = error.message; }
 }
 $("#iniciar").addEventListener("click", () => actuar("/api/carrera/iniciar"));
@@ -292,6 +331,7 @@ $("#parar").addEventListener("click", () => actuar("/api/carrera/estado", {estad
 $("#finalizar").addEventListener("click", () => actuar("/api/carrera/finalizar"));
 $("#reintentar").addEventListener("click", () => actuar("/api/carrera/reintentar"));
 $("#actualizar").addEventListener("click", cargarHistorial);
+$("#periodo-historial-propio").addEventListener("change", cargarHistorial);
 $("#confirmar-recuperacion").addEventListener("change", controles);
 $("#finalizar-recuperada").addEventListener("click", confirmarRecuperacion);
 $("#confirmar-intencion").addEventListener("change", controles);
@@ -301,3 +341,7 @@ $("#cerrar").addEventListener("click", async () => {
   catch (error) { $("#mensaje").textContent = error.message; }
 });
 consultar(); cargarHistorial(); cargarTarifasNuevas(); setInterval(consultar, 1000); setInterval(cargarTarifasNuevas, 30000);
+setInterval(() => {
+  if ($("#periodo-historial-propio").value === "hoy" && diaHistorial !== null && diaHistorial !== diaLocal(new Date()))
+    void cargarHistorial();
+}, 60000);
