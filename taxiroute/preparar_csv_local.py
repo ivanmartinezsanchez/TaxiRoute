@@ -7,6 +7,7 @@ import sys
 from taxiroute.base_cuentas import inicializar_base
 from taxiroute.configuracion import guardar_tarifas
 from taxiroute.recuperar_admin_local import _Argumentos
+from taxiroute.vinculo_historial import crear_vinculo_csv_nuevo
 
 MARCADOR_PREPARACION = "TaxiRoute: preparación experimental CSV, versión 1.\n"
 
@@ -44,6 +45,7 @@ def preparar_archivos_csv(carpeta):
     historiales = destino / "historiales"
     historiales.mkdir(mode=0o700)
     inicializar_base(cuentas)
+    crear_vinculo_csv_nuevo(cuentas, historiales)
     guardar_tarifas(tarifas, {"parado": "0.02", "en_movimiento": "0.05"})
     with (destino / "PREPARACION_EXPERIMENTAL.txt").open("x", encoding="utf-8", newline="\n") as archivo:
         archivo.write(MARCADOR_PREPARACION)

@@ -24,6 +24,7 @@ class PruebasDemoPersistente(unittest.TestCase):
                     json={"revision": 0, "id_operacion": str(uuid4())}).status_code, 200)
             with conectar(carpeta / "cuentas.sqlite3") as conexion:
                 conexion.execute("DROP TABLE codigos_recuperacion")
+                conexion.execute("DROP TABLE vinculo_historial")
                 conexion.execute("PRAGMA user_version=10")
             with demo_persistente(carpeta, mostrar_codigo=lambda _: None) as app:
                 cliente = app.test_client()

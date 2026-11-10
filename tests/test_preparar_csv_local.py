@@ -14,6 +14,7 @@ from taxiroute.composicion_csv_experimental import abrir_app_csv_experimental
 from taxiroute.configuracion import cargar_tarifas
 from taxiroute.configurar_admin_local import main as configurar_administrador
 from taxiroute.preparar_csv_local import main, preparar_archivos_csv
+from taxiroute.vinculo_historial import MARCADOR_HISTORIAL
 
 
 class TerminalFicticia(StringIO):
@@ -31,7 +32,7 @@ class PruebasPreparacionCSV(unittest.TestCase):
         archivos = preparar_archivos_csv(self.carpeta)
         self.assertTrue(archivos.cuentas.is_file())
         self.assertTrue(archivos.tarifas.is_file())
-        self.assertEqual(list(archivos.historiales.iterdir()), [])
+        self.assertEqual([ruta.name for ruta in archivos.historiales.iterdir()], [MARCADOR_HISTORIAL])
         self.assertTrue((archivos.carpeta / "PREPARACION_EXPERIMENTAL.txt").is_file())
         self.assertEqual({estado.value: str(tarifa) for estado, tarifa in cargar_tarifas(archivos.tarifas).items()},
                          {"parado": "0.02", "en movimiento": "0.05"})

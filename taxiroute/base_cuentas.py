@@ -5,7 +5,7 @@ import sqlite3
 
 from taxiroute.codigos_recuperacion_experimentales import CREAR_TABLA_CODIGOS
 
-VERSION_ESQUEMA = 11
+VERSION_ESQUEMA = 12
 # Marca propia para no confundir una base ajena con la de TaxiRoute.
 IDENTIFICADOR_APLICACION = 0x54585254
 
@@ -170,6 +170,19 @@ MIGRACION_RECIBOS_V10 = (
     "CREATE INDEX recibos_por_usuario ON recibos_operacion(usuario_id)",
 )
 
+MIGRACION_VINCULO_V12 = """CREATE TABLE vinculo_historial (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    formato TEXT NOT NULL CHECK(formato IN ('csv', 'sqlite')),
+    identificador TEXT NOT NULL CHECK(
+        length(identificador)=36 AND substr(identificador,9,1)='-'
+        AND substr(identificador,14,1)='-' AND substr(identificador,19,1)='-'
+        AND substr(identificador,24,1)='-' AND length(replace(identificador,'-',''))=32
+        AND replace(identificador,'-','') NOT GLOB '*[^0-9a-f]*'
+    ),
+    estado TEXT NOT NULL CHECK(estado IN ('preparando', 'listo'))
+) STRICT"""
+
+
 class EsquemaCuentasError(RuntimeError):
     """La base no puede utilizarse con esta versión del programa."""
 
@@ -269,11 +282,15 @@ def inicializar_base(ruta: str | Path) -> None:
             if version == 10:
                 conexion.execute(CREAR_TABLA_CODIGOS)
                 version = 11
+            if version == 11:
+                # No se infiere el formato ni se atribuye un historial existente.
+                conexion.execute(MIGRACION_VINCULO_V12)
+                version = 12
                 conexion.execute(f"PRAGMA user_version = {version}")
             for tabla in ("usuarios", "configuracion_administrador", "desafios_acceso",
                           "autorizaciones_cambio", "sesiones", "auditoria_cuentas",
                           "carreras_recuperacion", "intenciones_operacion", "recibos_operacion",
-                          "codigos_recuperacion"):
+                          "codigos_recuperacion", "vinculo_historial"):
                 if conexion.execute(
                     "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?", (tabla,)
                 ).fetchone() is None:

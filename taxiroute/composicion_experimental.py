@@ -19,6 +19,7 @@ from taxiroute.pin import ServicioPIN
 from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_integrada import crear_app_integrada
+from taxiroute.vinculo_historial import rechazar_base_vinculada
 
 
 def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_hmac,
@@ -38,6 +39,7 @@ def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_h
     if len({ruta.resolve() for ruta in rutas}) != len(rutas):
         raise ValueError("Las cuentas, el historial y las tarifas deben ser archivos distintos.")
     cuentas, historial_ruta, tarifas = rutas
+    rechazar_base_vinculada(cuentas)
     # Validar antes de construir servicios; no crear archivos ausentes.
     HistorialSQLite(historial_ruta, exigir_existente=True).consultar()
     cargar_tarifas(tarifas)

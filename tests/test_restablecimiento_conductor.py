@@ -120,6 +120,7 @@ class PruebasRestablecimiento(unittest.TestCase):
                 c.execute(sentencia)
             c.execute("INSERT INTO auditoria_cuentas(actor_id, afectado_id, accion, fecha) VALUES (?, ?, 'alta', ?)", (self.admin, self.conductor, self.fecha.isoformat()))
             c.execute('DROP TABLE codigos_recuperacion')
+            c.execute("DROP TABLE vinculo_historial")
             c.execute('PRAGMA user_version=7')
             c.commit()
         inicializar_base(self.ruta)

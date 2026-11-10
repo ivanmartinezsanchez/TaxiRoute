@@ -19,6 +19,7 @@ class PruebasMigracionCodigos(unittest.TestCase):
                                    contrasena="AdminPrueba123!", rol="administrador")
         with conectar(self.ruta) as conexion:
             conexion.execute("DROP TABLE codigos_recuperacion")
+            conexion.execute("DROP TABLE vinculo_historial")
             conexion.execute("PRAGMA user_version=10")
 
     def test_migra_version_10_conservando_cuenta_y_sin_generar_codigos(self):

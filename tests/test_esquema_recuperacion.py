@@ -33,6 +33,7 @@ class PruebasEsquemaRecuperacion(unittest.TestCase):
             conexion.execute("DROP TABLE intenciones_operacion")
             conexion.execute("DROP TABLE carreras_recuperacion")
             conexion.execute("DROP TABLE codigos_recuperacion")
+            conexion.execute("DROP TABLE vinculo_historial")
             conexion.execute("PRAGMA user_version = 5")
 
     def test_migracion_de_v5_conserva_usuario_y_crea_tabla(self):

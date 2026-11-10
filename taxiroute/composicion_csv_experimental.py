@@ -18,6 +18,7 @@ from taxiroute.pin import ServicioPIN
 from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_integrada import crear_app_integrada
+from taxiroute.vinculo_historial import verificar_vinculo_csv
 
 
 @contextmanager
@@ -41,6 +42,7 @@ def abrir_app_csv_experimental(*, ruta_cuentas, carpeta_historial, ruta_tarifas,
     if (cuentas.parent / "servidor.lock").is_symlink():
         raise ValueError("El bloqueo de la aplicación no puede ser un enlace.")
     with bloqueo_historial(cuentas.parent / "servidor", espera=0):
+        verificar_vinculo_csv(cuentas, carpeta)
         cargar_tarifas(tarifas)
         sesiones = ServicioSesiones(cuentas, reloj=reloj)
         pin = ServicioPIN(cuentas, clave_hmac=clave_hmac, enviar=enviar_pin, reloj=reloj)
