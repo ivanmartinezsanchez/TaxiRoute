@@ -96,7 +96,7 @@ async function mostrarPendiente() {
       datos = await solicitar("/api/carrera/cierre-pendiente");
     }
     if (!datos?.pendiente) datos = await solicitar("/api/recuperacion/pendiente");
-    if (document.body?.dataset?.persistente === "true" && !datos?.pendiente?.reintento_disponible) {
+    if (document.body?.dataset?.persistente === "true" && !datos?.pendiente?.reintento_disponible && !datos?.intencion) {
       try {
         const revision = await solicitar("/api/carrera/revision-recuperacion");
         if (revision?.pendiente?.revision_disponible) datos = revision;
@@ -104,6 +104,25 @@ async function mostrarPendiente() {
     }
     if (!requiereRevision || generacion !== generacionRevision) return;
     const pendiente = datos.pendiente;
+    if (datos.intencion != null) {
+      const acciones = {iniciar:"iniciar la carrera", mover:"poner el vehículo en movimiento", parar:"parar el vehículo"};
+      const accion = acciones[datos.intencion.accion] || "realizar una acción";
+      puntoRecuperacion = null; revisionReintento = null;
+      $("#confirmar-recuperacion").checked = false;
+      $("#opciones-recuperacion").hidden = true;
+      $("#revision-situacion").textContent = "Acción pendiente de revisión";
+      if (pendiente) {
+        $("#revision-inicio").textContent = pendiente.inicio;
+        $("#revision-control").textContent = pendiente.ultimo_control;
+        $("#revision-estado").textContent = pendiente.estado_vehiculo;
+      }
+      const incertidumbre = pendiente
+        ? "El estado y el tiempo posteriores al último punto son desconocidos."
+        : "No hay un punto fiable para determinar el estado ni el tiempo.";
+      $("#revision-error").textContent = `No se pudo confirmar si se completó la acción de ${accion}. ${incertidumbre} Consulta con administración.`;
+      controles();
+      return;
+    }
     if (!pendiente) {
       puntoRecuperacion = null; $("#opciones-recuperacion").hidden = true; controles();
       $("#revision-error").textContent = "No se ha podido identificar la carrera pendiente. Consulta con administración.";

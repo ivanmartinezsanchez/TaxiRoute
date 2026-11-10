@@ -5,11 +5,13 @@ from pathlib import Path
 from secrets import token_bytes
 from tempfile import TemporaryDirectory
 import unittest
+from uuid import uuid4
 
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.cuentas import crear_cuenta
 from taxiroute.flota import FlotaEnMemoria
 from taxiroute.historial import HistorialCSV
+from taxiroute.intenciones_operacion import registrar_intencion
 from taxiroute.pin import ServicioPIN
 from taxiroute.puntos_control import PuntoControl, guardar_punto
 from taxiroute.servicio import ServicioCarreras
@@ -40,6 +42,7 @@ class PruebasWebPendientes(unittest.TestCase):
         desafio = pin.solicitar("Admin", clave)
         tokens = [self.sesiones.iniciar_conductor(nombre, clave).token for nombre in ("Ana", "Luis")]
         tokens.append(pin.verificar(desafio, buzon[-1]).sesion.token)
+        self.tokens = tokens
         historial = lambda usuario: HistorialCSV(carpeta / usuario / "historial.csv")
         flota = FlotaEnMemoria(lambda usuario: ServicioCarreras(historial=historial(usuario)))
         app = crear_app_integrada(self.sesiones, pin, flota, historial)
@@ -88,6 +91,59 @@ class PruebasWebPendientes(unittest.TestCase):
     def test_http_y_operaciones_de_escritura_se_rechazan(self):
         self.assertEqual(self.get(self.clientes[0], base="http://localhost").status_code, 400)
         self.assertEqual(self.clientes[0].post(self.ruta_web, base_url="https://localhost").status_code, 405)
+
+    def test_intencion_de_inicio_solo_es_visible_para_su_cuenta_y_no_cambia_datos(self):
+        identificador = str(uuid4())
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=identificador,
+                            accion="iniciar", revision=0)
+        with conectar(self.ruta) as conexion:
+            anterior = tuple(conexion.execute("SELECT * FROM intenciones_operacion").fetchone())
+        respuesta = self.get(self.clientes[0])
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIsNone(respuesta.json["pendiente"])
+        self.assertEqual(respuesta.json["intencion"], {"accion": "iniciar"})
+        self.assertNotIn(identificador, respuesta.get_data(as_text=True))
+        self.assertNotIn(self.ana.id, respuesta.get_data(as_text=True))
+        for cliente in self.clientes[1:]:
+            self.assertIsNone(self.get(cliente).json["intencion"])
+        with conectar(self.ruta) as conexion:
+            self.assertEqual(tuple(conexion.execute("SELECT * FROM intenciones_operacion").fetchone()), anterior)
+
+    def test_intencion_de_movimiento_muestra_accion_y_punto_guardado(self):
+        guardar_punto(self.ruta, self.punto)
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=str(uuid4()),
+                            accion="mover", revision=1, carrera_id=self.punto.carrera_id)
+        respuesta = self.get(self.clientes[0])
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json["intencion"], {"accion": "mover"})
+        self.assertEqual(respuesta.json["pendiente"]["estado_vehiculo"], "parado")
+
+    def test_intencion_corrupta_o_sesion_revocada_no_da_diagnostico(self):
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=str(uuid4()),
+                            accion="iniciar", revision=0)
+        with conectar(self.ruta) as conexion:
+            conexion.execute("PRAGMA ignore_check_constraints=ON")
+            conexion.execute("UPDATE intenciones_operacion SET accion='no-valida'")
+        respuesta = self.get(self.clientes[0])
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertNotIn("no-valida", respuesta.get_data(as_text=True))
+        self.assertIsNone(self.get(self.clientes[1]).json["intencion"])
+        self.sesiones.cerrar(self.tokens[0])
+        self.assertEqual(self.get(self.clientes[0]).status_code, 401)
+
+    def test_intencion_de_parar_y_datos_incompatibles(self):
+        punto = replace(self.punto, estado_vehiculo="en movimiento")
+        guardar_punto(self.ruta, punto)
+        registrar_intencion(self.sesiones, self.tokens[0], id_intencion=str(uuid4()),
+                            accion="parar", revision=1, carrera_id=punto.carrera_id)
+        respuesta = self.get(self.clientes[0])
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json["intencion"], {"accion": "parar"})
+        with conectar(self.ruta) as conexion:
+            conexion.execute("UPDATE intenciones_operacion SET carrera_id='carrera-ajena'")
+        respuesta = self.get(self.clientes[0])
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertNotIn("carrera-ajena", respuesta.get_data(as_text=True))
 
 
 if __name__ == "__main__":

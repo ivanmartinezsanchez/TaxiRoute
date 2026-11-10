@@ -3,7 +3,7 @@ import sqlite3
 
 from flask import Blueprint, abort, jsonify, request
 
-from taxiroute.lectura_pendientes import PendienteInvalida, consultar_pendiente_propia
+from taxiroute.lectura_pendientes import PendienteInvalida, consultar_estado_pendiente_propio
 from taxiroute.sesiones import SesionNoAutorizada
 from taxiroute.web_acceso import NOMBRE_COOKIE
 
@@ -22,15 +22,16 @@ def crear_web_pendientes(sesiones):
         if not request.is_secure or request.args:
             abort(400)
         try:
-            resultado = consultar_pendiente_propia(sesiones, request.cookies.get(NOMBRE_COOKIE))
+            resultado, accion = consultar_estado_pendiente_propio(sesiones, request.cookies.get(NOMBRE_COOKIE))
         except SesionNoAutorizada:
             abort(401)
         except (PendienteInvalida, sqlite3.Error, OSError):
             return jsonify(error="No se puede consultar la carrera pendiente."), 503
+        intencion = {"accion": accion} if accion is not None else None
         if resultado is None:
-            return jsonify(pendiente=None)
+            return jsonify(pendiente=None, intencion=intencion)
         punto = resultado.punto
-        return jsonify(pendiente={
+        return jsonify(intencion=intencion, pendiente={
             "carrera_id": punto.carrera_id,
             "estado": resultado.estado,
             "inicio": punto.inicio.isoformat(),

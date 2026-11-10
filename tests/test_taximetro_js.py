@@ -25,6 +25,7 @@ let cierreFallido = false;
 let recuperacionCompletada = false;
 let cuerpoRecuperacion = null;
 let revisionEnviada = null;
+let consultasRevision = 0;
 let eventosCarrera = [];
 function elemento(selector) {
   if (!elementos.has(selector)) {
@@ -37,9 +38,13 @@ function elemento(selector) {
 }
 const respuesta = (status, datos) => ({status, ok: status >= 200 && status < 300, json: async () => datos});
 const contexto = vm.createContext({
-  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar"].includes(escenario) ? "true" : "false", persistente: escenario === "recuperar" ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}}), dispatchEvent(evento) {eventosCarrera.push(evento.detail.activa);}},
+  document: {body:{dataset:{durable: ["reintento", "error_cierre", "recuperar", "intencion_sola", "intencion_punto"].includes(escenario) ? "true" : "false", persistente: ["recuperar", "intencion_sola", "intencion_punto"].includes(escenario) ? "true" : "false"}}, querySelector: elemento, createElement: () => ({textContent: "", append() {}}), dispatchEvent(evento) {eventosCarrera.push(evento.detail.activa);}},
   CustomEvent: class {constructor(tipo, opciones) {this.type = tipo; this.detail = opciones.detail;}},
   fetch: async (ruta, opciones = {}) => {
+    if (ruta === "/api/carrera/revision-recuperacion") consultasRevision += 1;
+    if (ruta === "/api/carrera/cierre-pendiente" && ["intencion_sola", "intencion_punto"].includes(escenario)) return respuesta(200, {pendiente:null});
+    if (ruta === "/api/recuperacion/pendiente" && escenario === "intencion_sola") return respuesta(200, {pendiente:null, intencion:{accion:"iniciar"}});
+    if (ruta === "/api/recuperacion/pendiente" && escenario === "intencion_punto") return respuesta(200, {pendiente:{inicio:"2026-11-09T12:00:00+00:00", ultimo_control:"2026-11-09T12:00:05+00:00", estado_vehiculo:"parado", estado:"activa"}, intencion:{accion:"mover"}});
     if (escenario === "error_accion" && opciones.method === "POST") throw new Error("Tiempo agotado");
     if (ruta === "/api/carrera/confirmar-recuperacion" && escenario === "recuperar") {
       cuerpoRecuperacion = JSON.parse(opciones.body); recuperacionCompletada = true;
@@ -74,7 +79,7 @@ const contexto = vm.createContext({
     }
     if (escenario === "error_cierre" && !cierreFallido) return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
     if (escenario === "tarifas") return respuesta(200, {activa:true, estado:"parado", importe:"0.20", pendiente:false, revision:1});
-    if (escenario === "revision" || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido) || (escenario === "recuperar" && !recuperacionCompletada)) {
+    if (["revision", "intencion_sola", "intencion_punto"].includes(escenario) || (escenario === "reintento" && !reintentoCompletado) || (escenario === "error_cierre" && cierreFallido) || (escenario === "recuperar" && !recuperacionCompletada)) {
       return respuesta(409, {error: "La carrera necesita revisión antes de continuar."});
     }
     if (escenario === "reconexion" && consultas === 1) throw new Error("Red no disponible");
@@ -99,6 +104,7 @@ function estado() {
           revisionControl: elemento("#revision-control").textContent,
           revisionEstado: elemento("#revision-estado").textContent,
           revisionSituacion: elemento("#revision-situacion").textContent,
+          revisionError: elemento("#revision-error").textContent,
           tarifasActuales: elemento("#tarifas-actuales").textContent,
           tarifasNuevas: elemento("#tarifas-nuevas").textContent,
           reintentoOculto: elemento("#reintentar").hidden,
@@ -128,7 +134,7 @@ function estado() {
   }
   if (escenario === "reintento") await vm.runInContext("actuar('/api/carrera/reintentar')", contexto);
   if (escenario === "error_cierre") { await vm.runInContext("actuar('/api/carrera/finalizar')", contexto); await new Promise((resolve) => setImmediate(resolve)); }
-  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, eventosCarrera}));
+  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, eventosCarrera, consultasRevision}));
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 """
 
@@ -200,3 +206,22 @@ class PruebasTaximetroJS(unittest.TestCase):
         self.assertEqual(resultado["primero"]["importeRecuperado"], "0,42")
         self.assertEqual(resultado["cuerpoRecuperacion"], {"revision":1, "ultimo_control":"2026-11-09T12:00:05+00:00", "huella":"a" * 64, "confirmar":True})
         self.assertTrue(resultado["despues"]["recuperacionOculta"])
+
+    def test_intencion_pendiente_sin_punto_explica_incertidumbre_y_bloquea(self):
+        resultado = self.ejecutar_escenario("intencion_sola")
+        estado = resultado["primero"]
+        self.assertEqual(estado["revisionSituacion"], "Acción pendiente de revisión")
+        self.assertIn("iniciar la carrera", estado["revisionError"])
+        self.assertIn("No hay un punto fiable", estado["revisionError"])
+        self.assertTrue(estado["recuperacionOculta"])
+        self.assertTrue(estado["iniciar"])
+        self.assertEqual(resultado["consultasRevision"], 0)
+
+    def test_intencion_tiene_prioridad_sobre_punto_existente(self):
+        resultado = self.ejecutar_escenario("intencion_punto")
+        estado = resultado["primero"]
+        self.assertIn("poner el vehículo en movimiento", estado["revisionError"])
+        self.assertEqual(estado["revisionEstado"], "parado")
+        self.assertTrue(estado["recuperacionOculta"])
+        self.assertTrue(estado["recuperacionDeshabilitada"])
+        self.assertEqual(resultado["consultasRevision"], 0)
