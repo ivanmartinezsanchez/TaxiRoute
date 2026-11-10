@@ -67,6 +67,8 @@ Dentro del entorno activado se utiliza `python`. Para salir del entorno después
 
 El [alcance de acceso protegido y flota](ALCANCE_FASE_3.md) recoge las decisiones del 7 de noviembre de 2026. Hay una demostración experimental con cuentas y HTTPS local. Su panel de administración permite consultar el historial de la flota, filtrar las carreras finalizadas hoy y recorrer los resultados de 100 en 100. Las carreras antiguas sin propietario aparecen como «Sin asignar»; el registro y la asignación de vehículos siguen pendientes. El acceso desde distintas ubicaciones mediante una red privada, con el ordenador del administrador como servidor y una única sesión válida por cuenta, queda aprobado para una entrega posterior. Por ahora se continúa con la versión local.
 
+Hay también una composición experimental para conservar CSV por conductor en fase 3. Sus pruebas cubren dos carreras simultáneas y tarifas; todavía no dispone de un arranque de uso ni recupera carreras activas tras detener el proceso. No importa automáticamente el historial anterior sin propietario.
+
 La interfaz Flask comparte las operaciones con la terminal mediante ServicioCarreras. Con el entorno activado, ejecuta **python -m taxiroute.web** y abre http://127.0.0.1:8765/.
 
 El modo normal utiliza el historial y los registros de la carpeta .taxiroute del usuario, y lee y edita configuracion/tarifas.json. Los cambios de ese JSON aparecen en Git.
