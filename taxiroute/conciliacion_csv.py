@@ -85,6 +85,46 @@ def conciliar_pendiente_csv(ruta_base, ruta_csv, usuario_id, carrera_id):
     están protegidas; ambos archivos no forman una transacción atómica.
     No borra ni repara archivos.
     """
+    return _conciliar(ruta_base, ruta_csv, usuario_id, carrera_id)
+
+
+def conciliar_pendiente_csv_autorizado(sesiones, token, carpeta_historial, carrera_id):
+    """Concilia solo para la cuenta de una sesión válida durante la escritura.
+
+    La carpeta procede de la configuración del servidor. El usuario y el CSV
+    se eligen a partir de la sesión; ambos se vuelven a comprobar dentro de la
+    transacción de cuentas, tras adquirir el bloqueo cooperativo del CSV.
+    """
+    from taxiroute.rutas_csv import _historial_de_cuenta
+    from taxiroute.sesiones import SesionNoAutorizada, _hash_token, _identidad_vigente
+
+    protegido = _hash_token(token)
+    identidad = sesiones.consultar(token) if protegido is not None else None
+    if identidad is None or identidad.rol not in {"administrador", "conductor"}:
+        raise SesionNoAutorizada()
+    carpeta = Path(carpeta_historial)
+    if carpeta.is_symlink() or not carpeta.is_dir():
+        raise ConciliacionCSVError("La carpeta de historiales no está disponible.")
+    historial = _historial_de_cuenta(carpeta.resolve(), identidad.usuario_id)
+
+    def validar_sesion(conexion):
+        sesion = conexion.execute("SELECT * FROM sesiones WHERE hash_token=?", (protegido,)).fetchone()
+        actual = _identidad_vigente(conexion, sesion, sesiones._reloj())
+        if (actual is None or actual.usuario_id != identidad.usuario_id
+                or actual.rol != identidad.rol or actual.rol not in {"administrador", "conductor"}):
+            raise SesionNoAutorizada()
+        # Se comprueba de nuevo la ruta antes de escribir, sin tomar una ruta
+        # de entrada del navegador ni aceptar enlaces en el directorio propio.
+        if carpeta.is_symlink() or not carpeta.is_dir():
+            raise ConciliacionCSVError("La carpeta de historiales no está disponible.")
+        nueva = _historial_de_cuenta(carpeta.resolve(), actual.usuario_id)
+        if nueva.ruta != historial.ruta:
+            raise ConciliacionCSVError("El historial de la cuenta ha cambiado.")
+
+    return _conciliar(sesiones.ruta, historial.ruta, identidad.usuario_id, carrera_id, validar_sesion)
+
+
+def _conciliar(ruta_base, ruta_csv, usuario_id, carrera_id, validar_sesion=None):
     _identificadores(usuario_id, carrera_id)
     base, csv = Path(ruta_base), Path(ruta_csv)
     if base.resolve() == csv.resolve() or (base.exists() and csv.exists() and os.path.samefile(base, csv)):
@@ -96,6 +136,8 @@ def conciliar_pendiente_csv(ruta_base, ruta_csv, usuario_id, carrera_id):
         with closing(_conectar_existente(base)) as conexion:
             conexion.execute("BEGIN IMMEDIATE")
             try:
+                if validar_sesion is not None:
+                    validar_sesion(conexion)
                 actuales, estado_actual, _ = _leer(conexion, usuario_id, carrera_id)
                 if actuales != datos:
                     raise ConciliacionCSVError("El resumen cambió durante la conciliación.")
