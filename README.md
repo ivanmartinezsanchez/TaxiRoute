@@ -67,13 +67,19 @@ Dentro del entorno activado se utiliza `python`. Para salir del entorno después
 
 El [alcance de acceso protegido y flota](ALCANCE_FASE_3.md) recoge las decisiones del 7 de noviembre de 2026. Hay una demostración experimental con cuentas y HTTPS local. Su panel de administración permite consultar el historial de la flota, filtrar las carreras finalizadas hoy y recorrer los resultados de 100 en 100. Las carreras antiguas sin propietario aparecen como «Sin asignar»; el registro y la asignación de vehículos siguen pendientes. El acceso desde distintas ubicaciones mediante una red privada, con el ordenador del administrador como servidor y una única sesión válida por cuenta, queda aprobado para una entrega posterior. Por ahora se continúa con la versión local.
 
-Hay también una composición experimental para conservar CSV por conductor en fase 3. Sus pruebas cubren dos carreras simultáneas y tarifas. Dispone de un arranque HTTPS experimental limitado al propio ordenador, con certificado y clave proporcionados por quien lo ejecuta. La integración OAuth de Gmail actual utiliza el almacén de Windows y se comprueba al arrancar; las pruebas del servidor usaron correo simulado. Todavía no está listo para datos reales ni recupera carreras activas tras detener el proceso. No importa automáticamente el historial anterior sin propietario. Se ha preparado una herramienta experimental que crea los archivos iniciales en una carpeta nueva fuera de Git; no configura Gmail ni inicia el servidor. Los permisos efectivos en Windows todavía deben verificarse antes de considerar datos reales.
+Hay también una composición experimental para conservar un CSV por conductor en fase 3. Sus pruebas cubren carreras simultáneas, tarifas y aislamiento entre cuentas. Dispone de un servidor HTTPS experimental limitado al propio ordenador, con certificado y clave proporcionados por quien lo ejecuta. La integración OAuth de Gmail utiliza el almacén de Windows y se comprueba al arrancar; las pruebas del servidor usaron correo simulado.
 
-La interfaz Flask comparte las operaciones con la terminal mediante ServicioCarreras. Con el entorno activado, ejecuta **python -m taxiroute.web** y abre http://127.0.0.1:8765/.
+El servidor puede activar de forma explícita un **modo de recuperación experimental** con `--recuperacion-experimental` en una instalación CSV vinculada. Intenta guardar puntos cada cinco segundos y permite revisar y cerrar una carrera interrumpida hasta el último punto fiable, sin añadir el tiempo desconocido. No garantiza que todos los puntos se hayan guardado ni cubre todas las interrupciones posibles. Se ha probado con datos ficticios, tanto en navegador como mediante pruebas automatizadas. Para consultar las opciones del servidor, ejecuta `python -m taxiroute.servidor_csv_local --help`.
 
-El modo normal utiliza el historial y los registros de la carpeta .taxiroute del usuario, y lee y edita configuracion/tarifas.json. Los cambios de ese JSON aparecen en Git.
+La preparación experimental crea los archivos en una carpeta nueva fuera de Git, pero no configura Gmail ni inicia el servidor. No importa automáticamente historiales anteriores sin propietario. Los permisos efectivos en Windows, la configuración completa de correo y el uso con datos reales siguen pendientes de comprobar; esta composición no es todavía una instalación final.
 
-Para probar sin modificar los datos ni las tarifas de uso, ejecuta **python -m taxiroute.web --demo**. Este modo utiliza archivos temporales que desaparecen al detener el servicio. La pantalla identifica el modo activo.
+### Interfaz web anterior sin autenticación
+
+La interfaz web anterior comparte las operaciones con la terminal mediante `ServicioCarreras`. **No tiene autenticación y es distinta de la composición protegida descrita arriba**. Solo debe usarse con datos ficticios y desde el propio ordenador. Con el entorno activado, ejecuta `python -m taxiroute.web --demo` y abre `http://127.0.0.1:8765/`.
+
+Si se ejecuta sin `--demo`, utiliza el historial y los registros de la carpeta `.taxiroute` del usuario, y lee y edita `configuracion/tarifas.json`. Los cambios de ese JSON aparecen en Git.
+
+El modo `--demo` utiliza archivos temporales que desaparecen al detener el servicio. La pantalla identifica el modo activo.
 
 Funciones disponibles:
 
@@ -86,7 +92,7 @@ Funciones disponibles:
 
 Recargar conserva la carrera en memoria del proceso y las pestañas comparten su estado. Cerrar el navegador no detiene el contador. Detener Python puede perder una carrera activa o pendiente. Las carreras ya guardadas permanecen en disco en el modo normal.
 
-El servicio se limita al propio ordenador y utiliza un servidor de desarrollo. La autenticación y las sesiones siguen pendientes: no se considera terminada la fase 3.
+Este servicio anterior se limita al propio ordenador y utiliza un servidor de desarrollo. No dispone de autenticación ni sesiones. La nueva composición protegida existe, pero la fase 3 todavía no se considera terminada.
 
 La revisión del 7 de noviembre de 2026 ha superado 61 pruebas locales. En el navegador se han comprobado el guardado, la consulta, los eventos y la edición de tarifas durante una carrera, aplicadas a la siguiente. Se ha revisado una ventana de 390 píxeles sin desbordamiento horizontal. La validación completa de accesibilidad sigue pendiente.
 
@@ -107,7 +113,7 @@ La revisión del 7 de noviembre de 2026 ha superado 61 pruebas locales. En el na
 
 ## Archivos y recuperación
 
-Los datos de uso se guardan en la carpeta `.taxiroute` del usuario, fuera del repositorio. En Windows suele estar bajo `C:\Users\nombre\.taxiroute`; en Linux y macOS, bajo `~/.taxiroute`.
+En la aplicación de terminal y en la interfaz web anterior, los datos de uso se guardan en la carpeta `.taxiroute` del usuario, fuera del repositorio. En Windows suele estar bajo `C:\Users\nombre\.taxiroute`; en Linux y macOS, bajo `~/.taxiroute`. La preparación protegida experimental utiliza, en cambio, la carpeta elegida al crearla y guarda los historiales por cuenta.
 
 | Archivo | Contenido |
 |---|---|

@@ -258,6 +258,18 @@ async function confirmarIntencion() {
     ocupado = false; ultimaConsultaPendiente = 0; controles(); await consultar();
   }
 }
+function fechaHistorial(valor) {
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return String(valor);
+  return new Intl.DateTimeFormat("es-ES", {day:"2-digit", month:"2-digit", year:"numeric",
+    hour:"2-digit", minute:"2-digit", second:"2-digit"}).format(fecha);
+}
+function duracionHistorial(valor) {
+  const numero = Number(valor);
+  return Number.isFinite(numero) && numero >= 0
+    ? new Intl.NumberFormat("es-ES", {maximumFractionDigits:2}).format(numero)
+    : String(valor);
+}
 async function cargarHistorial() {
   const generacion = ++generacionHistorial;
   try {
@@ -266,7 +278,7 @@ async function cargarHistorial() {
     const cuerpo = $("#historial"); cuerpo.replaceChildren();
     for (const carrera of datos.carreras) {
       const fila = document.createElement("tr");
-      for (const valor of [carrera.inicio, carrera.duracion_segundos, String(carrera.importe).replace(".", ",") + " €"]) {
+      for (const valor of [fechaHistorial(carrera.inicio), duracionHistorial(carrera.duracion_segundos), String(carrera.importe).replace(".", ",") + " €"]) {
         const celda = document.createElement("td"); celda.textContent = String(valor); fila.append(celda);
       }
       cuerpo.append(fila);

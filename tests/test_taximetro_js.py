@@ -149,7 +149,8 @@ function estado() {
   }
   if (escenario === "reintento") await vm.runInContext("actuar('/api/carrera/reintentar')", contexto);
   if (escenario === "error_cierre") { await vm.runInContext("actuar('/api/carrera/finalizar')", contexto); await new Promise((resolve) => setImmediate(resolve)); }
-  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, cuerpoIntencion, eventosCarrera, consultasRevision}));
+  const formato = escenario === "formato" ? vm.runInContext(`({fecha:fechaHistorial("2026-11-10T14:00:46.386516+00:00"), invalida:fechaHistorial("fecha-invalida"), duracion:duracionHistorial("10.6654620"), duracionInvalida:duracionHistorial("error")})`, contexto) : null;
+  process.stdout.write(JSON.stringify({primero, durante, despues: estado(), revisionEnviada, cuerpoRecuperacion, cuerpoIntencion, eventosCarrera, consultasRevision, formato}));
 })().catch((error) => { console.error(error); process.exitCode = 1; });
 """
 
@@ -163,6 +164,14 @@ class PruebasTaximetroJS(unittest.TestCase):
         )
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
         return json.loads(resultado.stdout)
+
+    def test_historial_formatea_fecha_y_duracion_sin_ocultar_datos_invalidos(self):
+        formato = self.ejecutar_escenario("formato")["formato"]
+        self.assertRegex(formato["fecha"], r"\d{2}/\d{2}/\d{4}")
+        self.assertNotIn("T14:00", formato["fecha"])
+        self.assertEqual(formato["duracion"], "10,67")
+        self.assertEqual(formato["invalida"], "fecha-invalida")
+        self.assertEqual(formato["duracionInvalida"], "error")
 
     def test_notifica_si_la_carrera_esta_activa(self):
         resultado = self.ejecutar_escenario("tarifas")
