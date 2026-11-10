@@ -27,7 +27,8 @@ _RUTAS_ACCESO = frozenset({"/acceso/conductor", "/acceso/conductor/cambio", "/ac
 
 
 def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None,
-                        ruta_historial_durable=None, ruta_historial_flota=None, limitador_acceso=None):
+                        ruta_historial_durable=None, ruta_historial_flota=None, limitador_acceso=None,
+                        formato_historial_durable="sqlite"):
     """Servicios inyectados por el integrador; no usar como aplicación final."""
     if not callable(historial_por_usuario):
         raise ValueError("Se necesita un historial por usuario.")
@@ -99,7 +100,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
         app.register_blueprint(crear_api_flota(sesiones, flota, historial_por_usuario))
     else:
         from taxiroute.api_durable_experimental import crear_api_durable_experimental
-        app.register_blueprint(crear_api_durable_experimental(sesiones, flota, ruta_historial_durable, prefijo="/api"))
+        app.register_blueprint(crear_api_durable_experimental(sesiones, flota, ruta_historial_durable,
+            prefijo="/api", formato_historial=formato_historial_durable))
     app.register_blueprint(crear_administracion_web(sesiones))
     app.register_blueprint(crear_alta_conductor_web(sesiones))
     app.register_blueprint(crear_web_pendientes(sesiones))

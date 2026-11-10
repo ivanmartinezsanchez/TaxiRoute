@@ -10,6 +10,7 @@ from threading import Thread
 import unittest
 from unittest.mock import Mock, patch
 from urllib.request import HTTPSHandler, HTTPCookieProcessor, Request, build_opener
+from uuid import uuid4
 
 from taxiroute.base_cuentas import conectar
 from taxiroute.bloqueo import HistorialOcupado
@@ -70,6 +71,41 @@ class PruebasServidorCSV(unittest.TestCase):
         with servidor_csv_experimental(**self.opciones) as servidor:
             recorrer(servidor, True)
         with servidor_csv_experimental(**self.opciones) as servidor:
+            recorrer(servidor, False)
+
+    def test_https_durable_recupera_la_carrera_tras_reiniciar_servidor(self):
+        def recorrer(servidor, primera):
+            hilo = Thread(target=servidor.serve_forever, daemon=True)
+            hilo.start()
+            try:
+                base = f"https://127.0.0.1:{servidor.server_port}"
+                contexto = ssl.create_default_context(cafile=str(self.certificado))
+                cliente = build_opener(HTTPSHandler(context=contexto), HTTPCookieProcessor(CookieJar()))
+                def peticion(ruta, datos=None):
+                    contenido = None if datos is None else json.dumps(datos).encode("utf-8")
+                    cabeceras = {} if datos is None else {"Origin": base, "Content-Type": "application/json"}
+                    with cliente.open(Request(base + ruta, data=contenido, headers=cabeceras), timeout=5) as respuesta:
+                        return json.load(respuesta)
+                peticion("/acceso/conductor", {"usuario": "Ana", "contrasena": "ConductorPrueba123!"})
+                if primera:
+                    peticion("/api/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+                    return
+                punto = peticion("/api/carrera/revision-recuperacion")["pendiente"]
+                respuesta = peticion("/api/carrera/confirmar-recuperacion", {
+                    "revision": punto["revision_recuperacion"], "ultimo_control": punto["ultimo_control"],
+                    "huella": punto["huella"], "confirmar": True})
+                filas = peticion("/api/historial")["carreras"]
+                self.assertEqual(len(filas), 1)
+                self.assertEqual((filas[0]["fin"], filas[0]["importe"]),
+                                 (punto["ultimo_control"], punto["importe_recuperado"]))
+                self.assertFalse(respuesta["activa"])
+            finally:
+                servidor.shutdown()
+                hilo.join(timeout=5)
+                self.assertFalse(hilo.is_alive())
+        with servidor_csv_experimental(**self.opciones, durable=True) as servidor:
+            recorrer(servidor, True)
+        with servidor_csv_experimental(**self.opciones, durable=True) as servidor:
             recorrer(servidor, False)
 
     def test_no_acepta_segunda_instancia(self):

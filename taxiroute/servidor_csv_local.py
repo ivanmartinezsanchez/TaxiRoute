@@ -15,12 +15,13 @@ from taxiroute.recuperar_admin_local import _Argumentos
 
 
 @contextmanager
-def servidor_csv_experimental(*, carpeta, certificado, clave, puerto, enviar_pin):
+def servidor_csv_experimental(*, carpeta, certificado, clave, puerto, enviar_pin, durable=False):
     """Abre HTTPS en bucle local; el llamador controla su ejecución y cierre.
 
     El código PIN se envía solo mediante el transporte inyectado. La clave de
     verificación se cambia al reiniciar: los PIN pendientes dejan de servir.
-    Los datos de carreras activas no sobreviven al apagado del proceso.
+    Por defecto, una carrera activa puede perderse al parar el proceso. El modo
+    durable opcional es experimental y requiere revisión tras una interrupción.
     """
     carpeta, certificado, clave = Path(carpeta), Path(certificado), Path(clave)
     if type(puerto) is not int or not 0 <= puerto <= 65535:
@@ -37,7 +38,8 @@ def servidor_csv_experimental(*, carpeta, certificado, clave, puerto, enviar_pin
     contexto.load_cert_chain(certificado, clave)
     cuentas = carpeta / "cuentas.sqlite3"
     with abrir_app_csv_experimental(ruta_cuentas=cuentas, ruta_tarifas=carpeta / "tarifas.json",
-            carpeta_historial=carpeta / "historiales", clave_hmac=token_bytes(32), enviar_pin=enviar_pin) as app:
+            carpeta_historial=carpeta / "historiales", clave_hmac=token_bytes(32), enviar_pin=enviar_pin,
+            durable=durable) as app:
         with closing(sqlite3.connect(cuentas.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)) as conexion:
             administrador = conexion.execute("""SELECT 1 FROM usuarios AS u
                 JOIN configuracion_administrador AS c ON c.usuario_id=u.id
@@ -58,6 +60,8 @@ def main(argv=None):
     parser.add_argument("--certificado", type=Path, required=True, help="Certificado TLS PEM")
     parser.add_argument("--clave", type=Path, required=True, help="Clave privada TLS PEM")
     parser.add_argument("--puerto", type=int, default=8768, help="Puerto local (por defecto 8768)")
+    parser.add_argument("--recuperacion-experimental", action="store_true",
+                        help="Activa puntos de recuperación CSV solo para pruebas con datos ficticios")
     argumentos = parser.parse_args(argv)
     if not 1 <= argumentos.puerto <= 65535:
         parser.error("El puerto debe estar entre 1 y 65535.")
@@ -68,7 +72,8 @@ def main(argv=None):
             EnviadorGmail(cliente_gmail_autorizado())(destinatario, codigo)
 
         with servidor_csv_experimental(carpeta=argumentos.carpeta, certificado=argumentos.certificado,
-                clave=argumentos.clave, puerto=argumentos.puerto, enviar_pin=enviar) as servidor:
+                clave=argumentos.clave, puerto=argumentos.puerto, enviar_pin=enviar,
+                durable=argumentos.recuperacion_experimental) as servidor:
             try:
                 from taxiroute.oauth_gmail import cliente_gmail_autorizado
                 # Comprueba la autorización existente; no envía ningún mensaje.
@@ -77,7 +82,10 @@ def main(argv=None):
                 print("No se ha podido preparar Gmail. Revisa la autorización y la conexión a internet antes de iniciar la aplicación.", file=sys.stderr)
                 return 1
             print(f"Servidor local experimental: https://127.0.0.1:{argumentos.puerto}/", flush=True)
-            print("Solo datos ficticios. Al detener el proceso se puede perder una carrera activa.", flush=True)
+            aviso = ("Solo datos ficticios. La recuperación es experimental y requiere revisión tras un corte."
+                     if argumentos.recuperacion_experimental else
+                     "Solo datos ficticios. Al detener el proceso se puede perder una carrera activa.")
+            print(aviso, flush=True)
             try:
                 servidor.serve_forever()
             except KeyboardInterrupt:

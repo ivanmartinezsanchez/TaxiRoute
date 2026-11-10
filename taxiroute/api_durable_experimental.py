@@ -10,18 +10,30 @@ import sqlite3
 from flask import Blueprint, abort, current_app, jsonify, request
 
 from taxiroute.conciliacion_sqlite import conciliar_pendiente_sqlite
+from taxiroute.conciliacion_csv import conciliar_pendiente_csv_autorizado
+from taxiroute.consulta_historial_csv import consultar_historial_csv_verificado
 from taxiroute.flota import FlotaBloqueada, OperacionNoPermitida, RevisionDesactualizada
 from taxiroute.intenciones_operacion import IntencionNoPermitida, registrar_intencion
 from taxiroute.liberacion_cierre import liberar_cierre_conciliado
+from taxiroute.liberacion_cierre_csv import liberar_cierre_csv
+from taxiroute.liberacion_recuperada_csv import liberar_recuperada_csv
 from taxiroute.recibos_operacion import consultar_recibo
 from taxiroute.sesiones import SesionNoAutorizada
 from taxiroute.web_acceso import NOMBRE_COOKIE
 
 
-def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="/api/durable"):
-    """Integra únicamente el protocolo de un proceso y rutas preconfiguradas."""
+def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="/api/durable",
+                                   formato_historial="sqlite"):
+    """Integra el protocolo experimental con una ruta y formato del servidor.
+
+    En CSV el integrador debe verificar previamente el vínculo de instalación,
+    mantener el bloqueo de proceso y gestionar el control periódico. Las
+    operaciones de CSV y SQLite no forman una única transacción atómica.
+    """
     if not flota._modo_durable_experimental:
         raise ValueError("La API requiere el modo durable experimental.")
+    if formato_historial not in {"sqlite", "csv"}:
+        raise ValueError("El formato de historial no es válido.")
     api = Blueprint("api_durable_experimental", __name__, url_prefix=prefijo)
 
     @api.before_request
@@ -134,13 +146,34 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
     def consultar_historial():
         from taxiroute.historial_sqlite import HistorialSQLite
         token, identidad = token_y_identidad()
-        carreras = HistorialSQLite(ruta_historial, usuario_id=identidad.usuario_id, exigir_existente=True).consultar()
+        if formato_historial == "csv":
+            carreras = consultar_historial_csv_verificado(sesiones, token, ruta_historial)
+        else:
+            carreras = HistorialSQLite(ruta_historial, usuario_id=identidad.usuario_id, exigir_existente=True).consultar()
         # La lectura del historial no debe mantener abierta la transacción de
         # cuentas: la conciliación adquiere historial antes que cuentas.
         vigente = sesiones.consultar(token)
         if vigente is None or vigente.usuario_id != identidad.usuario_id or vigente.rol != identidad.rol:
             raise SesionNoAutorizada()
         return jsonify(carreras=carreras)
+
+    def conciliar(token, identidad, carrera_id):
+        if formato_historial == "csv":
+            return conciliar_pendiente_csv_autorizado(sesiones, token, ruta_historial, carrera_id)
+        return conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial, identidad.usuario_id, carrera_id)
+
+    def liberar_cierre(token):
+        if formato_historial == "csv":
+            return liberar_cierre_csv(flota, sesiones, token, ruta_historial)
+        return liberar_cierre_conciliado(flota, sesiones, token, ruta_historial)
+
+    def liberar_revisada(token, *, revision, instante, huella):
+        if formato_historial == "csv":
+            return liberar_recuperada_csv(sesiones, token, flota, ruta_historial,
+                revision_esperada=revision, ultimo_control_esperado=instante, huella_esperada=huella)
+        from taxiroute.recuperacion_ultima_captura import liberar_recuperada
+        return liberar_recuperada(sesiones, token, flota, ruta_historial,
+            revision_esperada=revision, ultimo_control_esperado=instante, huella_esperada=huella)
 
     def aplicar(accion, datos):
         token, identidad = token_y_identidad()
@@ -180,9 +213,8 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         datos = datos_con_revision({"revision"})
         token, identidad = token_y_identidad()
         resumen = flota.preparar_cierre_durable_experimental(sesiones, token, datos["revision"])
-        conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial,
-                                    identidad.usuario_id, resumen.punto.carrera_id)
-        final = liberar_cierre_conciliado(flota, sesiones, token, ruta_historial)
+        conciliar(token, identidad, resumen.punto.carrera_id)
+        liberar_cierre(token)
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
 
@@ -232,7 +264,7 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
     def confirmar_recuperacion():
         exigir_demo_persistente()
         from datetime import datetime
-        from taxiroute.recuperacion_ultima_captura import cerrar_en_ultima_captura, liberar_recuperada
+        from taxiroute.recuperacion_ultima_captura import cerrar_en_ultima_captura
         datos = datos_con_revision({"revision", "ultimo_control", "confirmar", "huella"})
         if (datos["confirmar"] is not True or not isinstance(datos["ultimo_control"], str)
                 or not isinstance(datos["huella"], str) or len(datos["huella"]) != 64
@@ -250,13 +282,10 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
                 revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
         except OperacionNoPermitida:
             # Puede haber quedado guardada antes de que se perdiera la respuesta.
-            liberar_recuperada(sesiones, token, flota, ruta_historial,
-                revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
+            liberar_revisada(token, revision=datos["revision"], instante=instante, huella=datos["huella"])
         else:
-            conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial,
-                identidad.usuario_id, resumen.punto.carrera_id)
-            liberar_recuperada(sesiones, token, flota, ruta_historial,
-                revision_esperada=datos["revision"], ultimo_control_esperado=instante, huella_esperada=datos["huella"])
+            conciliar(token, identidad, resumen.punto.carrera_id)
+            liberar_revisada(token, revision=datos["revision"], instante=instante, huella=datos["huella"])
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje="Carrera recuperada y guardada hasta el último punto fiable.")
 
@@ -296,9 +325,8 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
             if (identidad.usuario_id not in flota._bloqueados or pendiente is None
                     or pendiente.punto.revision != datos["revision"] + 1):
                 raise OperacionNoPermitida()
-        conciliar_pendiente_sqlite(sesiones.ruta, ruta_historial,
-                                    identidad.usuario_id, pendiente.punto.carrera_id)
-        liberar_cierre_conciliado(flota, sesiones, token, ruta_historial)
+        conciliar(token, identidad, pendiente.punto.carrera_id)
+        liberar_cierre(token)
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje="Carrera guardada en el historial.")
 
