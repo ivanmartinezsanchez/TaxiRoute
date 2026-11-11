@@ -1,0 +1,19 @@
+# Solo demostración ficticia; no apta para datos reales ni producción.
+services:
+  demo-sqlite:
+    build: .
+    command: ["python", "-m", "taxiroute.demo_sqlite_contenedor"]
+    ports:
+      - "127.0.0.1:18769:8769"
+    volumes:
+      - taxiroute_demo_sqlite_v1:/home/taxiroute/.taxiroute
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  taxiroute_demo_sqlite_v1:
