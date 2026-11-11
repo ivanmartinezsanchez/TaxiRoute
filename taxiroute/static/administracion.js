@@ -2,7 +2,7 @@
 const contenedor = document.querySelector("#cuentas");
 const mensaje = document.querySelector("#mensaje");
 const descripciones = {
-  desactivar: ["Desactivar", "Impide el acceso y revoca las sesiones del conductor."],
+  desactivar: ["Desactivar", "Impide el acceso y revoca sus sesiones. Antes hay que finalizar o revisar cualquier carrera pendiente."],
   reactivar: ["Reactivar", "Habilita la cuenta, pero conserva cualquier bloqueo por intentos."],
   desbloquear: ["Desbloquear", "Borra el bloqueo, los fallos y la espera, pero no habilita una cuenta desactivada."],
   revocar: ["Revocar sesiones", "Cierra las sesiones del conductor sin desactivar su cuenta."]

@@ -8,6 +8,8 @@ import unittest
 from flask import Flask
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.cuentas import crear_cuenta
+from taxiroute.flota import FlotaEnMemoria
+from taxiroute.servicio import ServicioCarreras
 from taxiroute.pin import ServicioPIN
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_acceso import NOMBRE_COOKIE
@@ -37,7 +39,8 @@ class PruebasAdministracionWeb(unittest.TestCase):
         self.conductor_token = self.sesiones.iniciar_conductor("Ana", clave).token
         app = Flask(__name__)
         app.config.update(TESTING=True, TRUSTED_HOSTS=["localhost"], MAX_CONTENT_LENGTH=4096)
-        app.register_blueprint(crear_administracion_web(self.sesiones))
+        self.flota = FlotaEnMemoria(lambda _: ServicioCarreras())
+        app.register_blueprint(crear_administracion_web(self.sesiones, self.flota))
         self.admin_web, self.conductor_web, self.anonimo = app.test_client(), app.test_client(), app.test_client()
         self.admin_web.set_cookie(NOMBRE_COOKIE, self.admin_token, secure=True)
         self.conductor_web.set_cookie(NOMBRE_COOKIE, self.conductor_token, secure=True)
@@ -138,4 +141,23 @@ class PruebasAdministracionWeb(unittest.TestCase):
             conexion.execute("DROP TRIGGER fallo_auditoria")
         self.assertEqual(self.post(self.admin_web, "revocar").status_code, 200)
         self.assertEqual(self.datos()[0]["habilitado"], 1)
+        self.assertIsNone(self.sesiones.consultar(self.conductor_token))
+    def test_desactivar_con_carrera_activa_informa_y_no_revoca(self):
+        self.sesiones.ejecutar_con_sesion_vigente(self.conductor_token, roles={"conductor"},
+            operacion=lambda identidad: self.flota.ejecutar_controlado(identidad.usuario_id, "iniciar", 0))
+        respuesta = self.post(self.admin_web, "desactivar")
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertIn("Finaliza o revisa", respuesta.json["error"])
+        self.assertEqual(self.datos()[0]["habilitado"], 1)
+        self.assertIsNotNone(self.sesiones.consultar(self.conductor_token))
+
+    def test_despues_de_finalizar_se_puede_desactivar(self):
+        def actuar(comando, revision):
+            return self.sesiones.ejecutar_con_sesion_vigente(self.conductor_token, roles={"conductor"},
+                operacion=lambda identidad: self.flota.ejecutar_controlado(identidad.usuario_id, comando, revision))
+        actuar("iniciar", 0)
+        self.assertEqual(self.post(self.admin_web, "desactivar").status_code, 409)
+        actuar("finalizar", 1)
+        self.assertEqual(self.post(self.admin_web, "desactivar").status_code, 200)
+        self.assertEqual(self.datos()[0]["habilitado"], 0)
         self.assertIsNone(self.sesiones.consultar(self.conductor_token))

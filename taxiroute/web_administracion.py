@@ -7,7 +7,8 @@ import sqlite3
 
 from flask import Blueprint, abort, jsonify, request
 
-from taxiroute.administracion import AdministracionDenegada, administrar_conductor
+from taxiroute.administracion import (AdministracionDenegada, CarreraPendienteAdministracion,
+                                      EstadoFlotaNoDisponible, administrar_conductor)
 from taxiroute.sesiones import SesionNoAutorizada
 from taxiroute.web_acceso import NOMBRE_COOKIE, requerir_sesion
 
@@ -15,7 +16,7 @@ from taxiroute.web_acceso import NOMBRE_COOKIE, requerir_sesion
 _ACCIONES = frozenset({"desactivar", "reactivar", "desbloquear", "revocar"})
 
 
-def crear_administracion_web(sesiones):
+def crear_administracion_web(sesiones, flota=None):
     """Construye rutas de lista y acciones para sesiones administrativas."""
     api = Blueprint("administracion_web", __name__, url_prefix="/api/administracion")
 
@@ -68,7 +69,11 @@ def crear_administracion_web(sesiones):
             abort(400)
         try:
             administrar_conductor(sesiones.ruta, request.cookies.get(NOMBRE_COOKIE),
-                                  usuario_id, datos["accion"], reloj=sesiones._reloj)
+                                  usuario_id, datos["accion"], reloj=sesiones._reloj, flota=flota)
+        except CarreraPendienteAdministracion as error:
+            return jsonify(error=str(error)), 409
+        except EstadoFlotaNoDisponible:
+            return jsonify(error="No se puede comprobar el estado de la carrera; no se ha desactivado la cuenta."), 503
         except AdministracionDenegada:
             return jsonify(error="No se ha podido realizar la operación."), 403
         except (sqlite3.Error, OSError):

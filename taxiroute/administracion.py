@@ -7,7 +7,15 @@ class AdministracionDenegada(ValueError):
     """No se autoriza la operación o la cuenta no es un conductor."""
 
 
-def administrar_conductor(ruta, token, usuario_id, accion, *, reloj=_ahora):
+class CarreraPendienteAdministracion(ValueError):
+    """La cuenta conserva una carrera o acción que necesita atención."""
+
+
+class EstadoFlotaNoDisponible(ValueError):
+    """No se puede comprobar la flota compartida de manera segura."""
+
+
+def administrar_conductor(ruta, token, usuario_id, accion, *, reloj=_ahora, flota=None):
     """Modifica una cuenta y registra auditoría en la misma transacción.
 
     El llamador no puede proporcionar el rol del actor. La identidad y permisos
@@ -29,7 +37,21 @@ def administrar_conductor(ruta, token, usuario_id, accion, *, reloj=_ahora):
             raise AdministracionDenegada("No se puede realizar la operación.")
         fecha = ahora.isoformat()
         if accion == "desactivar":
-            c.execute("UPDATE usuarios SET habilitado=0, actualizado_en=? WHERE id=?", (fecha, usuario_id))
+            # La API serializa las acciones de carrera con esta misma transacción
+            # y después con el bloqueo de la flota: nunca invertir ese orden.
+            from taxiroute.flota import FlotaEnMemoria
+            if not isinstance(flota, FlotaEnMemoria):
+                raise EstadoFlotaNoDisponible("No se puede comprobar el estado de la carrera.")
+            with flota._bloqueo:
+                servicio = flota._servicios.get(usuario_id)
+                pendiente_memoria = (usuario_id in flota._bloqueados
+                    or usuario_id in flota._cierres_preparados
+                    or (servicio is not None and (servicio.carrera is not None or servicio.pendiente is not None)))
+                pendiente_base = (c.execute("SELECT 1 FROM intenciones_operacion WHERE usuario_id=? LIMIT 1", (usuario_id,)).fetchone()
+                    or c.execute("SELECT 1 FROM carreras_recuperacion WHERE usuario_id=? AND estado_registro IN ('activa','revision_pendiente','guardado_pendiente') LIMIT 1", (usuario_id,)).fetchone())
+                if pendiente_memoria or pendiente_base:
+                    raise CarreraPendienteAdministracion("Finaliza o revisa la carrera o acción pendiente antes de desactivar la cuenta.")
+                c.execute("UPDATE usuarios SET habilitado=0, actualizado_en=? WHERE id=?", (fecha, usuario_id))
         elif accion == "reactivar":
             # Reactivar no elimina un bloqueo por intentos.
             c.execute("UPDATE usuarios SET habilitado=1, actualizado_en=? WHERE id=?", (fecha, usuario_id))

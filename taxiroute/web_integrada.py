@@ -84,7 +84,7 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
 
     @app.get("/acceso")
     def pantalla_acceso():
-        return render_template("acceso.html")
+        return render_template("acceso.html", pin_demo_terminal=app.config.get("PIN_DEMO_TERMINAL", False))
 
     @app.get("/taximetro")
     @requerir_sesion(sesiones, roles={"conductor", "administrador"})
@@ -111,7 +111,7 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
             prefijo="/api", formato_historial=formato_historial_durable, registro_actividad=registro_actividad))
         from taxiroute.web_resolucion_intencion import crear_web_resolucion_intencion
         app.register_blueprint(crear_web_resolucion_intencion(sesiones, flota))
-    app.register_blueprint(crear_administracion_web(sesiones))
+    app.register_blueprint(crear_administracion_web(sesiones, flota))
     app.register_blueprint(crear_alta_conductor_web(sesiones))
     app.register_blueprint(crear_web_pendientes(sesiones))
     if ruta_historial_flota is not None:

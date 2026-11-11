@@ -6,9 +6,12 @@ from tempfile import TemporaryDirectory
 import sqlite3
 import unittest
 
-from taxiroute.administracion import administrar_conductor, AdministracionDenegada
+from taxiroute.administracion import (administrar_conductor, AdministracionDenegada,
+                                      CarreraPendienteAdministracion, EstadoFlotaNoDisponible)
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.cuentas import crear_cuenta
+from taxiroute.flota import FlotaEnMemoria
+from taxiroute.servicio import ServicioCarreras
 from taxiroute.pin import ServicioPIN
 from taxiroute.sesiones import ServicioSesiones
 
@@ -26,6 +29,7 @@ class PruebasAdministracion(unittest.TestCase):
         conductor = crear_cuenta(self.ruta, nombre_usuario="Ana", nombre_visible="Ana",
                                  contrasena=clave)
         self.admin, self.conductor = admin.id, conductor.id
+        self.flota = FlotaEnMemoria(lambda _: ServicioCarreras())
         self.sql("UPDATE usuarios SET cambio_obligatorio=0")
         self.sql("INSERT INTO configuracion_administrador VALUES (?, ?)",
                  (admin.id, "test@example.invalid"))
@@ -48,7 +52,7 @@ class PruebasAdministracion(unittest.TestCase):
 
     def operar(self, accion, token=None, destino=None):
         return administrar_conductor(self.ruta, self.token if token is None else token,
-            self.conductor if destino is None else destino, accion, reloj=lambda: self.fecha)
+            self.conductor if destino is None else destino, accion, reloj=lambda: self.fecha, flota=self.flota)
 
     def test_desactivar_revoca_y_reactivar_no_recupera_sesion(self):
         self.operar("desactivar")
@@ -112,3 +116,63 @@ class PruebasAdministracion(unittest.TestCase):
             self.operar("desactivar")
         self.assertEqual(self.fila()["habilitado"], 1)
         self.assertIsNotNone(self.sesiones.consultar(self.token_conductor))
+
+    def test_desactivar_rechaza_carrera_memoria_y_conserva_la_sesion(self):
+        self.sesiones.ejecutar_con_sesion_vigente(self.token_conductor, roles={"conductor"},
+            operacion=lambda identidad: self.flota.ejecutar_controlado(identidad.usuario_id, "iniciar", 0))
+        with self.assertRaises(CarreraPendienteAdministracion):
+            self.operar("desactivar")
+        self.assertEqual(self.fila()["habilitado"], 1)
+        self.assertIsNotNone(self.sesiones.consultar(self.token_conductor))
+        self.assertTrue(self.flota.consultar(self.conductor).activa)
+
+    def test_desactivar_rechaza_intencion_y_punto_durable(self):
+        from uuid import uuid4
+        from taxiroute.intenciones_operacion import registrar_intencion
+        self.flota = FlotaEnMemoria(lambda _: ServicioCarreras(), modo_durable_experimental=True)
+        op = str(uuid4())
+        registrar_intencion(self.sesiones, self.token_conductor, id_intencion=op, accion="iniciar", revision=0)
+        with self.assertRaises(CarreraPendienteAdministracion):
+            self.operar("desactivar")
+        self.flota.aplicar_intencion_experimental(self.sesiones, self.token_conductor, op)
+        # Aun sin servicio en memoria, el punto durable impide la desactivación.
+        self.flota = FlotaEnMemoria(lambda _: ServicioCarreras(), modo_durable_experimental=True)
+        with self.assertRaises(CarreraPendienteAdministracion):
+            self.operar("desactivar")
+        self.assertEqual(self.fila()["habilitado"], 1)
+        self.assertIsNotNone(self.sesiones.consultar(self.token_conductor))
+
+    def test_sin_flota_no_se_desactiva(self):
+        with self.assertRaises(EstadoFlotaNoDisponible):
+            administrar_conductor(self.ruta, self.token, self.conductor, "desactivar", reloj=lambda: self.fecha)
+        self.assertEqual(self.fila()["habilitado"], 1)
+
+    def test_inicio_y_desactivacion_no_compiten(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Event
+        iniciando, continuar = Event(), Event()
+        def iniciar():
+            def dentro(identidad):
+                iniciando.set()
+                if not continuar.wait(3):
+                    raise TimeoutError("La prueba no pudo continuar")
+                return self.flota.ejecutar_controlado(identidad.usuario_id, "iniciar", 0)
+            return self.sesiones.ejecutar_con_sesion_vigente(self.token_conductor,
+                roles={"conductor"}, operacion=dentro)
+        with ThreadPoolExecutor(max_workers=2) as grupo:
+            carrera = grupo.submit(iniciar)
+            self.assertTrue(iniciando.wait(3))
+            desactivar = grupo.submit(self.operar, "desactivar")
+            continuar.set()
+            self.assertTrue(carrera.result(timeout=5).activa)
+            with self.assertRaises(CarreraPendienteAdministracion):
+                desactivar.result(timeout=5)
+        self.assertEqual(self.fila()["habilitado"], 1)
+
+    def test_desactivar_primero_revoca_la_sesion_antes_de_iniciar(self):
+        from taxiroute.sesiones import SesionNoAutorizada
+        self.operar("desactivar")
+        with self.assertRaises(SesionNoAutorizada):
+            self.sesiones.ejecutar_con_sesion_vigente(self.token_conductor, roles={"conductor"},
+                operacion=lambda identidad: self.flota.ejecutar_controlado(identidad.usuario_id, "iniciar", 0))
+        self.assertIsNone(self.flota.consultar(self.conductor))
