@@ -108,7 +108,7 @@ Funciones disponibles:
 
 Recargar conserva la carrera en memoria del proceso y las pestañas comparten su estado. Cerrar el navegador no detiene el contador. Detener Python puede perder una carrera activa o pendiente. Las carreras ya guardadas permanecen en disco en el modo normal.
 
-Este servicio anterior se limita al propio ordenador y utiliza un servidor de desarrollo. No dispone de autenticación ni sesiones. La nueva composición protegida existe, pero la fase 3 todavía no se considera terminada.
+Este servicio anterior se limita al propio ordenador y utiliza un servidor de desarrollo. No dispone de autenticación ni sesiones. La fase 3 se ha cerrado como demostración académica local, con las limitaciones recogidas en el estado de entrega.
 
 La revisión del 7 de noviembre de 2026 ha superado 61 pruebas locales. En el navegador se han comprobado el guardado, la consulta, los eventos y la edición de tarifas durante una carrera, aplicadas a la siguiente. Se ha revisado una ventana de 390 píxeles sin desbordamiento horizontal. La validación completa de accesibilidad sigue pendiente.
 
@@ -188,6 +188,7 @@ La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculad
 
 - [Documentación técnica](./DOCUMENTACION_TECNICA.md): módulos, decisiones, reglas de cálculo, pruebas y limitaciones.
 - [Diseño de migración a SQLite](./DISENO_MIGRACION_FASE_4.md): objetivos, comprobaciones y límites de la fase 4.
+- [Revisión de la fase 4](./REVISION_FASE_4.md): requisitos, comprobaciones y pendientes para la entrega.
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.
 - Manual de usuario: se redactará al finalizar, basado en el funcionamiento comprobado.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
