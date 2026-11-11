@@ -180,7 +180,7 @@ La versión de terminal y la web anterior funcionan localmente; esta última no 
 
 ## Servidor SQLite local experimental
 
-La fase 4 dispone de un servidor para instalaciones SQLite vinculadas y preparadas, limitado a `127.0.0.1`. Solo se ha probado con datos y certificados de prueba; no es el despliegue final ni permite acceso desde otros dispositivos. Para ver los parámetros, ejecuta `python -m taxiroute.iniciar_sqlite_local --help`. Requiere cuentas, historial, tarifas y certificado TLS existentes. El correo administrativo se consulta únicamente al solicitar el código y el adaptador actual usa el almacén de Windows.
+La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculadas. Por defecto escucha en `127.0.0.1`. Existe una opción explícita para una IPv4 privada de la red del taxi, con comprobación de dirección, puerto y certificado; esa opción se ha probado mediante simulaciones, sin abrir la red ni usar otro dispositivo. No es el despliegue final. Para ver los parámetros, ejecuta `python -m taxiroute.iniciar_sqlite_local --help`. Requiere cuentas, historial, tarifas y certificado TLS existentes. El correo administrativo se consulta únicamente al solicitar el código y el adaptador actual usa el almacén de Windows.
 
 ## Documentación y gestión
 
@@ -191,6 +191,18 @@ La fase 4 dispone de un servidor para instalaciones SQLite vinculadas y preparad
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.
 - Manual de usuario: se redactará al finalizar, basado en el funcionamiento comprobado.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
+
+## Demostración SQLite con Docker
+
+Con Docker Desktop abierto, desde la carpeta del proyecto ejecuta:
+
+```bash
+docker compose -f compose.sqlite-demo.yaml up --build
+```
+
+Abre `https://127.0.0.1:18769/`. La demo utiliza las cuentas ficticias `AnaDemo` y `AdminDemo`; sus contraseñas de prueba están en `taxiroute/demo_integrada.py` y el código administrativo ficticio aparece en la salida de Docker. El historial SQLite de demostración se conserva en un volumen separado entre reinicios. Para detener y retirar el contenedor sin borrar ese volumen, ejecuta `docker compose -f compose.sqlite-demo.yaml down`.
+
+**Solo para datos ficticios.** El certificado es autofirmado y cambia al reiniciar, el navegador puede mostrar una advertencia y el servidor es de desarrollo. El puerto publicado queda limitado al ordenador, aunque otros contenedores de la misma red podrían alcanzar el servicio. No utiliza Gmail ni representa la instalación final para la red del taxi.
 
 ## Material original del ejercicio
 
@@ -216,7 +228,7 @@ Pendiente de decidir. La visibilidad pública del repositorio no define por sí 
 
 En la rama de desarrollo hay una demostración HTTPS local que reúne acceso de conductor y administrador, código administrativo ficticio, taxímetro, historial por cuenta, tarifas y gestión básica de conductores. La demostración crea datos temporales y los borra al detenerse; no envía correo real ni debe utilizarse con carreras reales.
 
-El taxímetro de esta demo ofrece una opción para solicitar que la pantalla permanezca encendida durante una carrera. Depende del navegador y del dispositivo; no impide el bloqueo manual ni garantiza que el equipo no se suspenda. La preferencia solo se mantiene mientras la pestaña esté abierta. Sus pruebas simuladas se ejecutan con `node --test tests/test_pantalla_activa.cjs`; todavía falta comprobarla en una tablet real.
+El taxímetro de esta demo ofrece una opción para solicitar que la pantalla permanezca encendida durante una carrera. Depende del navegador y del dispositivo; no impide el bloqueo manual ni garantiza que el equipo no se suspenda. La preferencia solo se mantiene mientras la pestaña esté abierta. Sus pruebas simuladas se ejecutan con `node --test tests/test_pantalla_activa.cjs`; por decisión del proyecto no se comprobará en una tablet física para esta entrega.
 
 La aplicación habitual `python -m taxiroute.web` corresponde a la web anterior, sin cuentas. La demostración protegida requiere un certificado y una clave locales de prueba, conservados fuera del repositorio:
 
@@ -228,7 +240,7 @@ Para probar el recorrido durable experimental se puede añadir `--durable`. En e
 
 Después se abre `https://127.0.0.1:8767/`. El servidor muestra las credenciales ficticias y el código de prueba en su terminal. El navegador puede advertir que el certificado de prueba no es de confianza. El código no debe reutilizarse como configuración de producción.
 
-Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. Al abrir una demo ficticia anterior reconocida, actualiza su base de cuentas desde versiones compatibles hasta el esquema 13 mediante una transacción, sin generar códigos de recuperación. Una versión antigua de la aplicación puede no reconocer la base actualizada. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
+Una variante adicional permite conservar exclusivamente datos ficticios en una carpeta nueva fuera de Git mediante `--carpeta-demo RUTA`. Tras reiniciar, muestra el último punto fiable y pide confirmación para cerrar la carrera sin añadir el tiempo desconocido. La demo impide que dos instancias cooperativas abran a la vez esa carpeta. Al abrir una demo ficticia anterior reconocida, actualiza su base de cuentas desde versiones compatibles hasta el esquema 14 mediante una transacción, sin generar códigos de recuperación. Una versión antigua de la aplicación puede no reconocer la base actualizada. No está preparada para datos reales y no resuelve todos los tipos de interrupción.
 
 ### Demostración integrada con Docker
 

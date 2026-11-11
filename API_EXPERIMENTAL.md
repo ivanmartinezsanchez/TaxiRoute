@@ -4,7 +4,7 @@ Esta descripción corresponde a la web integrada en modo durable experimental. L
 
 ## Acceso y seguridad
 
-Las solicitudes requieren HTTPS. La composición actual admite los hosts `localhost` y `127.0.0.1`. Las peticiones POST deben enviar JSON con `Content-Type: application/json` y una cabecera `Origin` que coincida exactamente con el origen de la aplicación. No se admiten peticiones entre sitios. La cookie de sesión `taxiroute_sesion` es `Secure`, `HttpOnly` y `SameSite=Strict`; no se incluye en ejemplos ni debe copiarse a la documentación o a registros.
+Las solicitudes requieren HTTPS. Por defecto la composición admite los hosts `localhost` y `127.0.0.1`. El servidor SQLite dispone de una opción LAN experimental que admite exclusivamente la IPv4 y el puerto configurados; se ha comprobado mediante simulación, no con otro dispositivo. Las peticiones POST deben enviar JSON con `Content-Type: application/json` y una cabecera `Origin` que coincida exactamente con el origen de la aplicación. No se admiten peticiones entre sitios. La cookie de sesión `taxiroute_sesion` es `Secure`, `HttpOnly` y `SameSite=Strict`; no se incluye en ejemplos ni debe copiarse a la documentación o a registros.
 
 El conductor inicia sesión con `POST /acceso/conductor` y los campos `usuario` y `contrasena`. El administrador usa `POST /acceso/administrador` y después `POST /acceso/administrador/pin`; si es obligatorio cambiar la contraseña, el acceso requiere completar también ese paso. `POST /acceso/cerrar` revoca la sesión. Para probar la aplicación sin cuentas reales se debe utilizar la demostración documentada en el README.
 
