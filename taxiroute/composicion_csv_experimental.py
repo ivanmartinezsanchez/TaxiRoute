@@ -78,7 +78,8 @@ def abrir_app_csv_experimental(*, ruta_cuentas, carpeta_historial, ruta_tarifas,
         verificar_historiales_guardados_csv(cuentas, carpeta)
         flota = preparada.flota
         app = crear_app_integrada(sesiones, pin, flota, historial, ruta_tarifas=tarifas,
-            ruta_historial_durable=carpeta, formato_historial_durable="csv", registro_actividad=registro)
+            ruta_historial_durable=carpeta, formato_historial_durable="csv", registro_actividad=registro,
+            carpeta_historial_flota_csv=carpeta)
         app.config["DEMO_PERSISTENTE"] = True
         control = ControlPeriodico(flota, cuentas, intervalo=5, avisar=lambda: registro.registrar("error_operacion"))
         app.extensions["control_periodico"] = control

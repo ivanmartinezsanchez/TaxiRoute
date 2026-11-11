@@ -19,7 +19,7 @@
 <button type="submit">Crear conductor</button></form></section>
 {% if historial_flota %}<section class="cuenta" aria-labelledby="titulo-historial-flota">
 <h2 id="titulo-historial-flota">Historial de la flota</h2>
-<p>Consulta las carreras de todas las cuentas. Las carreras antiguas sin propietario se muestran como «Sin asignar».</p>
+<p>Consulta las carreras de todas las cuentas. El filtro «hoy» utiliza la zona horaria del servidor.{% if historial_sin_propietario %} Las carreras antiguas sin propietario se muestran como «Sin asignar».{% else %} Los historiales antiguos sin propietario se conservan por separado y no aparecen aquí.{% endif %}</p>
 <div class="filtro-historial"><label for="periodo-historial">Periodo</label>
 <select id="periodo-historial"><option value="hoy">Finalizadas hoy</option><option value="todas">Todas las carreras</option></select>
 <button id="actualizar-historial" type="button">Actualizar historial</button></div>

@@ -28,10 +28,13 @@ _RUTAS_ACCESO = frozenset({"/acceso/conductor", "/acceso/conductor/cambio", "/ac
 
 def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tarifas=None,
                         ruta_historial_durable=None, ruta_historial_flota=None, limitador_acceso=None,
-                        formato_historial_durable="sqlite", registro_actividad=None):
+                        formato_historial_durable="sqlite", registro_actividad=None,
+                        carpeta_historial_flota_csv=None):
     """Servicios inyectados por el integrador; no usar como aplicación final."""
     if not callable(historial_por_usuario):
         raise ValueError("Se necesita un historial por usuario.")
+    if ruta_historial_flota is not None and carpeta_historial_flota_csv is not None:
+        raise ValueError("Elige un único historial de flota.")
     if Path(sesiones.ruta).resolve() != Path(pin.ruta).resolve():
         raise ValueError("El PIN y las sesiones deben usar la misma base de cuentas.")
     limitador = LimitadorAcceso() if limitador_acceso is None else limitador_acceso
@@ -94,7 +97,8 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     @requerir_sesion(sesiones, roles={"administrador"})
     def administracion():
         return render_template("administracion.html", persistente=app.config.get("DEMO_PERSISTENTE", False),
-                               historial_flota=ruta_historial_flota is not None,
+                               historial_flota=(ruta_historial_flota is not None or carpeta_historial_flota_csv is not None),
+                               historial_sin_propietario=ruta_historial_flota is not None,
                                durable=ruta_historial_durable is not None)
     app.register_blueprint(crear_acceso_conductor(sesiones))
     app.register_blueprint(crear_cambio_conductor(sesiones.ruta, reloj=sesiones._reloj))
@@ -113,6 +117,9 @@ def crear_app_integrada(sesiones, pin, flota, historial_por_usuario, *, ruta_tar
     if ruta_historial_flota is not None:
         from taxiroute.web_historial_flota import crear_historial_flota_web
         app.register_blueprint(crear_historial_flota_web(sesiones, ruta_historial_flota))
+    if carpeta_historial_flota_csv is not None:
+        from taxiroute.web_historial_flota_csv import crear_historial_flota_csv_web
+        app.register_blueprint(crear_historial_flota_csv_web(sesiones, carpeta_historial_flota_csv))
     if ruta_tarifas is not None:
         app.register_blueprint(crear_tarifas_web(sesiones, ruta_tarifas))
     return app
