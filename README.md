@@ -180,6 +180,8 @@ La versión de terminal y la web anterior funcionan localmente; esta última no 
 
 ## Documentación y gestión
 
+- [Mapa de contexto](./MAPA_CONTEXTO.md): decisiones, estado y guía para retomar el proyecto.
+
 - [Documentación técnica](./DOCUMENTACION_TECNICA.md): módulos, decisiones, reglas de cálculo, pruebas y limitaciones.
 - [Diseño de migración a SQLite](./DISENO_MIGRACION_FASE_4.md): objetivos, comprobaciones y límites de la fase 4.
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.

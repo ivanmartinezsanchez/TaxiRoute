@@ -1,6 +1,6 @@
 # Forma de trabajar en TaxiRoute
 
-Estas instrucciones recogen las preferencias de trabajo y las decisiones del proyecto. Las peticiones actuales de Iván tienen prioridad sobre este documento. Consulta README.md, ALCANCE_FASE_3.md, DISENO_CUENTAS.md y DISENO_RECUPERACION.md para conocer el alcance y el estado; los apartados históricos describen la situación de su fecha, no necesariamente la actual.
+Estas instrucciones recogen las preferencias de trabajo y las decisiones del proyecto. Las peticiones actuales de Iván tienen prioridad sobre este documento. Para retomar el proyecto, usa MAPA_CONTEXTO.md como índice y verifica el estado real antes de actuar. Consulta README.md, ALCANCE_FASE_3.md, DISENO_CUENTAS.md y DISENO_RECUPERACION.md según la tarea; los apartados históricos describen la situación de su fecha, no necesariamente la actual.
 
 ## Colaboración y aprendizaje
 
