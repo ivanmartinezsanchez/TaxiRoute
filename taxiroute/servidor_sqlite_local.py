@@ -48,18 +48,23 @@ def _validar_certificado_lan(certificado, ip):
 
 @contextmanager
 def servidor_sqlite_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas,
-                                 certificado, clave, puerto, enviar_pin, direccion='127.0.0.1'):
+                                 certificado, clave, puerto, enviar_pin, direccion='127.0.0.1',
+                                 escucha_contenedor=False):
     """Mantiene el bloqueo y control durable mientras el servidor esté abierto.
 
     Exige una instalación SQLite ya vinculada. Nunca consulta Gmail ni envía
     por sí mismo: el integrador proporciona el transporte de PIN. La clave de
     verificación cambia en cada arranque, invalidando desafíos anteriores.
     El modo LAN no establece confianza del certificado ni configura cortafuegos.
+    escucha_contenedor separa el enlace interno de la autoridad LAN validada;
+    quien despliega debe limitar la publicación del puerto y la red del contenedor.
     """
     if type(puerto) is not int or not 0 <= puerto <= 65535:
         raise ValueError("El puerto no es válido.")
     ip = _validar_direccion(direccion)
     modo_red = direccion != '127.0.0.1'
+    if type(escucha_contenedor) is not bool or (escucha_contenedor and not modo_red):
+        raise ValueError('La escucha de contenedor requiere una IPv4 privada explícita.')
     if modo_red and puerto == 0:
         raise ValueError("El acceso de red necesita un puerto explícito.")
     if not callable(enviar_pin):
@@ -101,7 +106,8 @@ def servidor_sqlite_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas,
                 if request.host not in autoridades:
                     abort(400)
 
-        servidor = make_server(direccion, puerto, app, ssl_context=contexto, threaded=True)
+        direccion_escucha = '0.0.0.0' if escucha_contenedor else direccion
+        servidor = make_server(direccion_escucha, puerto, app, ssl_context=contexto, threaded=True)
         try:
             yield servidor
         finally:

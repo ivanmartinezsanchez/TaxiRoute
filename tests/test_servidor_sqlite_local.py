@@ -177,6 +177,31 @@ class PruebasServidorSQLite(unittest.TestCase):
                 self.assertEqual(acceso.status_code, 200)
                 self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.34:8769').status_code, 200)
 
+    def test_contenedor_separa_escucha_y_autoridad_sin_abrir_red(self):
+        cert, clave = self.certificado_para_ip('192.168.12.34')
+        opciones = self.args | {'direccion': '192.168.12.34', 'puerto': 8769,
+                                'certificado': cert, 'clave': clave, 'escucha_contenedor': True}
+        with patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+            with servidor_sqlite_experimental(**opciones):
+                argumentos = crear.call_args.args
+                self.assertEqual(argumentos[:2], ('0.0.0.0', 8769))
+                cliente = argumentos[2].test_client()
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.34:8769').status_code, 401)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.35:8769').status_code, 400)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.34:8770').status_code, 400)
+                acceso = cliente.post('/acceso/conductor', base_url='https://192.168.12.34:8769',
+                    headers={'Origin': 'https://192.168.12.35:8769'},
+                    json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
+                self.assertEqual(acceso.status_code, 403)
+
+    def test_contenedor_rechaza_localhost_y_valores_no_booleanos(self):
+        for valor in (True, 1, 'true'):
+            with self.subTest(valor=valor), patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+                with self.assertRaises(ValueError):
+                    with servidor_sqlite_experimental(**(self.args | {'escucha_contenedor': valor})):
+                        pass
+                crear.assert_not_called()
+
     def test_excluye_segunda_instancia(self):
         with servidor_sqlite_experimental(**self.args):
             with self.assertRaises(HistorialOcupado):
