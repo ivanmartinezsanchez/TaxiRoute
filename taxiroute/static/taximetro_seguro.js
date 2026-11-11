@@ -26,6 +26,7 @@ function controles() {
   $("#parar").disabled = !disponible || !actual.activa || actual.estado === "parado";
   $("#finalizar").disabled = !disponible || !actual.activa;
   const reintentoDurable = requiereRevision && revisionReintento !== null;
+  $("#opciones-copia").hidden = !(document.body?.dataset?.durable === "true" && conectado && reintentoDurable);
   $("#reintentar").hidden = !actual?.pendiente && !reintentoDurable;
   $("#reintentar").disabled = reintentoDurable ? !conectado || ocupado : !disponible || !actual?.pendiente;
   $("#finalizar-recuperada").disabled = !conectado || ocupado || !requiereRevision || !puntoRecuperacion || !$("#confirmar-recuperacion").checked;

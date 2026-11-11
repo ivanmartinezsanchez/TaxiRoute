@@ -156,6 +156,60 @@ class PruebasApiDurable(unittest.TestCase):
         self.assertEqual(self.post(self.ana_web, ruta, {"revision": 1}).status_code, 409)
         self.assertEqual(len(HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True).consultar()), 1)
 
+    def test_copia_pendiente_aislada_sin_modificar_estado(self):
+        import csv
+        import io
+        from unittest.mock import patch
+        ruta = "/api/durable/carrera/copia-pendiente"
+        self.assertEqual(self.ana_web.get(ruta, base_url=self.url).status_code, 401)
+        self.login(self.ana_web, "Ana")
+        self.login(self.luis_web, "Luis")
+        self.assertEqual(self.ana_web.get(ruta, base_url=self.url).status_code, 409)
+        self.post(self.ana_web, "/api/durable/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+        self.avanzar(10)
+        with patch("taxiroute.api_durable_experimental.conciliar_pendiente_sqlite", side_effect=OSError("simulado")):
+            self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1}).status_code, 503)
+        self.assertEqual(self.luis_web.get(ruta, base_url=self.url).status_code, 409)
+        self.assertEqual(self.ana_web.get(ruta + "?usuario_id=" + str(self.luis.id), base_url=self.url).status_code, 400)
+        self.assertEqual(self.ana_web.get(ruta, base_url="http://localhost").status_code, 400)
+        self.assertEqual(self.ana_web.get(ruta, base_url=self.url, headers={"Origin":"https://ajeno.test"}).status_code, 403)
+        self.assertEqual(self.ana_web.get(ruta, base_url=self.url, headers={"Sec-Fetch-Site":"cross-site"}).status_code, 403)
+        anterior = self.ana_web.get("/api/durable/carrera/cierre-pendiente", base_url=self.url).json
+        respuesta = self.ana_web.get(ruta, base_url=self.url)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("attachment", respuesta.headers["Content-Disposition"])
+        self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
+        filas = list(csv.DictReader(io.StringIO(respuesta.get_data(as_text=True))))
+        self.assertEqual(len(filas), 1)
+        self.assertEqual(filas[0]["importe"], "0.20")
+        self.assertTrue(filas[0]["identificador"])
+        self.assertEqual(self.ana_web.get("/api/durable/carrera/cierre-pendiente", base_url=self.url).json, anterior)
+        self.assertTrue(self.flota.requiere_reconciliacion(self.ana.id))
+        self.assertEqual(HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True).consultar(), [])
+        self.fecha += timedelta(hours=1)
+        self.assertEqual(self.ana_web.get(ruta, base_url=self.url).status_code, 401)
+
+    def test_copia_pendiente_error_y_validacion_de_integridad(self):
+        from unittest.mock import patch
+        ruta = "/api/durable/carrera/copia-pendiente"
+        self.login(self.ana_web, "Ana")
+        self.post(self.ana_web, "/api/durable/carrera/iniciar", {"revision": 0, "id_operacion": str(uuid4())})
+        self.avanzar(10)
+        with patch("taxiroute.api_durable_experimental.conciliar_pendiente_sqlite", side_effect=OSError("simulado")):
+            self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1})
+        with patch("taxiroute.conciliacion_csv._leer", side_effect=OSError("ruta privada")):
+            respuesta = self.ana_web.get(ruta, base_url=self.url)
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertNotIn("ruta privada", respuesta.get_data(as_text=True))
+        from taxiroute.conciliacion_csv import _leer
+        def alterada(conexion, usuario, carrera):
+            datos, estado, resumen = _leer(conexion, usuario, carrera)
+            from dataclasses import replace
+            return datos, estado, replace(resumen, importe="999.00")
+        with patch("taxiroute.conciliacion_csv._leer", side_effect=alterada):
+            self.assertEqual(self.ana_web.get(ruta, base_url=self.url).status_code, 409)
+        self.assertTrue(self.flota.requiere_reconciliacion(self.ana.id))
+
     def test_reintenta_despues_de_guardar_sin_duplicados(self):
         from unittest.mock import patch
         self.login(self.ana_web, "Ana")

@@ -5,9 +5,10 @@ solo en la demo persistente con bloqueo exclusivo. No configura por sí sola
 los puntos periódicos ni constituye un servidor de producción.
 """
 import errno
+import io
 import sqlite3
 
-from flask import Blueprint, abort, current_app, jsonify, request
+from flask import Blueprint, abort, current_app, jsonify, request, Response
 
 from taxiroute.conciliacion_sqlite import conciliar_pendiente_sqlite
 from taxiroute.conciliacion_csv import conciliar_pendiente_csv_autorizado
@@ -311,30 +312,59 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje=con_aviso("Carrera recuperada y guardada hasta el último punto fiable.", aviso))
 
-    @api.get("/carrera/cierre-pendiente")
-    def consultar_cierre_propio():
+    def leer_cierre_verificado(identidad, conexion):
         from taxiroute.conciliacion_csv import _leer
         from taxiroute.finalizacion_pendiente import resumen_para_historial
         from taxiroute.historial import _fila
+        # Cuentas → flota, el mismo orden de las acciones de carrera.
+        with flota._bloqueo:
+            marcador = flota._cierres_preparados.get(identidad.usuario_id)
+            if marcador is None or identidad.usuario_id not in flota._bloqueados:
+                return None
+            punto = marcador.punto
+            _, estado, resumen = _leer(conexion, identidad.usuario_id, punto.carrera_id)
+            if _fila(resumen) != _fila(resumen_para_historial(marcador)):
+                raise OperacionNoPermitida()
+            return marcador, estado, resumen
+
+    @api.get("/carrera/cierre-pendiente")
+    def consultar_cierre_propio():
         token, _ = token_y_identidad()
         def leer(identidad, conexion):
-            # Cuentas → flota, el mismo orden de las acciones de carrera.
-            with flota._bloqueo:
-                marcador = flota._cierres_preparados.get(identidad.usuario_id)
-                if marcador is None or identidad.usuario_id not in flota._bloqueados:
-                    return None
-                punto = marcador.punto
-                _, estado, resumen = _leer(conexion, identidad.usuario_id, punto.carrera_id)
-                if _fila(resumen) != _fila(resumen_para_historial(marcador)):
-                    raise OperacionNoPermitida()
-                return {"estado": estado, "inicio": punto.inicio.isoformat(),
-                        "ultimo_control": punto.ultimo_control.isoformat(),
-                        "estado_vehiculo": punto.estado_vehiculo,
-                        "revision_reintento": punto.revision - 1,
-                        "reintento_disponible": True}
+            cierre = leer_cierre_verificado(identidad, conexion)
+            if cierre is None:
+                return None
+            marcador, estado, _ = cierre
+            punto = marcador.punto
+            return {"estado": estado, "inicio": punto.inicio.isoformat(),
+                    "ultimo_control": punto.ultimo_control.isoformat(),
+                    "estado_vehiculo": punto.estado_vehiculo,
+                    "revision_reintento": punto.revision - 1,
+                    "reintento_disponible": True}
         resultado = sesiones.ejecutar_con_sesion_y_conexion(token,
             roles={"conductor", "administrador"}, operacion=leer)
         return jsonify(pendiente=resultado)
+
+    @api.get("/carrera/copia-pendiente")
+    def descargar_copia_pendiente():
+        from taxiroute.historial import _escribir
+        if (request.headers.get("Sec-Fetch-Site") == "cross-site"
+                or (request.headers.get("Origin") is not None
+                    and request.headers["Origin"] != request.host_url.rstrip("/"))):
+            abort(403)
+        token, _ = token_y_identidad()
+        def crear_copia(identidad, conexion):
+            cierre = leer_cierre_verificado(identidad, conexion)
+            if cierre is None:
+                raise OperacionNoPermitida()
+            archivo = io.StringIO(newline="")
+            _escribir(archivo, cierre[2], cabecera=True)
+            return archivo.getvalue()
+        contenido = sesiones.ejecutar_con_sesion_y_conexion(token,
+            roles={"conductor", "administrador"}, operacion=crear_copia)
+        return Response(contenido, content_type="text/csv; charset=utf-8", headers={
+            "Content-Disposition": 'attachment; filename="taxiroute-carrera-pendiente.csv"',
+            "X-Content-Type-Options": "nosniff"})
 
     @api.post("/carrera/reintentar")
     def reintentar_guardado():

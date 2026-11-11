@@ -112,6 +112,7 @@ function estado() {
           revisionError: elemento("#revision-error").textContent,
           tarifasActuales: elemento("#tarifas-actuales").textContent,
           tarifasNuevas: elemento("#tarifas-nuevas").textContent,
+          copiaOculta: elemento("#opciones-copia").hidden,
           reintentoOculto: elemento("#reintentar").hidden,
           reintentoDeshabilitado: elemento("#reintentar").disabled,
           recuperacionOculta: elemento("#opciones-recuperacion").hidden,
@@ -212,6 +213,8 @@ class PruebasTaximetroJS(unittest.TestCase):
 
     def test_reintento_durable_disponible_sin_estado_previo(self):
         resultado = self.ejecutar_escenario("reintento")
+        self.assertFalse(resultado["primero"]["copiaOculta"])
+        self.assertTrue(resultado["despues"]["copiaOculta"])
         self.assertFalse(resultado["primero"]["reintentoOculto"])
         self.assertFalse(resultado["primero"]["reintentoDeshabilitado"])
         self.assertEqual(resultado["revisionEnviada"], 1)
@@ -225,6 +228,7 @@ class PruebasTaximetroJS(unittest.TestCase):
 
     def test_recuperar_exige_confirmacion_y_envia_punto_mostrado(self):
         resultado = self.ejecutar_escenario("recuperar")
+        self.assertTrue(resultado["primero"]["copiaOculta"])
         self.assertFalse(resultado["primero"]["recuperacionOculta"])
         self.assertTrue(resultado["primero"]["recuperacionDeshabilitada"])
         self.assertEqual(resultado["primero"]["importeRecuperado"], "0,42")
