@@ -1,4 +1,5 @@
 # Solo demostración ficticia; no apta para datos reales ni producción.
+name: taxiroute-demo
 services:
   demo-sqlite:
     build: .

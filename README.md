@@ -197,10 +197,10 @@ La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculad
 Con Docker Desktop abierto, desde la carpeta del proyecto ejecuta:
 
 ```bash
-docker compose -f compose.sqlite-demo.yaml up --build
+docker compose -f compose.sqlite-demo.yaml up --build -d
 ```
 
-Abre `https://127.0.0.1:18769/`. La demo utiliza las cuentas ficticias `AnaDemo` y `AdminDemo`; sus contraseñas de prueba están en `taxiroute/demo_integrada.py` y el código administrativo ficticio aparece en la salida de Docker. El historial SQLite de demostración se conserva en un volumen separado entre reinicios. Para detener y retirar el contenedor sin borrar ese volumen, ejecuta `docker compose -f compose.sqlite-demo.yaml down`.
+Abre `https://127.0.0.1:18769/`. La demo usa únicamente estas cuentas ficticias: conductor `AnaDemo` con contraseña `ConductorDemo123!`, y administrador `AdminDemo` con contraseña `AdminDemo456!`. Después de solicitar el código del administrador, consulta el código ficticio con `docker compose -f compose.sqlite-demo.yaml logs --tail 30`. El historial SQLite de demostración se conserva en un volumen separado entre reinicios. Para detener y retirar el contenedor sin borrar ese volumen, ejecuta `docker compose -f compose.sqlite-demo.yaml down`.
 
 **Solo para datos ficticios.** El certificado es autofirmado y cambia al reiniciar, el navegador puede mostrar una advertencia y el servidor es de desarrollo. El puerto publicado queda limitado al ordenador, aunque otros contenedores de la misma red podrían alcanzar el servicio. No utiliza Gmail ni representa la instalación final para la red del taxi.
 
