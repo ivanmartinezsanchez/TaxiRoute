@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import unittest
 
 from taxiroute.oauth_gmail import (
-    ALCANCE_ENVIO, CLAVE_ALMACEN, SERVICIO_ALMACEN, ConfiguracionOAuthError,
+    ALCANCE_ENVIO, CLAVE_ALMACEN, CLAVE_ALMACEN_ALTERNATIVA, SERVICIO_ALMACEN, ConfiguracionOAuthError,
     autorizar_gmail, cliente_gmail_autorizado,
 )
 
@@ -73,6 +73,37 @@ class PruebasOAuthGmail(unittest.TestCase):
             SERVICIO_ALMACEN, CLAVE_ALMACEN, "renovado")
         construir.assert_called_once_with(
             "gmail", "v1", credentials=credenciales, cache_discovery=False)
+
+    @patch("taxiroute.oauth_gmail.InstalledAppFlow")
+    def test_autorizacion_alternativa_se_guarda_sin_sustituir_principal(self, clase):
+        def obtener(servicio, clave):
+            return "principal-existente" if clave == CLAVE_ALMACEN else None
+        self.almacen.get_password.side_effect = obtener
+        credenciales = clase.from_client_secrets_file.return_value.run_local_server.return_value
+        credenciales.refresh_token = "ficticio"
+        credenciales.to_json.return_value = "alternativa-ficticia"
+        autorizar_gmail(self.ruta, perfil="alternativo")
+        self.almacen.set_password.assert_called_once_with(
+            SERVICIO_ALMACEN, CLAVE_ALMACEN_ALTERNATIVA, "alternativa-ficticia")
+
+    @patch("taxiroute.oauth_gmail.build")
+    @patch("taxiroute.oauth_gmail.Credentials")
+    def test_cliente_alternativo_renueva_solo_su_perfil(self, clase, construir):
+        self.almacen.get_password.return_value = "{}"
+        credenciales = clase.from_authorized_user_info.return_value
+        credenciales.valid = False
+        credenciales.refresh_token = "ficticio"
+        credenciales.to_json.return_value = "renovada"
+        cliente_gmail_autorizado(perfil="alternativo")
+        self.almacen.get_password.assert_called_once_with(SERVICIO_ALMACEN, CLAVE_ALMACEN_ALTERNATIVA)
+        self.almacen.set_password.assert_called_once_with(SERVICIO_ALMACEN, CLAVE_ALMACEN_ALTERNATIVA, "renovada")
+
+    def test_rechaza_perfil_desconocido_antes_de_acceder_al_almacen(self):
+        with self.assertRaises(ConfiguracionOAuthError):
+            autorizar_gmail(self.ruta, perfil="desconocido")
+        with self.assertRaises(ConfiguracionOAuthError):
+            cliente_gmail_autorizado(perfil="desconocido")
+        self.almacen.get_password.assert_not_called()
 
     @patch("taxiroute.oauth_gmail.keyring.get_keyring")
     def test_backend_no_verificado_se_rechaza(self, backend):

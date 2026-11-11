@@ -13,6 +13,7 @@ from googleapiclient.discovery import build
 ALCANCE_ENVIO = "https://www.googleapis.com/auth/gmail.send"
 SERVICIO_ALMACEN = "TaxiRoute.Gmail.OAuth"
 CLAVE_ALMACEN = "cuenta-remitente"
+CLAVE_ALMACEN_ALTERNATIVA = "cuenta-remitente-alternativa"
 
 
 class ConfiguracionOAuthError(RuntimeError):
@@ -35,17 +36,25 @@ def _almacen_windows():
     return almacen
 
 
-def autorizar_gmail(ruta_cliente, *, cuenta_sugerida=None):
+def _clave_perfil(perfil):
+    perfiles = {"principal": CLAVE_ALMACEN, "alternativo": CLAVE_ALMACEN_ALTERNATIVA}
+    if not isinstance(perfil, str) or perfil not in perfiles:
+        raise ConfiguracionOAuthError("El perfil de correo no es válido.")
+    return perfiles[perfil]
+
+
+def autorizar_gmail(ruta_cliente, *, cuenta_sugerida=None, perfil="principal"):
     """Abre el navegador solo al llamarse expresamente y guarda tokens en Windows.
 
     El usuario elige y autoriza la cuenta en Google. La sugerencia de cuenta
     no prueba su identidad; se debe comprobar visualmente durante el consentimiento.
     """
+    clave_perfil = _clave_perfil(perfil)
     ruta = Path(ruta_cliente)
     if not ruta.is_file():
         raise ConfiguracionOAuthError("No se encuentra el archivo del cliente OAuth.")
     almacen = _almacen_windows()
-    if almacen.get_password(SERVICIO_ALMACEN, CLAVE_ALMACEN) is not None:
+    if almacen.get_password(SERVICIO_ALMACEN, clave_perfil) is not None:
         raise ConfiguracionOAuthError("Ya existe una autorización guardada; revísala antes de sustituirla.")
     flujo = InstalledAppFlow.from_client_secrets_file(
         str(ruta), scopes=[ALCANCE_ENVIO], autogenerate_code_verifier=True,
@@ -70,17 +79,18 @@ def autorizar_gmail(ruta_cliente, *, cuenta_sugerida=None):
         logger.removeFilter(filtro)
     if not credenciales.refresh_token:
         raise ConfiguracionOAuthError("Google no devolvió un token de renovación; no se ha guardado.")
-    almacen.set_password(SERVICIO_ALMACEN, CLAVE_ALMACEN, credenciales.to_json())
+    almacen.set_password(SERVICIO_ALMACEN, clave_perfil, credenciales.to_json())
 
 
-def cliente_gmail_autorizado():
+def cliente_gmail_autorizado(*, perfil="principal"):
     """Recupera las credenciales existentes y construye el cliente Gmail.
 
     No abre el navegador. Los errores se propagan sin imprimir credenciales.
     La actualización se conserva en el almacén del sistema.
     """
+    clave_perfil = _clave_perfil(perfil)
     almacen = _almacen_windows()
-    contenido = almacen.get_password(SERVICIO_ALMACEN, CLAVE_ALMACEN)
+    contenido = almacen.get_password(SERVICIO_ALMACEN, clave_perfil)
     if contenido is None:
         raise ConfiguracionOAuthError("Gmail aún no está autorizado.")
     credenciales = Credentials.from_authorized_user_info(
@@ -90,5 +100,5 @@ def cliente_gmail_autorizado():
         if not credenciales.refresh_token:
             raise ConfiguracionOAuthError("La autorización no puede renovarse.")
         credenciales.refresh(Request())
-        almacen.set_password(SERVICIO_ALMACEN, CLAVE_ALMACEN, credenciales.to_json())
+        almacen.set_password(SERVICIO_ALMACEN, clave_perfil, credenciales.to_json())
     return build("gmail", "v1", credentials=credenciales, cache_discovery=False)
