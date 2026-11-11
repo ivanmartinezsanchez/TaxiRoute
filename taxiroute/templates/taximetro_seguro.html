@@ -48,18 +48,18 @@
     <section id="opciones-copia" hidden aria-labelledby="titulo-copia">
       <h3 id="titulo-copia">Guardar una copia de la carrera</h3>
       <p>Descarga una copia CSV de esta carrera. La descarga no confirma su guardado en el historial; cuando sea posible, vuelve a intentar guardarla.</p>
-      <p><a href="/api/carrera/copia-pendiente">Descargar copia CSV</a></p>
+      <p><a class="enlace-accion" href="/api/carrera/copia-pendiente">Descargar copia CSV</a></p>
     </section>
     <section id="opciones-recuperacion" hidden aria-labelledby="titulo-recuperar">
       <h3 id="titulo-recuperar">Revisar el último punto guardado</h3>
       <p>Importe hasta ese punto: <strong id="importe-recuperado">—</strong> €. El tiempo posterior no se incluye.</p>
-      <label><input id="confirmar-recuperacion" type="checkbox"> He revisado el punto y acepto finalizar la carrera con este importe.</label>
+      <label class="opcion-confirmacion"><input id="confirmar-recuperacion" type="checkbox"> He revisado el punto y acepto finalizar la carrera con este importe.</label>
       <p><button id="finalizar-recuperada" type="button" disabled>Finalizar en el último punto guardado</button></p>
     </section>
     <section id="opciones-intencion" hidden aria-labelledby="titulo-intencion">
       <h3 id="titulo-intencion">Revisar la acción pendiente</h3>
       <p id="ayuda-intencion"></p>
-      <label><input id="confirmar-intencion" type="checkbox"> <span id="texto-confirmar-intencion"></span></label>
+      <label class="opcion-confirmacion"><input id="confirmar-intencion" type="checkbox"> <span id="texto-confirmar-intencion"></span></label>
       <p><button id="revisar-intencion" type="button" disabled>Confirmar revisión</button></p>
     </section>
     <p id="revision-error" role="status" aria-live="polite"></p>
