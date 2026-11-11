@@ -23,9 +23,24 @@ class PruebasLanzadorSQLite(TestCase):
         with patch('taxiroute.iniciar_sqlite_local.servidor_sqlite_experimental', servidor), patch('sys.stdout', new_callable=StringIO) as salida:
             self.assertEqual(main(self.args), 0)
         self.assertEqual(capturado['puerto'], 8769)
+        self.assertEqual(capturado['direccion'], '127.0.0.1')
         self.assertTrue(callable(capturado['enviar_pin']))
         self.assertIn('127.0.0.1:8769', salida.getvalue())
         self.assertIn('Servidor detenido', salida.getvalue())
+
+    def test_modo_red_muestra_aviso_y_transmite_direccion(self):
+        capturado = {}
+        class Servidor:
+            def serve_forever(self):
+                raise KeyboardInterrupt
+        @contextmanager
+        def servidor(**opciones):
+            capturado.update(opciones)
+            yield Servidor()
+        with patch('taxiroute.iniciar_sqlite_local.servidor_sqlite_experimental', servidor), patch('sys.stdout', new_callable=StringIO) as salida:
+            self.assertEqual(main(self.args + ['--direccion', '192.168.12.34']), 0)
+        self.assertEqual(capturado['direccion'], '192.168.12.34')
+        self.assertIn('Acceso de red experimental', salida.getvalue())
 
     def test_fallo_no_muestra_detalle_sensible(self):
         @contextmanager

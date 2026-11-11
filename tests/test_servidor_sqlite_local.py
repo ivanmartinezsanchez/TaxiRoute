@@ -1,5 +1,7 @@
 """Pruebas HTTPS locales de SQLite, siempre con datos ficticios."""
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
+from ipaddress import IPv4Address
 import csv
 from http.cookiejar import CookieJar
 import json
@@ -13,6 +15,11 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import HTTPSHandler, HTTPCookieProcessor, Request, build_opener
 from uuid import uuid4
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
 from taxiroute.base_cuentas import conectar, inicializar_base
 from taxiroute.bloqueo import HistorialOcupado
@@ -105,6 +112,70 @@ class PruebasServidorSQLite(unittest.TestCase):
             acceso = conductor.post('/acceso/conductor', base_url=url, headers=headers,
                 json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
             self.assertEqual(acceso.status_code, 200)
+
+    def certificado_para_ip(self, direccion):
+        clave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Prueba ficticia')])
+        ahora = datetime.now(timezone.utc)
+        cert = (x509.CertificateBuilder().subject_name(nombre).issuer_name(nombre)
+                .public_key(clave.public_key()).serial_number(x509.random_serial_number())
+                .not_valid_before(ahora - timedelta(minutes=1)).not_valid_after(ahora + timedelta(days=1))
+                .add_extension(x509.SubjectAlternativeName([x509.IPAddress(IPv4Address(direccion))]), critical=False)
+                .sign(clave, hashes.SHA256()))
+        cert_path = self.raiz / 'red-cert.pem'
+        key_path = self.raiz / 'red-key.pem'
+        cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+        key_path.write_bytes(clave.private_bytes(serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+        return cert_path, key_path
+
+    def test_rechaza_direcciones_no_privadas_sin_abrir_puerto(self):
+        for direccion in ('0.0.0.0', '127.0.0.2', '8.8.8.8', '100.64.0.1', '172.15.0.1', '172.32.0.1', 'localhost', '::1'):
+            with self.subTest(direccion=direccion), patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+                with self.assertRaises(ValueError):
+                    with servidor_sqlite_experimental(**(self.args | {'direccion': direccion, 'puerto': 8769})):
+                        pass
+                crear.assert_not_called()
+
+    def test_direcciones_privadas_admitidas_y_local_por_defecto(self):
+        from taxiroute.servidor_sqlite_local import _validar_direccion
+        for direccion in ('127.0.0.1', '10.1.2.3', '172.16.0.1', '172.31.255.254', '192.168.1.3'):
+            with self.subTest(direccion=direccion):
+                self.assertEqual(str(_validar_direccion(direccion)), direccion)
+
+    def test_red_rechaza_san_distinto_y_puerto_automatico(self):
+        with patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+            with self.assertRaisesRegex(ValueError, 'certificado'):
+                with servidor_sqlite_experimental(**(self.args | {'direccion': '192.168.12.34', 'puerto': 8769})):
+                    pass
+            with self.assertRaisesRegex(ValueError, 'puerto'):
+                with servidor_sqlite_experimental(**(self.args | {'direccion': '192.168.12.34'})):
+                    pass
+            crear.assert_not_called()
+
+    def test_red_acepta_solo_host_y_puerto_configurados_sin_escuchar_en_red(self):
+        cert, clave = self.certificado_para_ip('192.168.12.34')
+        with patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+            opciones = self.args | {'direccion': '192.168.12.34', 'puerto': 8769,
+                                    'certificado': cert, 'clave': clave}
+            with servidor_sqlite_experimental(**opciones):
+                argumentos = crear.call_args.args
+                self.assertEqual(argumentos[:2], ('192.168.12.34', 8769))
+                cliente = argumentos[2].test_client()
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.34:8769').status_code, 401)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.34:8770').status_code, 400)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.35:8769').status_code, 400)
+                respuesta = cliente.post('/acceso/conductor', base_url='https://192.168.12.34:8769',
+                    headers={'Origin': 'https://192.168.12.35:8769'}, json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
+                self.assertEqual(respuesta.status_code, 403)
+                respuesta = cliente.get('/api/historial', base_url='https://192.168.12.34:8769',
+                                       headers={'X-Forwarded-Host': 'otro.ejemplo'})
+                self.assertEqual(respuesta.status_code, 401)
+                acceso = cliente.post('/acceso/conductor', base_url='https://192.168.12.34:8769',
+                    headers={'Origin': 'https://192.168.12.34:8769'},
+                    json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
+                self.assertEqual(acceso.status_code, 200)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://192.168.12.34:8769').status_code, 200)
 
     def test_excluye_segunda_instancia(self):
         with servidor_sqlite_experimental(**self.args):
