@@ -54,6 +54,18 @@ class PruebasDemoCSV(TestCase):
         self.assertTrue((self.carpeta / ARCHIVO_MARCADOR).is_file())
         self.assertEqual(CORREO_FICTICIO, "demo@example.invalid")
 
+    def test_pantalla_distingue_codigo_ficticio_y_correo(self):
+        with self.abrir() as servidor:
+            cliente = servidor.app.test_client()
+            demo = cliente.get("/acceso", base_url=self.url).get_data(as_text=True)
+            self.assertIn('data-pin-demo-terminal="true"', demo)
+            self.assertIn("No se envía ningún correo", demo)
+            servidor.app.config["PIN_DEMO_TERMINAL"] = False
+            normal = cliente.get("/acceso", base_url=self.url).get_data(as_text=True)
+            self.assertIn('data-pin-demo-terminal="false"', normal)
+            self.assertIn("enviado al correo configurado", normal)
+            self.assertNotIn("No se envía ningún correo", normal)
+
     def test_reinicio_permanece_carrera_para_revisar_y_guardar(self):
         with self.abrir() as servidor:
             cliente = self.conductor(servidor.app)

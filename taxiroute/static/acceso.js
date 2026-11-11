@@ -59,7 +59,10 @@ acceso.addEventListener("submit", async (evento) => {
   if (tipo === "conductor" && typeof resultado.mensaje === "string") {
     window.location.assign("/taximetro");
   } else if (tipo === "administrador" && resultado.paso === "pin_pendiente") {
-    mostrar(pin, "Verificar acceso", "Introduce el código que has recibido por correo.");
+    const instruccion = document.body.dataset.pinDemoTerminal === "true"
+      ? "Introduce el código ficticio que aparece en la terminal."
+      : "Introduce el código que has recibido por correo.";
+    mostrar(pin, "Verificar acceso", instruccion);
   } else {
     mensaje.textContent = "La aplicación no ha podido completar el acceso. Vuelve a intentarlo.";
   }

@@ -87,6 +87,7 @@ def servidor_demo_csv(carpeta, certificado, clave, *, puerto=8768, mostrar_codig
         mostrar_codigo(codigo)
     with servidor_csv_experimental(carpeta=carpeta, certificado=certificado, clave=clave,
                                   puerto=puerto, enviar_pin=enviar_simulado, durable=True) as servidor:
+        servidor.app.config["PIN_DEMO_TERMINAL"] = True
         yield servidor
 
 
