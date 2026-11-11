@@ -20,6 +20,8 @@ class PruebasMigracionVinculo(unittest.TestCase):
                                     contrasena="Conductor123!")
         # Reconstruir una base v11 sin asignarle un historial ficticio.
         with conectar(self.ruta) as conexion:
+            conexion.execute("DROP TABLE revisiones_csv_ausente")
+            conexion.execute("DROP TABLE procedencia_sqlite")
             conexion.execute("DROP TABLE intenciones_descartadas")
             conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("DROP TABLE vinculo_historial")
@@ -28,8 +30,8 @@ class PruebasMigracionVinculo(unittest.TestCase):
     def test_migra_sin_inferir_formato_y_conserva_datos(self):
         inicializar_base(self.ruta)
         with conectar(self.ruta) as conexion:
-            self.assertEqual(VERSION_ESQUEMA, 13)
-            self.assertEqual(conexion.execute("PRAGMA user_version").fetchone()[0], 13)
+            self.assertEqual(VERSION_ESQUEMA, 14)
+            self.assertEqual(conexion.execute("PRAGMA user_version").fetchone()[0], 14)
             self.assertEqual(conexion.execute("SELECT nombre_usuario FROM usuarios WHERE id=?",
                                              (self.usuario.id,)).fetchone()[0], "Ana")
             self.assertEqual(conexion.execute("SELECT count(*) FROM vinculo_historial").fetchone()[0], 0)
@@ -54,6 +56,26 @@ class PruebasMigracionVinculo(unittest.TestCase):
         with conectar(self.ruta) as conexion:
             self.assertEqual(conexion.execute("PRAGMA user_version").fetchone()[0], 11)
             self.assertEqual(conexion.execute("SELECT dato FROM vinculo_historial").fetchone()[0], "conservar")
+
+    def test_v14_revierte_error_y_conserva_datos(self):
+        inicializar_base(self.ruta)
+        with conectar(self.ruta) as conexion:
+            conexion.execute('DROP TABLE revisiones_csv_ausente')
+            conexion.execute('DROP TABLE procedencia_sqlite')
+            conexion.execute('PRAGMA user_version=13')
+        with patch('taxiroute.base_cuentas.MIGRACION_REVISIONES_V14',
+                   ('CREATE TABLE provisional (id INTEGER)', 'SQL INVALIDO')):
+            with self.assertRaises(sqlite3.OperationalError):
+                inicializar_base(self.ruta)
+        with conectar(self.ruta) as conexion:
+            self.assertEqual(conexion.execute('PRAGMA user_version').fetchone()[0], 13)
+            self.assertIsNone(conexion.execute("SELECT 1 FROM sqlite_schema WHERE name='provisional'").fetchone())
+            self.assertEqual(conexion.execute('SELECT count(*) FROM usuarios').fetchone()[0], 1)
+        inicializar_base(self.ruta)
+        with conectar(self.ruta) as conexion:
+            self.assertEqual(conexion.execute('PRAGMA user_version').fetchone()[0], VERSION_ESQUEMA)
+            self.assertEqual(conexion.execute('SELECT count(*) FROM revisiones_csv_ausente').fetchone()[0], 0)
+            self.assertEqual(conexion.execute('SELECT count(*) FROM procedencia_sqlite').fetchone()[0], 0)
 
     def test_restricciones_del_vinculo(self):
         inicializar_base(self.ruta)

@@ -41,8 +41,13 @@ class PruebasVerificacionSQLite(unittest.TestCase):
         importar_flota_csv(self.archivos.cuentas, self.archivos.historiales, self.destino)
         self.identidad = preparar_identidad_historial(self.destino)
         # Solo en esta instalación temporal se simula el vínculo ya conmutado.
+        from taxiroute.identidad_historial_sqlite import _preparar_procedencia_en_transaccion
         with closing(sqlite3.connect(self.archivos.cuentas)) as conexion, conexion:
+            origen = conexion.execute('SELECT identificador FROM vinculo_historial').fetchone()[0]
+            conexion.execute('INSERT INTO procedencia_sqlite VALUES (1, ?, ?)', (origen, self.identidad))
             conexion.execute("UPDATE vinculo_historial SET formato='sqlite', identificador=?, estado='listo'", (self.identidad,))
+        with closing(sqlite3.connect(self.destino)) as conexion, conexion:
+            _preparar_procedencia_en_transaccion(conexion, origen, self.identidad, identidad_preexistente=False)
 
     def comprobar(self):
         verificar_historial_sqlite_vinculado(self.archivos.cuentas, self.destino)
@@ -103,6 +108,16 @@ class PruebasVerificacionSQLite(unittest.TestCase):
             with abrir_app_experimental(ruta_cuentas=self.archivos.cuentas, ruta_tarifas=self.archivos.tarifas,
                     ruta_historial=self.destino, clave_hmac=token_bytes(32), enviar_pin=lambda *_: None):
                 self.fail('No debe arrancar con un cierre ausente')
+
+    def test_rechaza_procedencia_distinta_o_ausente(self):
+        with closing(sqlite3.connect(self.archivos.cuentas)) as conexion, conexion:
+            conexion.execute('UPDATE procedencia_sqlite SET vinculo_csv=?', (str(uuid4()),))
+        with self.assertRaisesRegex(VerificacionHistorialSQLiteError, 'procedencia'):
+            self.comprobar()
+        with closing(sqlite3.connect(self.archivos.cuentas)) as conexion, conexion:
+            conexion.execute('DELETE FROM procedencia_sqlite')
+        with self.assertRaisesRegex(VerificacionHistorialSQLiteError, 'procedencia'):
+            self.comprobar()
 
     def test_rechaza_vinculo_csv_o_archivo_ausente(self):
         with closing(sqlite3.connect(self.archivos.cuentas)) as conexion, conexion:

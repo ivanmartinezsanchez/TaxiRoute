@@ -19,6 +19,8 @@ class PruebasMigracionCodigos(unittest.TestCase):
                                    contrasena="AdminPrueba123!", rol="administrador")
         with conectar(self.ruta) as conexion:
             conexion.execute("DROP TABLE codigos_recuperacion")
+            conexion.execute("DROP TABLE revisiones_csv_ausente")
+            conexion.execute("DROP TABLE procedencia_sqlite")
             conexion.execute("DROP TABLE intenciones_descartadas")
             conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("DROP TABLE vinculo_historial")

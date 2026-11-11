@@ -32,6 +32,8 @@ class PruebasMigracionDescartes(unittest.TestCase):
 
     def version_12(self):
         with conectar(self.base) as conexion:
+            conexion.execute("DROP TABLE revisiones_csv_ausente")
+            conexion.execute("DROP TABLE procedencia_sqlite")
             conexion.execute("DROP TABLE intenciones_descartadas")
             conexion.execute("DROP TABLE barrera_revision")
             conexion.execute("PRAGMA user_version=12")

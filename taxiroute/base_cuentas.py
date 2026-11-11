@@ -5,7 +5,7 @@ import sqlite3
 
 from taxiroute.codigos_recuperacion_experimentales import CREAR_TABLA_CODIGOS
 
-VERSION_ESQUEMA = 13
+VERSION_ESQUEMA = 14
 # Marca propia para no confundir una base ajena con la de TaxiRoute.
 IDENTIFICADOR_APLICACION = 0x54585254
 
@@ -207,6 +207,24 @@ MIGRACION_DESCARTES_V13 = (
 )
 
 
+MIGRACION_REVISIONES_V14 = (
+    """CREATE TABLE revisiones_csv_ausente (
+        id TEXT PRIMARY KEY NOT NULL,
+        usuario_id TEXT NOT NULL REFERENCES usuarios(id),
+        actor_id TEXT NOT NULL REFERENCES usuarios(id),
+        vinculo_csv TEXT NOT NULL CHECK(length(vinculo_csv)=36),
+        fecha TEXT NOT NULL CHECK(length(trim(fecha))>0),
+        huella TEXT NOT NULL CHECK(length(huella)=64 AND huella NOT GLOB '*[^0-9a-f]*')
+    ) STRICT""",
+    "CREATE INDEX revisiones_csv_por_cuenta ON revisiones_csv_ausente(vinculo_csv, usuario_id)",
+    """CREATE TABLE procedencia_sqlite (
+        id INTEGER PRIMARY KEY CHECK(id=1),
+        vinculo_csv TEXT NOT NULL CHECK(length(vinculo_csv)=36),
+        identidad_sqlite TEXT NOT NULL CHECK(length(identidad_sqlite)=36)
+    ) STRICT""",
+)
+
+
 class EsquemaCuentasError(RuntimeError):
     """La base no puede utilizarse con esta versión del programa."""
 
@@ -315,11 +333,16 @@ def inicializar_base(ruta: str | Path) -> None:
                     conexion.execute(sentencia)
                 version = 13
                 conexion.execute(f"PRAGMA user_version = {version}")
+            if version == 13:
+                for sentencia in MIGRACION_REVISIONES_V14:
+                    conexion.execute(sentencia)
+                version = 14
+                conexion.execute(f"PRAGMA user_version = {version}")
             for tabla in ("usuarios", "configuracion_administrador", "desafios_acceso",
                           "autorizaciones_cambio", "sesiones", "auditoria_cuentas",
                           "carreras_recuperacion", "intenciones_operacion", "recibos_operacion",
                           "codigos_recuperacion", "vinculo_historial", "intenciones_descartadas",
-                          "barrera_revision"):
+                          "barrera_revision", "revisiones_csv_ausente", "procedencia_sqlite"):
                 if conexion.execute(
                     "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?", (tabla,)
                 ).fetchone() is None:

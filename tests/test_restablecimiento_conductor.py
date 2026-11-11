@@ -120,6 +120,8 @@ class PruebasRestablecimiento(unittest.TestCase):
                 c.execute(sentencia)
             c.execute("INSERT INTO auditoria_cuentas(actor_id, afectado_id, accion, fecha) VALUES (?, ?, 'alta', ?)", (self.admin, self.conductor, self.fecha.isoformat()))
             c.execute('DROP TABLE codigos_recuperacion')
+            c.execute("DROP TABLE revisiones_csv_ausente")
+            c.execute("DROP TABLE procedencia_sqlite")
             c.execute("DROP TABLE intenciones_descartadas")
             c.execute("DROP TABLE barrera_revision")
             c.execute("DROP TABLE vinculo_historial")

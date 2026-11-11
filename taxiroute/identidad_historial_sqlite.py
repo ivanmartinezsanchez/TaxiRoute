@@ -68,6 +68,49 @@ def _preparar_en_transaccion(conexion):
     return identificador
 
 
+def _leer_procedencia(conexion):
+    """Lee la instalación CSV que preparó este destino, si existe."""
+    tabla = conexion.execute("SELECT type FROM sqlite_schema WHERE name='procedencia_migracion_csv'").fetchone()
+    if tabla is None:
+        return None
+    if tabla[0] != 'table':
+        raise IdentidadHistorialError("La procedencia del historial no es válida.")
+    columnas = conexion.execute('PRAGMA table_info(procedencia_migracion_csv)').fetchall()
+    if [c[1] for c in columnas] != ['id', 'vinculo_csv', 'identidad_sqlite']:
+        raise IdentidadHistorialError("La estructura de procedencia no es válida.")
+    filas = conexion.execute('SELECT id, vinculo_csv, identidad_sqlite FROM procedencia_migracion_csv').fetchall()
+    if len(filas) != 1 or filas[0][0] != 1:
+        raise IdentidadHistorialError("La procedencia del historial necesita revisión.")
+    origen, identidad = filas[0][1], filas[0][2]
+    try:
+        if any(not isinstance(x, str) or str(UUID(x)) != x for x in (origen, identidad)):
+            raise ValueError
+    except (ValueError, AttributeError, TypeError):
+        raise IdentidadHistorialError("La procedencia del historial no es válida.") from None
+    if _leer(conexion) != identidad:
+        raise IdentidadHistorialError("La procedencia no coincide con la identidad SQLite.")
+    return origen, identidad
+
+
+def _preparar_procedencia_en_transaccion(conexion, vinculo_csv, identidad_sqlite, *, identidad_preexistente):
+    """Vincula el destino a su origen, o verifica un reintento del mismo."""
+    esperada = (vinculo_csv, identidad_sqlite)
+    procedencia = _leer_procedencia(conexion)
+    if procedencia is not None:
+        if procedencia != esperada:
+            raise IdentidadHistorialError("El historial SQLite pertenece a otra instalación.")
+        return
+    if identidad_preexistente:
+        raise IdentidadHistorialError("La identidad SQLite no tiene procedencia verificable.")
+    conexion.execute("""CREATE TABLE procedencia_migracion_csv (
+        id INTEGER PRIMARY KEY CHECK(id=1), vinculo_csv TEXT NOT NULL,
+        identidad_sqlite TEXT NOT NULL
+    ) STRICT""")
+    conexion.execute('INSERT INTO procedencia_migracion_csv VALUES (1, ?, ?)', esperada)
+    if _leer_procedencia(conexion) != esperada:
+        raise IdentidadHistorialError("No se ha podido confirmar la procedencia SQLite.")
+
+
 def preparar_identidad_historial(ruta):
     """Prepara una identidad una sola vez, sin borrar ni cambiar las carreras."""
     ruta = _ruta_existente(ruta)

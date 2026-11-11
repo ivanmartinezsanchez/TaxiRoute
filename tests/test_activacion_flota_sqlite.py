@@ -125,6 +125,16 @@ class PruebasActivacionFlota(TestCase):
         self.assertTrue(verificar_vinculo_csv(self.base, self.carpeta))
         self.assertEqual(self.activar().ya_existentes, 2)
 
+    def test_dos_instalaciones_vacias_no_comparten_destino(self):
+        primera = preparar_archivos_csv(self.raiz / 'vacia-uno')
+        segunda = preparar_archivos_csv(self.raiz / 'vacia-dos')
+        destino = self.raiz / 'destino-vacio.sqlite3'
+        HistorialSQLite(destino).inicializar()
+        activar_flota_sqlite(primera.cuentas, primera.historiales, destino)
+        with self.assertRaisesRegex(ValueError, 'otra instalación'):
+            activar_flota_sqlite(segunda.cuentas, segunda.historiales, destino)
+        self.assertTrue(verificar_vinculo_csv(segunda.cuentas, segunda.historiales))
+
     def test_no_activa_con_servidor_en_marcha(self):
         anterior = self.vinculo()
         with abrir_app_csv_experimental(**self.opciones):
@@ -148,6 +158,59 @@ class PruebasActivacionFlota(TestCase):
             self.activar()
         self.assertEqual(self.vinculo(), anterior)
         self.assertIsNone(leer_identidad_historial(self.destino))
+
+    def preparar_administrador_y_ausencia(self):
+        from taxiroute.pin import ServicioPIN
+        from taxiroute.sesiones import ServicioSesiones
+        admin = crear_cuenta(self.base, nombre_usuario='Admin', nombre_visible='Admin',
+                             contrasena='Conductor123!', rol='administrador')
+        sara = crear_cuenta(self.base, nombre_usuario='Sara', nombre_visible='Sara', contrasena='Conductor123!')
+        with closing(sqlite3.connect(self.base)) as conexion, conexion:
+            conexion.execute('UPDATE usuarios SET cambio_obligatorio=0')
+            conexion.execute('INSERT INTO configuracion_administrador VALUES (?, ?)', (admin.id, 'demo@example.invalid'))
+        buzon = []
+        pin = ServicioPIN(self.base, clave_hmac=token_bytes(32), enviar=lambda _, codigo: buzon.append(codigo))
+        desafio = pin.solicitar('Admin', 'Conductor123!')
+        token = pin.verificar(desafio, buzon[-1]).sesion.token
+        conductor = ServicioSesiones(self.base).iniciar_conductor('Ana', 'Conductor123!').token
+        return admin, sara, token, conductor
+
+    def test_revision_expresa_por_administrador_queda_registrada(self):
+        admin, sara, token, conductor = self.preparar_administrador_y_ausencia()
+        faltantes = [admin.id, sara.id]
+        origen = self.vinculo()[1]
+        for credencial, confirmacion, revisadas in ((token, False, faltantes), (conductor, True, faltantes), (token, True, [sara.id])):
+            with self.subTest(confirmacion=confirmacion, numero=len(revisadas)), self.assertRaises(ImportacionFlotaError):
+                activar_flota_sqlite(self.base, self.carpeta, self.destino, token_admin=credencial,
+                                      cuentas_revisadas=revisadas, confirmacion=confirmacion)
+        resultado = activar_flota_sqlite(self.base, self.carpeta, self.destino, token_admin=token,
+                                         cuentas_revisadas=faltantes, confirmacion=True)
+        self.assertEqual(resultado.cuentas_sin_historial, 2)
+        with closing(sqlite3.connect(self.base)) as conexion:
+            revisiones = conexion.execute('SELECT usuario_id, actor_id, vinculo_csv, fecha, huella FROM revisiones_csv_ausente').fetchall()
+        self.assertEqual({r[0] for r in revisiones}, set(faltantes))
+        self.assertTrue(all(r[1] == admin.id and r[2] == origen and r[3] and len(r[4]) == 64 for r in revisiones))
+
+    def test_sesion_revocada_no_puede_confirmar_ausencias(self):
+        from taxiroute.sesiones import ServicioSesiones
+        admin, sara, token, _ = self.preparar_administrador_y_ausencia()
+        ServicioSesiones(self.base).cerrar(token)
+        with self.assertRaisesRegex(ImportacionFlotaError, 'administrador vigente'):
+            activar_flota_sqlite(self.base, self.carpeta, self.destino, token_admin=token,
+                                  cuentas_revisadas=[admin.id, sara.id], confirmacion=True)
+        with closing(sqlite3.connect(self.base)) as conexion:
+            self.assertEqual(conexion.execute('SELECT count(*) FROM revisiones_csv_ausente').fetchone()[0], 0)
+        self.assertTrue(verificar_vinculo_csv(self.base, self.carpeta))
+
+    def test_revision_se_revierte_si_no_se_confirma_el_vinculo(self):
+        admin, sara, token, _ = self.preparar_administrador_y_ausencia()
+        with patch('taxiroute.importacion_flota_csv._cambiar_vinculo', side_effect=OSError('corte ficticio')):
+            with self.assertRaises(OSError):
+                activar_flota_sqlite(self.base, self.carpeta, self.destino, token_admin=token,
+                                     cuentas_revisadas=[admin.id, sara.id], confirmacion=True)
+        with closing(sqlite3.connect(self.base)) as conexion:
+            self.assertEqual(conexion.execute('SELECT count(*) FROM revisiones_csv_ausente').fetchone()[0], 0)
+        self.assertTrue(verificar_vinculo_csv(self.base, self.carpeta))
 
     def test_rechaza_fila_sin_comprobante(self):
         ruta = self.carpeta / self.ana.id / 'historial.csv'

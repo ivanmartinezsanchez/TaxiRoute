@@ -6,15 +6,23 @@ los CSV; los historiales sin propietario quedan fuera de esta importación.
 """
 from contextlib import ExitStack, closing
 from dataclasses import dataclass
+from hashlib import sha256
+import json
+from uuid import uuid4
 import os
 from pathlib import Path
 import sqlite3
 
+from taxiroute.acceso import _ahora
+from taxiroute.sesiones import _hash_token, _identidad_vigente
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.conciliacion_csv import _conectar_existente, _leer
 from taxiroute.historial import CAMPOS, _fila
 from taxiroute.historial_sqlite import HistorialSQLite
-from taxiroute.identidad_historial_sqlite import _preparar_en_transaccion, _leer as _leer_identidad
+from taxiroute.identidad_historial_sqlite import (
+    _preparar_en_transaccion, _leer as _leer_identidad,
+    _preparar_procedencia_en_transaccion,
+)
 from taxiroute.migracion_historial import _validar_fila
 from taxiroute.rutas_csv import _historial_de_cuenta
 from taxiroute.vinculo_historial import verificar_vinculo_csv, _registro
@@ -53,7 +61,8 @@ def _comprobar_entradas(carpeta, usuarios):
             raise ImportacionFlotaError("Hay un CSV sin propietario conocido.")
 
 
-def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activar):
+def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activar,
+                         token_admin=None, cuentas_revisadas=(), confirmacion=False, reloj=_ahora):
     """Copia filas verificadas a SQLite, conservando cada usuario de origen.
 
     Las cuentas y el historial CSV deben estar vinculados; el destino SQLite
@@ -101,6 +110,7 @@ def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activa
                     _comprobar_entradas(carpeta, set(usuarios))
                     filas = {}
                     sin_historial = sin_comprobante = 0
+                    faltantes = []
                     for usuario in usuarios:
                         historial = _historial_de_cuenta(carpeta, usuario)
                         if historial.ruta != historiales[usuario].ruta:
@@ -109,6 +119,7 @@ def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activa
                             raise ImportacionFlotaError("Los archivos de origen y destino deben ser distintos.")
                         if not historial.ruta.exists():
                             sin_historial += 1
+                            faltantes.append(usuario)
                         registros = historial._consultar_sin_bloqueo()
                         propias = {}
                         for fila in registros:
@@ -126,8 +137,11 @@ def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activa
                             if propias.get(registro['id']) != _fila(resumen):
                                 raise ImportacionFlotaError("Un cierre confirmado no coincide con su CSV.")
                     legado = (carpeta / 'historial.csv').exists()
-                    if activar and (legado or sin_historial or sin_comprobante):
-                        raise ImportacionFlotaError("La activación necesita revisar historiales antiguos, ausentes o sin comprobante.")
+                    if activar and (legado or sin_comprobante):
+                        raise ImportacionFlotaError("La activación necesita revisar historiales antiguos o sin comprobante.")
+                    if activar:
+                        _registrar_revision_ausencias(cuentas, vinculo['identificador'], faltantes,
+                                                      token_admin, cuentas_revisadas, confirmacion, reloj)
                     identidad = None
                     with closing(sqlite3.connect(destino.as_uri() + '?mode=rw', uri=True, timeout=5, isolation_level=None)) as sqlite:
                         sqlite.row_factory = sqlite3.Row
@@ -154,7 +168,10 @@ def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activa
                             if len(verificadas) != len(comprobadas) or comprobadas != filas:
                                 raise ImportacionFlotaError("El destino no coincide exactamente con los historiales de origen.")
                             if activar:
+                                identidad_preexistente = _leer_identidad(sqlite) is not None
                                 identidad = _preparar_en_transaccion(sqlite)
+                                _preparar_procedencia_en_transaccion(sqlite, vinculo['identificador'], identidad,
+                                                                    identidad_preexistente=identidad_preexistente)
                                 if _leer_identidad(sqlite) != identidad:
                                     raise ImportacionFlotaError("La identidad SQLite necesita revisión.")
                             sqlite.commit()
@@ -176,8 +193,38 @@ def _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, *, activa
                     raise
 
 
+
+def _registrar_revision_ausencias(conexion, vinculo, faltantes, token_admin, revisadas, confirmacion, reloj):
+    """Registra confirmaciones explícitas en la transacción del cambio de vínculo."""
+    if not isinstance(revisadas, (tuple, list)) or any(not isinstance(x, str) for x in revisadas):
+        raise ImportacionFlotaError("La lista de cuentas revisadas no es válida.")
+    if len(revisadas) != len(set(revisadas)) or set(revisadas) != set(faltantes):
+        raise ImportacionFlotaError("La activación necesita revisar individualmente cada cuenta sin CSV.")
+    if not faltantes:
+        return
+    if confirmacion is not True:
+        raise ImportacionFlotaError("La revisión de los historiales ausentes requiere confirmación explícita.")
+    protegido = _hash_token(token_admin)
+    sesion = conexion.execute('SELECT * FROM sesiones WHERE hash_token=?', (protegido,)).fetchone()
+    ahora = reloj()
+    actor = _identidad_vigente(conexion, sesion, ahora)
+    if actor is None or actor.rol != 'administrador':
+        raise ImportacionFlotaError("La revisión requiere una sesión de administrador vigente.")
+    for usuario in sorted(faltantes):
+        evidencia = {'vinculo_csv': vinculo, 'usuario_id': usuario, 'actor_id': actor.usuario_id,
+                     'fecha': ahora.isoformat(), 'estado': 'csv_ausente_revisado'}
+        huella = sha256(json.dumps(evidencia, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
+        conexion.execute('INSERT INTO revisiones_csv_ausente (id, usuario_id, actor_id, vinculo_csv, fecha, huella) VALUES (?, ?, ?, ?, ?, ?)',
+                         (str(uuid4()), usuario, actor.usuario_id, vinculo, ahora.isoformat(), huella))
+    conexion.execute('UPDATE sesiones SET ultima_interaccion_en=? WHERE id=?', (ahora.isoformat(), sesion['id']))
+
+
 def _cambiar_vinculo(conexion, identidad_csv, identidad_sqlite):
     """Actualiza el vínculo dentro de la transacción de cuentas ya retenida."""
+    if conexion.execute('SELECT 1 FROM procedencia_sqlite LIMIT 1').fetchone():
+        raise ImportacionFlotaError("La instalación ya contiene una procedencia SQLite.")
+    conexion.execute('INSERT INTO procedencia_sqlite (id, vinculo_csv, identidad_sqlite) VALUES (1, ?, ?)',
+                     (identidad_csv, identidad_sqlite))
     actualizado = conexion.execute("""UPDATE vinculo_historial SET formato='sqlite', identificador=?, estado='listo'
         WHERE id=1 AND formato='csv' AND identificador=? AND estado='listo'""", (identidad_sqlite, identidad_csv))
     if actualizado.rowcount != 1:
@@ -192,11 +239,14 @@ def importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino):
     return _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, activar=False)
 
 
-def activar_flota_sqlite(ruta_cuentas, carpeta_historial, ruta_destino):
+def activar_flota_sqlite(ruta_cuentas, carpeta_historial, ruta_destino, *,
+                         token_admin=None, cuentas_revisadas=(), confirmacion=False, reloj=_ahora):
     """Importa y cambia el vínculo bajo el bloqueo cooperativo de la instalación.
 
     Detiene la operación ante datos sin comprobar. La identidad y las filas se
     confirman en SQLite antes del vínculo de cuentas. No elimina los CSV ni
     habilita por sí sola el arranque web; no garantiza atomicidad entre bases.
     """
-    return _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, activar=True)
+    return _importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino, activar=True,
+                                token_admin=token_admin, cuentas_revisadas=cuentas_revisadas,
+                                confirmacion=confirmacion, reloj=reloj)
