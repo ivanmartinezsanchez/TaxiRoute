@@ -56,6 +56,13 @@ class PruebasImportacionFlota(unittest.TestCase):
         with closing(sqlite3.connect(self.base)) as c, c:
             self.assertEqual(c.execute('SELECT formato, estado FROM vinculo_historial').fetchone(), ('csv', 'listo'))
 
+    def test_importar_conserva_la_identidad_del_destino(self):
+        from taxiroute.identidad_historial_sqlite import preparar_identidad_historial, leer_identidad_historial
+        identidad = preparar_identidad_historial(self.destino)
+        resultado = self.importar()
+        self.assertEqual(resultado.insertadas, 2)
+        self.assertEqual(leer_identidad_historial(self.destino), identidad)
+
     def test_identificador_duplicado_y_fila_invalida_no_importan_nada(self):
         self.escribir(self.luis.id, self.fila(self.id_a))
         with self.assertRaises(ImportacionFlotaError): self.importar()
@@ -101,6 +108,37 @@ class PruebasImportacionFlota(unittest.TestCase):
         (self.carpeta / self.ana.id / 'otro').mkdir()
         with self.assertRaisesRegex(ImportacionFlotaError, 'subdirectorio'):
             self.importar()
+
+    def quitar_unicidad_destino(self):
+        # Solo se altera una base temporal para simular un esquema deteriorado.
+        with closing(sqlite3.connect(self.destino, isolation_level=None)) as conexion:
+            sql = conexion.execute("SELECT sql FROM sqlite_schema WHERE name='carreras'").fetchone()[0]
+            self.assertIn('identificador TEXT NOT NULL UNIQUE', sql)
+            conexion.execute('DROP TABLE carreras')
+            conexion.execute(sql.replace('identificador TEXT NOT NULL UNIQUE', 'identificador TEXT NOT NULL'))
+
+    def test_rechaza_destino_con_identificadores_duplicados(self):
+        self.quitar_unicidad_destino()
+        fila = self.fila(self.id_a)
+        with closing(sqlite3.connect(self.destino)) as conexion, conexion:
+            for _ in range(2):
+                conexion.execute('INSERT INTO carreras (identificador,inicio,fin,duracion_segundos,segundos_parado,segundos_movimiento,tarifa_parado,tarifa_movimiento,importe,usuario_id) VALUES (?,?,?,?,?,?,?,?,?,?)', (*fila.values(), self.ana.id))
+        with self.assertRaisesRegex(ImportacionFlotaError, 'duplicados'):
+            self.importar()
+        with closing(sqlite3.connect(self.destino)) as conexion:
+            self.assertEqual(conexion.execute('SELECT count(*) FROM carreras').fetchone()[0], 2)
+
+    def test_revierte_si_un_trigger_duplica_una_carrera(self):
+        self.quitar_unicidad_destino()
+        with closing(sqlite3.connect(self.destino)) as conexion, conexion:
+            conexion.execute("""CREATE TRIGGER duplicar AFTER INSERT ON carreras
+                WHEN (SELECT count(*) FROM carreras WHERE identificador=NEW.identificador)=1
+                BEGIN INSERT INTO carreras (identificador,inicio,fin,duracion_segundos,segundos_parado,segundos_movimiento,tarifa_parado,tarifa_movimiento,importe,usuario_id)
+                VALUES (NEW.identificador,NEW.inicio,NEW.fin,NEW.duracion_segundos,NEW.segundos_parado,NEW.segundos_movimiento,NEW.tarifa_parado,NEW.tarifa_movimiento,NEW.importe,NEW.usuario_id); END""")
+        with self.assertRaisesRegex(ImportacionFlotaError, 'no coincide'):
+            self.importar()
+        with closing(sqlite3.connect(self.destino)) as conexion:
+            self.assertEqual(conexion.execute('SELECT count(*) FROM carreras').fetchone()[0], 0)
 
     def test_no_reasigna_una_carrera_con_propietario_nulo(self):
         fila = self.fila(self.id_a)

@@ -129,6 +129,9 @@ def importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino):
                             HistorialSQLite._verificar(sqlite, permitir_creacion=False)
                             columnas = ', '.join(CAMPOS)
                             existentes = sqlite.execute(f'SELECT {columnas}, usuario_id FROM carreras').fetchall()
+                            identificadores = [fila['identificador'] for fila in existentes]
+                            if len(identificadores) != len(set(identificadores)):
+                                raise ImportacionFlotaError("El destino contiene identificadores duplicados.")
                             for anterior in existentes:
                                 origen = filas.get(anterior['identificador'])
                                 if origen is None or origen[0] != anterior['usuario_id'] or any(anterior[c] != origen[1][c] for c in CAMPOS):
@@ -141,7 +144,7 @@ def importar_flota_csv(ruta_cuentas, carpeta_historial, ruta_destino):
                                                    (*[fila[c] for c in CAMPOS], usuario))
                             verificadas = sqlite.execute(f'SELECT {columnas}, usuario_id FROM carreras').fetchall()
                             comprobadas = {f['identificador']: (f['usuario_id'], {c: f[c] for c in CAMPOS}) for f in verificadas}
-                            if comprobadas != filas:
+                            if len(verificadas) != len(comprobadas) or comprobadas != filas:
                                 raise ImportacionFlotaError("El destino no coincide exactamente con los historiales de origen.")
                             sqlite.commit()
                         except BaseException:
