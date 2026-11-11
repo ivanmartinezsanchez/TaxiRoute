@@ -208,6 +208,13 @@ if (selectorHistorial) {
     return Number.isNaN(fecha.getTime()) ? "Fecha no válida" : new Intl.DateTimeFormat("es-ES", {
       dateStyle:"short", timeStyle:"medium"}).format(fecha);
   }
+  function duracionHistorial(valor) {
+    if (valor === null || valor === undefined || (typeof valor === "string" && !valor.trim())) return "—";
+    const numero = Number(valor);
+    return Number.isFinite(numero) && numero >= 0
+      ? new Intl.NumberFormat("es-ES", {maximumFractionDigits: 2}).format(numero)
+      : String(valor);
+  }
   async function cargarHistorialFlota() {
     const generacion = ++generacionHistorial;
     const periodo = selectorHistorial.value;
@@ -220,7 +227,7 @@ if (selectorHistorial) {
       for (const carrera of datos.carreras) {
         const fila = document.createElement("tr");
         for (const valor of [carrera.conductor, fechaLocal(carrera.inicio), fechaLocal(carrera.fin),
-                             carrera.duracion_segundos, String(carrera.importe).replace(".", ",") + " €"]) {
+                             duracionHistorial(carrera.duracion_segundos), String(carrera.importe).replace(".", ",") + " €"]) {
           const celda = document.createElement("td"); celda.textContent = String(valor); fila.append(celda);
         }
         filasHistorial.append(fila);

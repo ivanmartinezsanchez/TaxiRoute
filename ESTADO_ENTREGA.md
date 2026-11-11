@@ -54,3 +54,5 @@ Los archivos y componentes de prueba no deben usarse con datos reales hasta comp
 
 - En el modo durable experimental, el conductor puede descargar una copia CSV de su cierre pendiente cuando los datos son verificables. La copia no modifica el historial ni desbloquea la carrera. Se han probado el aislamiento entre cuentas, la sesión caducada y el rechazo cuando no puede verificarse el cierre.
 - La consulta global CSV está limitada al modo durable experimental y al administrador. Comprueba los cierres confirmados y rechaza la consulta si detecta datos inconsistentes o cierres pendientes. Una fila antigua sin comprobante durable no puede verificarse de la misma manera.
+
+- El 11 de noviembre se ha comprobado en el navegador integrado, con cuentas y PIN ficticios, el acceso del conductor, inicio, cambio a movimiento y finalización de una carrera; esta apareció en su historial y en el panel de flota del administrador. También se probaron los filtros de hoy y todas las carreras. La duración del panel se muestra con un máximo de dos decimales sin alterar el dato guardado. No se probó correo real ni una tablet física.
