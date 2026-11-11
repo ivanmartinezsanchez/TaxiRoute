@@ -42,3 +42,5 @@ El prototipo rechaza una base SQLite que ya tenga identidad pero no tenga una pr
 ## Asistente experimental
 
 `python -m taxiroute.asistente_migracion_local --help` muestra las rutas necesarias. El asistente requiere una terminal interactiva, aplicación detenida y autenticación administrativa mediante contraseña y código. Muestra cada cuenta sin CSV y solicita una confirmación individual, seguida de una confirmación final. Si el destino no existe, lo crea sin sobrescribir archivos; si la transición falla puede quedar un destino preparado para revisar o reintentar. La aplicación vuelve a comprobar la lista y los archivos durante la activación. No se debe usar con datos reales hasta validar el procedimiento y disponer de copias.
+
+El recorrido de revisión y migración se ha comprobado en una terminal interactiva de Windows con una instalación y un código ficticios. La contraseña y el código no se mostraron al escribirlos. No se ha comprobado en Git Bash ni con datos reales.
