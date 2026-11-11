@@ -4,7 +4,7 @@ No crea cuentas, no busca credenciales, no inicia servidores y no prepara una
 instalación de producción. El integrador debe mantener la exclusión entre
 procesos, proporcionar HTTPS y gestionar el ciclo del control periódico.
 """
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from taxiroute.acceso import _ahora
@@ -19,7 +19,9 @@ from taxiroute.pin import ServicioPIN
 from taxiroute.servicio import ServicioCarreras
 from taxiroute.sesiones import ServicioSesiones
 from taxiroute.web_integrada import crear_app_integrada
-from taxiroute.vinculo_historial import rechazar_base_vinculada
+from taxiroute.vinculo_historial import _registro, rechazar_base_vinculada
+from taxiroute.conciliacion_csv import _conectar_existente
+from taxiroute.verificar_historial_sqlite import verificar_historial_sqlite_vinculado
 from taxiroute.registro_web_durable import RegistroWebDurable
 
 
@@ -40,7 +42,15 @@ def crear_app_configurada(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_h
     if len({ruta.resolve() for ruta in rutas}) != len(rutas):
         raise ValueError("Las cuentas, el historial y las tarifas deben ser archivos distintos.")
     cuentas, historial_ruta, tarifas = rutas
-    rechazar_base_vinculada(cuentas)
+    with closing(_conectar_existente(cuentas)) as conexion:
+        vinculo = _registro(conexion)
+    if vinculo is None or vinculo["formato"] != "sqlite":
+        # Las instalaciones CSV siguen sin poder abrirse como SQLite.
+        rechazar_base_vinculada(cuentas)
+    else:
+        if not durable:
+            raise ValueError("Un historial vinculado requiere el modo durable experimental.")
+        verificar_historial_sqlite_vinculado(cuentas, historial_ruta)
     # Validar antes de construir servicios; no crear archivos ausentes.
     HistorialSQLite(historial_ruta, exigir_existente=True).consultar()
     cargar_tarifas(tarifas)

@@ -52,6 +52,22 @@ def leer_identidad_historial(ruta):
         return _leer(conexion)
 
 
+def _preparar_en_transaccion(conexion):
+    """Prepara o verifica la identidad bajo una transacción SQLite existente."""
+    existente = _leer(conexion)
+    if existente is not None:
+        return existente
+    identificador = str(uuid4())
+    conexion.execute('''CREATE TABLE identidad_historial (
+        id INTEGER PRIMARY KEY CHECK(id=1),
+        identificador TEXT NOT NULL CHECK(length(identificador)=36)
+    ) STRICT''')
+    conexion.execute('INSERT INTO identidad_historial (id, identificador) VALUES (1, ?)', (identificador,))
+    if _leer(conexion) != identificador:
+        raise IdentidadHistorialError("No se ha podido confirmar la identidad.")
+    return identificador
+
+
 def preparar_identidad_historial(ruta):
     """Prepara una identidad una sola vez, sin borrar ni cambiar las carreras."""
     ruta = _ruta_existente(ruta)
@@ -59,18 +75,7 @@ def preparar_identidad_historial(ruta):
         conexion.execute('BEGIN IMMEDIATE')
         try:
             HistorialSQLite._verificar(conexion, permitir_creacion=False)
-            existente = _leer(conexion)
-            if existente is None:
-                identificador = str(uuid4())
-                conexion.execute('''CREATE TABLE identidad_historial (
-                    id INTEGER PRIMARY KEY CHECK(id=1),
-                    identificador TEXT NOT NULL CHECK(length(identificador)=36)
-                ) STRICT''')
-                conexion.execute('INSERT INTO identidad_historial (id, identificador) VALUES (1, ?)', (identificador,))
-                if _leer(conexion) != identificador:
-                    raise IdentidadHistorialError("No se ha podido confirmar la identidad.")
-            else:
-                identificador = existente
+            identificador = _preparar_en_transaccion(conexion)
             conexion.commit()
             return identificador
         except BaseException:
