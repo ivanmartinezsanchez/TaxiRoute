@@ -138,36 +138,71 @@ class PruebasServidorCSV(unittest.TestCase):
                     pass
         crear.assert_not_called()
 
-    def test_sin_autorizacion_gmail_no_acepta_solicitudes_ni_expone_error(self):
-        servidor = Mock()
-        @contextmanager
-        def simulado(**argumentos):
-            yield servidor
-        errores = StringIO()
-        with patch("taxiroute.servidor_csv_local.servidor_csv_experimental", simulado), \
-                patch("taxiroute.oauth_gmail.cliente_gmail_autorizado", side_effect=RuntimeError("detalle privado")), \
-                redirect_stderr(errores):
-            resultado = main(["--carpeta", str(self.archivos.carpeta), "--certificado", str(self.certificado),
-                              "--clave", str(self.clave_tls)])
-        self.assertEqual(resultado, 1)
-        servidor.serve_forever.assert_not_called()
-        self.assertIn("Revisa la autorización", errores.getvalue())
-        self.assertNotIn("detalle privado", errores.getvalue())
-
-    def test_arranque_verifica_gmail_sin_enviar_mensaje(self):
+    def test_arranque_no_depende_de_gmail_ni_accede_a_credenciales(self):
         servidor = Mock()
         servidor.serve_forever.side_effect = KeyboardInterrupt
         @contextmanager
         def simulado(**argumentos):
             yield servidor
+        errores, salida = StringIO(), StringIO()
         with patch("taxiroute.servidor_csv_local.servidor_csv_experimental", simulado), \
-                patch("taxiroute.oauth_gmail.cliente_gmail_autorizado") as gmail, \
-                redirect_stdout(StringIO()):
+                patch("taxiroute.oauth_gmail.cliente_gmail_autorizado", side_effect=RuntimeError("detalle privado")) as gmail, \
+                redirect_stderr(errores), redirect_stdout(salida):
             resultado = main(["--carpeta", str(self.archivos.carpeta), "--certificado", str(self.certificado),
                               "--clave", str(self.clave_tls)])
         self.assertEqual(resultado, 0)
-        gmail.assert_called_once_with()
-        gmail.return_value.users.assert_not_called()
+        servidor.serve_forever.assert_called_once()
+        gmail.assert_not_called()
+        self.assertIn("correo autorizado y conexión", salida.getvalue())
+        self.assertNotIn("detalle privado", errores.getvalue() + salida.getvalue())
+
+    def test_fallo_correo_permite_conductor_sin_saltar_pin_administrador(self):
+        def falla_envio(_destinatario, _codigo):
+            raise OSError("detalle privado simulado")
+        with servidor_csv_experimental(**(self.opciones | {"enviar_pin": falla_envio})) as servidor:
+            conductor = servidor.app.test_client()
+            admin = servidor.app.test_client()
+            def post(cliente, ruta, datos):
+                return cliente.post(ruta, base_url="https://localhost", headers={"Origin": "https://localhost"}, json=datos)
+            acceso = post(conductor, "/acceso/conductor", {"usuario": "Ana", "contrasena": "ConductorPrueba123!"})
+            self.assertEqual(acceso.status_code, 200)
+            inicio = post(conductor, "/api/carrera/iniciar", {"revision": 0})
+            self.assertEqual(inicio.status_code, 200)
+            fallo = post(admin, "/acceso/administrador", {"usuario": "Admin", "contrasena": "AdminPrueba123!"})
+            self.assertEqual(fallo.status_code, 401)
+            self.assertIn("disponibilidad del correo", fallo.json["error"])
+            credenciales = post(admin, "/acceso/administrador", {"usuario": "Inexistente", "contrasena": "ConductorPrueba123!"})
+            self.assertEqual((credenciales.status_code, credenciales.json["error"]), (401, fallo.json["error"]))
+            self.assertNotIn("detalle privado", fallo.get_data(as_text=True))
+            self.assertIsNone(admin.get_cookie("taxiroute_sesion"))
+            self.assertIsNone(admin.get_cookie("taxiroute_pin_pendiente", path="/acceso/administrador"))
+            self.assertNotEqual(admin.get("/administracion", base_url="https://localhost").status_code, 200)
+            with conectar(self.archivos.cuentas) as conexion:
+                desafio = conexion.execute("SELECT estado_envio, invalidado_en FROM desafios_acceso").fetchone()
+                self.assertEqual(desafio["estado_envio"], "fallido")
+                self.assertIsNotNone(desafio["invalidado_en"])
+
+    def test_proveedor_solo_se_consulta_al_solicitar_envio(self):
+        servidor = Mock()
+        servidor.serve_forever.side_effect = KeyboardInterrupt
+        capturado = {}
+        @contextmanager
+        def simulado(**argumentos):
+            capturado.update(argumentos)
+            yield servidor
+        with patch("taxiroute.servidor_csv_local.servidor_csv_experimental", simulado), \
+                patch("taxiroute.oauth_gmail.cliente_gmail_autorizado") as gmail, \
+                patch("taxiroute.servidor_csv_local.EnviadorGmail") as transporte, \
+                redirect_stdout(StringIO()):
+            resultado = main(["--carpeta", str(self.archivos.carpeta), "--certificado", str(self.certificado),
+                              "--clave", str(self.clave_tls)])
+            self.assertEqual(resultado, 0)
+            gmail.assert_not_called()
+            transporte.assert_not_called()
+            capturado["enviar_pin"]("prueba@example.invalid", "1234567")
+            gmail.assert_called_once_with()
+            transporte.assert_called_once_with(gmail.return_value)
+            transporte.return_value.assert_called_once_with("prueba@example.invalid", "1234567")
 
 
 if __name__ == "__main__":

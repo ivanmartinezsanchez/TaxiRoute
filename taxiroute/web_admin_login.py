@@ -49,7 +49,7 @@ def crear_acceso_administrador(servicio_pin):
         datos = datos_seguros({"usuario", "contrasena"})
         desafio = servicio_pin.solicitar(datos["usuario"], datos["contrasena"])
         if desafio is None:
-            return jsonify(error="No se ha podido continuar el acceso."), 401
+            return jsonify(error="No se ha podido continuar el acceso. Comprueba las credenciales y la disponibilidad del correo."), 401
         respuesta = jsonify(paso="pin_pendiente")
         borrar_temporal(respuesta, COOKIE_CAMBIO)
         cookie_temporal(respuesta, COOKIE_PIN, desafio)

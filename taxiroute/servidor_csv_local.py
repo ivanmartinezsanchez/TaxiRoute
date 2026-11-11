@@ -74,14 +74,8 @@ def main(argv=None):
         with servidor_csv_experimental(carpeta=argumentos.carpeta, certificado=argumentos.certificado,
                 clave=argumentos.clave, puerto=argumentos.puerto, enviar_pin=enviar,
                 durable=argumentos.recuperacion_experimental) as servidor:
-            try:
-                from taxiroute.oauth_gmail import cliente_gmail_autorizado
-                # Comprueba la autorización existente; no envía ningún mensaje.
-                cliente_gmail_autorizado()
-            except Exception:
-                print("No se ha podido preparar Gmail. Revisa la autorización y la conexión a internet antes de iniciar la aplicación.", file=sys.stderr)
-                return 1
             print(f"Servidor local experimental: https://127.0.0.1:{argumentos.puerto}/", flush=True)
+            print("El acceso de administrador requiere correo autorizado y conexión para recibir su código.", flush=True)
             aviso = ("Solo datos ficticios. La recuperación es experimental y requiere revisión tras un corte."
                      if argumentos.recuperacion_experimental else
                      "Solo datos ficticios. Al detener el proceso se puede perder una carrera activa.")
