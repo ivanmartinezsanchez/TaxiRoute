@@ -371,3 +371,9 @@ Las pruebas cubren ambos órdenes con hilos y bases temporales, y simulan una re
 ## Decisión de recuperación — 8 de noviembre de 2026
 
 Se ha acordado mantener el historial CSV en la fase 3 y ampliar SQLite para carreras activas, pendientes y su relación con el conductor. Tras una interrupción se recuperará el último punto guardado, sin sumar automáticamente el tiempo no registrado, y se pedirá revisión. El [diseño de recuperación](DISENO_RECUPERACION.md) describe la propuesta, las decisiones pendientes y sus límites; todavía no está implementado.
+
+### Desactivación con una carrera pendiente (11 de noviembre de 2026)
+
+Antes de desactivar un conductor, la aplicación comprueba si tiene una carrera activa, un cierre pendiente o una acción que necesita revisión. En cualquiera de esos casos, pide finalizar o revisar la situación y no desactiva la cuenta ni revoca sus sesiones. Si no puede comprobar el estado, tampoco desactiva la cuenta. Cuando no existe ninguna situación pendiente, la desactivación revoca las sesiones como se describió anteriormente.
+
+La comprobación está coordinada con las operaciones de carrera de la misma instalación y se ha probado con datos temporales. La revocación de sesiones sigue siendo una acción distinta y no detiene la carrera. Esta regla implica que una desactivación por motivos de seguridad puede tener que esperar hasta resolver la carrera; el proceso de respuesta urgente queda por definir.
