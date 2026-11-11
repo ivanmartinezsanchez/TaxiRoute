@@ -178,6 +178,10 @@ La fórmula de referencia es `total = tiempo_parado × tarifa_parado + tiempo_mo
 
 La versión de terminal y la web anterior funcionan localmente; esta última no tiene autenticación. Existe una demostración web separada con acceso protegido y cuentas ficticias. La interfaz se adapta a distintos tamaños y admite navegación por teclado, aunque aún queda pendiente una revisión completa de accesibilidad. El servicio experimental no está preparado para exponerlo a redes externas ni para gestionar datos reales. La web integrada aplica un máximo compartido de 30 solicitudes de acceso en 60 segundos por proceso; si se alcanza, indica cuánto esperar. Este contador se reinicia al detener el proceso, no se comparte entre procesos y puede afectar a otras cuentas si alguien agota la cuota.
 
+## Servidor SQLite local experimental
+
+La fase 4 dispone de un servidor para instalaciones SQLite vinculadas y preparadas, limitado a `127.0.0.1`. Solo se ha probado con datos y certificados de prueba; no es el despliegue final ni permite acceso desde otros dispositivos. Para ver los parámetros, ejecuta `python -m taxiroute.iniciar_sqlite_local --help`. Requiere cuentas, historial, tarifas y certificado TLS existentes. El correo administrativo se consulta únicamente al solicitar el código y el adaptador actual usa el almacén de Windows.
+
 ## Documentación y gestión
 
 - [Mapa de contexto](./MAPA_CONTEXTO.md): decisiones, estado y guía para retomar el proyecto.

@@ -8,8 +8,8 @@
 - **Plazo indicado:** 15 de noviembre de 2026. Priorizar requisitos de las fases 3 y 4 y la entrega; confirmar si el plazo cambia.
 - **Rama de trabajo observada:** `feature/fase-4-produccion`. La fase 3 se conservó en `feature/fase-3-web-local`; comprueba la rama real y las integraciones antes de modificarlas.
 - **Fases 1 y 2:** integradas según el README. **Fase 3:** cerrada como demostración académica local, no como instalación de producción. Por decisión del proyecto no se hará prueba física en tablet para esta entrega.
-- **Fase 4:** en curso. Ya existen una transición y un asistente de migración experimentales, API y panel de demostración; faltan su integración y validación como instalación final, el acceso seguro por la red del taxi y el despliegue con un comando.
-- **Última comprobación consultada:** el flujo de GitHub Actions de `ea0c869` finalizó correctamente en Windows, Linux y macOS; consulta las ejecuciones actuales antes de afirmar que una versión nueva pasa.
+- **Fase 4:** en curso. Ya existen transición y asistente de migración, servidor SQLite local, API y panel experimentales; faltan su validación como instalación final, el acceso seguro por la red del taxi y el despliegue con un comando.
+- **Pruebas:** consulta los resultados de GitHub Actions y las pruebas locales de la revisión concreta antes de afirmar que una versión pasa.
 
 ## Decisiones que condicionan el trabajo
 
