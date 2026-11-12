@@ -47,7 +47,7 @@ class PruebasApiDurableCSV(TestCase):
     def crear_app(self, flota):
         app = Flask(__name__)
         app.testing = True
-        app.config["DEMO_PERSISTENTE"] = True
+        app.config["RECUPERACION_HABILITADA"] = True
         app.register_blueprint(crear_acceso_conductor(self.sesiones))
         app.register_blueprint(crear_api_durable_experimental(self.sesiones, flota, self.historiales,
                                                                formato_historial="csv"))

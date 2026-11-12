@@ -42,7 +42,7 @@ class PruebasWebResolverIntencion(unittest.TestCase):
                                     modo_durable_experimental=True, revisiones_iniciales={self.ana.id: 0})
         self.app = Flask(__name__)
         self.app.testing = True
-        self.app.config["DEMO_PERSISTENTE"] = True
+        self.app.config["RECUPERACION_HABILITADA"] = True
         self.app.register_blueprint(crear_web_resolucion_intencion(self.sesiones, self.flota))
         self.clientes = [self.app.test_client() for _ in self.tokens]
         for cliente, token in zip(self.clientes, self.tokens):
@@ -112,8 +112,18 @@ class PruebasWebResolverIntencion(unittest.TestCase):
         self.iniciar()
         self.sesiones.cerrar(self.tokens[2])
         self.assertEqual(self.get(self.clientes[2]).status_code, 401)
-        self.app.config["DEMO_PERSISTENTE"] = False
+        self.app.config["RECUPERACION_HABILITADA"] = False
         self.assertEqual(self.get(self.clientes[0]).status_code, 404)
+
+    def test_indicador_demo_no_activa_ni_desactiva_recuperacion(self):
+        self.iniciar()
+        self.app.config["DEMO_PERSISTENTE"] = True
+        self.app.config["RECUPERACION_HABILITADA"] = False
+        self.assertEqual(self.get(self.clientes[2]).status_code, 404)
+        self.app.config["DEMO_PERSISTENTE"] = False
+        self.app.config["RECUPERACION_HABILITADA"] = True
+        self.assertEqual(self.get(self.clientes[2]).status_code, 200)
+        self.assertEqual(self.get(self.clientes[0]).status_code, 403)
 
     def test_diagnostico_incompatible_no_filtra_contenido(self):
         self.iniciar()

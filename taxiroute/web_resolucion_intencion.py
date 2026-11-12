@@ -21,7 +21,7 @@ def crear_web_resolucion_intencion(sesiones, flota):
 
     @api.before_request
     def proteger():
-        if current_app.config.get("DEMO_PERSISTENTE") is not True:
+        if current_app.config.get("RECUPERACION_HABILITADA") is not True:
             abort(404)
         if not request.is_secure or request.args:
             abort(400)

@@ -12,7 +12,7 @@
 <a class="saltar" href="#principal">Saltar al taxímetro</a>
 <header><span class="marca">TaxiRoute</span><nav aria-label="Cuenta">{% if rol == "administrador" %}<a href="{{ url_for('administracion') }}">Administración</a>{% endif %} <button id="cerrar" class="secundario" type="button">Cerrar sesión</button></nav></header>
 <main id="principal">
-  <p class="aviso">Modo de pruebas: utiliza solo cuentas y datos ficticios. {% if persistente %}Los datos de la demostración se conservan en la carpeta elegida.{% else %}Al detener la demostración se borran sus datos.{% endif %}</p>
+  <p class="aviso">{% if demo_persistente %}Modo de pruebas: utiliza solo cuentas y datos ficticios. Los datos de la demostración se conservan en la carpeta elegida.{% elif persistente %}Instalación experimental: utiliza solo datos de prueba.{% else %}Modo de pruebas: utiliza solo cuentas y datos ficticios. Al detener la demostración se borran sus datos.{% endif %}</p>
   <section class="panel" aria-labelledby="titulo">
     <div class="fila"><h1 id="titulo">Tu taxímetro</h1><span id="conexion" role="status">Conectando…</span></div>
     <p class="leyenda">Estado de la carrera</p><p id="estado" class="estado">Consultando…</p>

@@ -109,6 +109,7 @@ def demo_persistente(carpeta, *, mostrar_codigo):
             inicializar_base(carpeta / "cuentas.sqlite3")
             app = _armar_demo(carpeta, mostrar_codigo=mostrar_codigo, durable=True)
         app.config["DEMO_PERSISTENTE"] = True
+        app.config["RECUPERACION_HABILITADA"] = True
         yield app
 
 

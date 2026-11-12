@@ -81,6 +81,7 @@ def abrir_app_csv_experimental(*, ruta_cuentas, carpeta_historial, ruta_tarifas,
             ruta_historial_durable=carpeta, formato_historial_durable="csv", registro_actividad=registro,
             carpeta_historial_flota_csv=carpeta)
         app.config["DEMO_PERSISTENTE"] = True
+        app.config["RECUPERACION_HABILITADA"] = True
         control = ControlPeriodico(flota, cuentas, intervalo=5, avisar=lambda: registro.registrar("error_operacion"))
         app.extensions["control_periodico"] = control
         control.iniciar()

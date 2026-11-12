@@ -1,7 +1,7 @@
 """API aislada para probar la coordinación durable; no es un despliegue real.
 
-Se usa en demostraciones ficticias. La recuperación interactiva se habilita
-solo en la demo persistente con bloqueo exclusivo. No configura por sí sola
+La recuperación interactiva se habilita únicamente en composiciones
+que mantienen el bloqueo exclusivo y activan explícitamente esa capacidad. No configura por sí sola
 los puntos periódicos ni constituye un servidor de producción.
 """
 import errno
@@ -236,8 +236,8 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
         registrar_interaccion(token, identidad)
         return jsonify(**estado_actual(token), mensaje=con_aviso("Carrera guardada en el historial.", aviso))
 
-    def exigir_demo_persistente():
-        if current_app.config.get("DEMO_PERSISTENTE") is not True:
+    def exigir_recuperacion_habilitada():
+        if current_app.config.get("RECUPERACION_HABILITADA") is not True:
             abort(404)
 
     def consultar_guardada_bloqueada(token):
@@ -263,7 +263,7 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
 
     @api.get("/carrera/revision-recuperacion")
     def consultar_revision_recuperacion():
-        exigir_demo_persistente()
+        exigir_recuperacion_habilitada()
         from taxiroute.finalizacion_pendiente import _importe
         from taxiroute.recuperacion_ultima_captura import revisar_ultima_captura, huella_revision
         token, _ = token_y_identidad()
@@ -280,7 +280,7 @@ def crear_api_durable_experimental(sesiones, flota, ruta_historial, *, prefijo="
 
     @api.post("/carrera/confirmar-recuperacion")
     def confirmar_recuperacion():
-        exigir_demo_persistente()
+        exigir_recuperacion_habilitada()
         from datetime import datetime
         from taxiroute.recuperacion_ultima_captura import cerrar_en_ultima_captura
         datos = datos_con_revision({"revision", "ultimo_control", "confirmar", "huella"})

@@ -101,6 +101,8 @@ def abrir_app_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas, clave_
         app = crear_app_configurada(ruta_cuentas=ruta, ruta_historial=ruta_historial,
             ruta_tarifas=ruta_tarifas, clave_hmac=clave_hmac, enviar_pin=enviar_pin,
             durable=True, reloj=reloj, avisar=avisar)
+        # Solo el contexto que mantiene el bloqueo habilita la recuperación web.
+        app.config["RECUPERACION_HABILITADA"] = True
         control = app.extensions["control_periodico"]
         control.iniciar()
         registro = app.extensions["registro_actividad"]
