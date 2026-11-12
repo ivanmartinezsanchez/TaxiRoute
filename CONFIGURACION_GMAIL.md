@@ -83,3 +83,9 @@ Se ha creado un cliente OAuth de escritorio para el proyecto de desarrollo, con 
 Se ha enviado un único código de prueba a la cuenta destinataria mediante Gmail API. La API aceptó la solicitud y el usuario confirmó que recibió el mensaje. La prueba utilizó una cuenta y una base SQLite temporales que se eliminaron al terminar; ese código no sirve para iniciar sesión en TaxiRoute.
 
 Esta comprobación acredita la autorización y la entrega de ese mensaje, no garantiza la entrega futura ni prueba el acceso completo en la interfaz. La caducidad y el uso único cuentan con pruebas simuladas; falta verificarlos de extremo a extremo en la web integrada. No se almacenan aquí direcciones privadas, tokens, códigos ni credenciales.
+
+## Recarga temporal en Compose experimental
+
+El Compose temporal experimental no conserva la autorización de Gmail al reiniciar. Una vez preparado y arrancado ese Compose por separado, desde la carpeta del proyecto y con el entorno virtual activo se puede ejecutar `python -m taxiroute.cargar_gmail_windows` para cargar el perfil alternativo desde el Administrador de credenciales de Windows. El cargador verifica el contenedor y no imprime ni escribe el token en un archivo permanente de Windows. Se ha comprobado la recarga en una instalación ficticia; el acceso administrativo completo con correo real se comprobó por separado.
+
+La carga no arranca el servicio ni configura cuentas o certificados. Debe repetirse tras reiniciar el contenedor. El archivo temporal puede ser accesible a administradores del equipo, al daemon Docker y a procesos del mismo usuario del contenedor; tmpfs no garantiza que no exista intercambio a disco o un volcado. El modo de prueba de Google puede caducar y la eventual rotación del token de renovación no se guarda automáticamente en Windows. Esta configuración sigue siendo experimental y no está validada para uso real.

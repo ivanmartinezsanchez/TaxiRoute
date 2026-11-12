@@ -103,6 +103,13 @@ def cargar():
         if len(datos) > 32768:
             raise ValueError
         _docker(["exec", "-i", "--user", "10001:10001", "--workdir", "/app", identificador, *CARGADOR], entrada=datos)
+        # Un reinicio puede vaciar tmpfs mientras se está realizando la carga.
+        comprobar = ("import os,stat,sys; from pathlib import Path; "
+            "s=Path('/run/taxiroute/gmail_oauth.json').lstat(); "
+            "ok=stat.S_ISREG(s.st_mode) and s.st_uid==os.geteuid()==10001 "
+            "and stat.S_IMODE(s.st_mode)==0o600; sys.exit(0 if ok else 1)")
+        _docker(["exec", "--user", "10001:10001", "--workdir", "/app", identificador,
+                 "/usr/local/bin/python", "-I", "-c", comprobar])
     except Exception:
         raise ErrorCarga("No se ha podido cargar la autorización temporal.") from None
 

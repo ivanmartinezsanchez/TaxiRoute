@@ -71,10 +71,23 @@ class PruebasTransferenciaWindows(TestCase):
         docker.side_effect = self.respuesta
         almacen.return_value.get_password.return_value = "credencial-ficticia"
         cargar()
-        args, kwargs = docker.call_args
+        transferencias = [llamada for llamada in docker.call_args_list if "entrada" in llamada.kwargs]
+        self.assertEqual(len(transferencias), 1)
+        args, kwargs = transferencias[0]
         self.assertEqual(kwargs["entrada"], b"credencial-ficticia")
         self.assertIn(self.id, args[0])
         self.assertNotIn("credencial-ficticia", " ".join(args[0]))
+        self.assertEqual(docker.call_args.args[0][0], "exec")
+
+    @patch("taxiroute.cargar_gmail_windows._almacen_windows")
+    @patch("taxiroute.cargar_gmail_windows._verificar_contenedor", return_value="a" * 64)
+    @patch("taxiroute.cargar_gmail_windows._docker")
+    def test_si_falla_verificacion_posterior_no_informa_exito(self, docker, verificar, almacen):
+        almacen.return_value.get_password.return_value = "credencial-ficticia"
+        docker.side_effect = [b"", RuntimeError("detalle privado")]
+        with self.assertRaises(ErrorCarga) as fallo:
+            cargar()
+        self.assertNotIn("detalle privado", str(fallo.exception))
 
     @patch("taxiroute.cargar_gmail_windows._almacen_windows")
     @patch("taxiroute.cargar_gmail_windows._verificar_contenedor", return_value="a" * 64)
