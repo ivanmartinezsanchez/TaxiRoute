@@ -2,6 +2,14 @@
 
 Hay dos formas de ejecutar TaxiRoute. Para la presentación académica, usa la demostración ficticia. El lanzador protegido es experimental y solo sirve con una instalación que ya se haya preparado: no instala automáticamente las cuentas, los certificados ni los datos iniciales.
 
+## Primer arranque de una instalación propia: candidato experimental
+
+Se ha preparado `iniciar-taxiroute.cmd` para iniciar el asistente sin escribir las tres rutas. La primera vez, el asistente solicita el usuario y correo del administrador y una contraseña temporal que se introduce sin mostrarla. También muestra cinco códigos que debes guardar en un lugar privado y confirmar; sirven para desbloquear la cuenta junto con la contraseña, no sustituyen la contraseña ni el código de correo. Después crea una instalación SQLite nueva y un certificado local autofirmado. No importa ni modifica instalaciones anteriores.
+
+El archivo está preparado para ejecutarse desde Windows con Docker Desktop abierto, el entorno `.venv` y Gmail ya autorizados. Por defecto utiliza `%LOCALAPPDATA%/TaxiRoute-MVP`. Si la carpeta ya existe pero no es una instalación completa reconocida, se detiene sin sobrescribirla. Si se interrumpe la preparación, conserva la carpeta y los códigos mostrados y revisa el estado antes de repetir. En el primer acceso se pedirá verificar el correo y cambiar la contraseña temporal.
+
+**Estado:** este primer arranque se ha probado con entradas y cuentas ficticias y Docker; el archivo de Windows todavía no se ha probado de forma interactiva. No uses datos ni cobros reales: faltan la comprobación de permisos efectivos de los archivos en Windows, una configuración de servidor y TLS definitiva, copias/restauración y acceso seguro a la red del taxi. El certificado de prueba caduca a los 90 días y no se renueva automáticamente. No confundas esta instalación propia en preparación con la demo de la siguiente sección.
+
 ## Opción 1: demostración de la entrega
 
 1. Abre **Docker Desktop** y espera a que indique que está funcionando.
@@ -20,7 +28,7 @@ Para terminar, finaliza las carreras y comprueba su guardado; después ejecuta `
 
 ## Opción 2: lanzador protegido experimental
 
-Esta opción usa el puerto **18770** y puede enviar el PIN del administrador por Gmail. **Es experimental y solo debe usarse con datos de prueba.** Todavía no existe un asistente que prepare automáticamente una instalación final; no es el despliegue definitivo de un comando solicitado en el enunciado.
+Esta opción usa el puerto **18770** y puede enviar el PIN del administrador por Gmail. **Es experimental y solo debe usarse con datos de prueba.** Existe un candidato de primer arranque descrito arriba, pero todavía no se ha validado una instalación final; no es el despliegue definitivo de un comando solicitado en el enunciado.
 
 Antes necesitas:
 

@@ -36,6 +36,8 @@ class PruebasCorreoGmail(unittest.TestCase):
         for destino, codigo in (
             ("prueba@example.invalid\\nBcc:otro@example.invalid", "1234567"),
             ("uno@example.invalid,otro@example.invalid", "1234567"),
+            ("@example.invalid", "1234567"),
+            ("usuario@", "1234567"),
             ("prueba@example.invalid", "12abc67"),
             ("prueba@example.invalid", "123456"),
         ):

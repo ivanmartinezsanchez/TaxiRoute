@@ -24,7 +24,7 @@ class EnviadorGmail:
             raise ValueError("El destinatario no es válido.")
         nombre, direccion = parseaddr(destinatario, strict=True)
         if (nombre or direccion != destinatario or direccion.count("@") != 1
-                or any(c in destinatario for c in "\r\n")):
+                or not all(direccion.split("@")) or any(c in destinatario for c in "\r\n")):
             raise ValueError("El destinatario no es válido.")
         if not isinstance(codigo, str) or len(codigo) != 7 or any(
             c not in "0123456789" for c in codigo

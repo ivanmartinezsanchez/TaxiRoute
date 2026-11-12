@@ -191,7 +191,8 @@ class PruebasPrimerAdministrador(unittest.TestCase):
             self.assertEqual(conexion.execute("SELECT valor FROM original").fetchone()[0], "conservar")
 
     def test_datos_invalidos_y_base_inexistente_no_crean_cuentas(self):
-        for cambios in ({"contrasena": "breve"}, {"correo": "a@example.invalid, b@example.invalid"}):
+        for cambios in ({"contrasena": "breve"}, {"correo": "a@example.invalid, b@example.invalid"},
+                        {"correo": "@example.invalid"}, {"correo": "usuario@"}):
             with self.subTest(cambios=cambios), self.assertRaises(DatosCuentaInvalidos):
                 self.preparar(**cambios)
         ausente = self.ruta.parent / "ausente.sqlite3"

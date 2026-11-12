@@ -74,7 +74,8 @@ def _preparar(ruta, *, nombre_usuario, nombre_visible, contrasena, correo, emiti
     if not isinstance(correo, str) or len(correo) > 254:
         raise DatosCuentaInvalidos("El correo no es válido.")
     nombre_correo, direccion = parseaddr(correo, strict=True)
-    if nombre_correo or direccion != correo or direccion.count("@") != 1 or any(c in correo for c in "\r\n"):
+    if (nombre_correo or direccion != correo or direccion.count("@") != 1
+            or not all(direccion.split("@")) or any(c in correo for c in "\r\n")):
         raise DatosCuentaInvalidos("El correo no es válido.")
     validar_contrasena(contrasena)
     protegido = _PROTECTOR.hash(contrasena)
