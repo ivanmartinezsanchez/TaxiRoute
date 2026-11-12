@@ -20,3 +20,5 @@ El enunciado también pide una interfaz usable en tablet. Por decisión del proy
 ## Avance del 12 de noviembre
 
 Hay un Compose experimental separado para una instalación SQLite existente, con archivos TLS y OAuth externos y publicación limitada al ordenador. Con datos ficticios se ha probado su arranque y una consulta HTTPS sin sesión desde el propio contenedor. No demuestra acceso desde otro dispositivo ni envío de Gmail desde Docker. El montaje de un archivo ficticio de solo lectura se comprobó por separado en Docker Desktop. Los secretos de Compose local no cifran el archivo del equipo.
+
+Un recorrido posterior del Compose experimental con un cliente HTTPS de Windows comprobó acceso de conductor, carrera, historial y persistencia tras reiniciar, además del rechazo administrativo con OAuth ficticio inválido. El cliente tuvo que conectar a localhost usando una autoridad IP privada configurada para TLS; no es acceso normal desde el navegador ni una prueba desde otro dispositivo.

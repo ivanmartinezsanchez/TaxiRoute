@@ -190,14 +190,15 @@ La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculad
 - [Diseño de migración a SQLite](./DISENO_MIGRACION_FASE_4.md): objetivos, comprobaciones y límites de la fase 4.
 - [Revisión de la fase 4](./REVISION_FASE_4.md): requisitos, comprobaciones y pendientes para la entrega.
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.
-- Manual de usuario: se redactará al finalizar, basado en el funcionamiento comprobado.
+- [Manual de usuario](./MANUAL_USUARIO.md): inicio y recorrido de la demostración SQLite con Docker y sus límites.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
 
 ## Demostración SQLite con Docker
 
-Con Docker Desktop abierto, desde la carpeta del proyecto ejecuta:
+Esta demostración está en la rama `feature/fase-4-produccion`; si acabas de clonar el repositorio, cambia a esa rama antes de ejecutarla. Con Docker Desktop abierto, desde la carpeta del proyecto ejecuta:
 
 ```bash
+git switch feature/fase-4-produccion
 docker compose -f compose.sqlite-demo.yaml up --build -d
 ```
 
