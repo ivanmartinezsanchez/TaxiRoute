@@ -28,7 +28,7 @@ def main(argv=None):
     parser.add_argument('--certificado', required=True, type=Path, help='Certificado TLS PEM')
     parser.add_argument('--clave', required=True, type=Path, help='Clave TLS PEM')
     parser.add_argument('--puerto', type=int, default=8769, help='Puerto de escucha (por defecto 8769)')
-    parser.add_argument('--direccion', default='127.0.0.1', help='IPv4 de escucha; por defecto solo este ordenador')
+    parser.add_argument('--direccion', default='127.0.0.1', help='IPv4 de acceso; por defecto solo este ordenador')
     parser.add_argument('--escucha-contenedor', action='store_true', help='Separar escucha interna de la IPv4 privada publicada')
     parser.add_argument('--secreto-gmail', type=Path, help='Archivo OAuth externo de solo lectura para el correo')
     args = parser.parse_args(argv)

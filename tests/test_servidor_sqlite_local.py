@@ -194,11 +194,37 @@ class PruebasServidorSQLite(unittest.TestCase):
                     json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
                 self.assertEqual(acceso.status_code, 403)
 
-    def test_contenedor_rechaza_localhost_y_valores_no_booleanos(self):
-        for valor in (True, 1, 'true'):
-            with self.subTest(valor=valor), patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+    def test_contenedor_local_solo_admite_autoridad_configurada(self):
+        opciones = self.args | {'puerto': 18770, 'escucha_contenedor': True}
+        with patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+            with servidor_sqlite_experimental(**opciones):
+                argumentos = crear.call_args.args
+                self.assertEqual(argumentos[:2], ('0.0.0.0', 18770))
+                cliente = argumentos[2].test_client()
+                self.assertEqual(cliente.get('/api/historial', base_url='https://127.0.0.1:18770').status_code, 401)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://127.0.0.1:18771').status_code, 400)
+                self.assertEqual(cliente.get('/api/historial', base_url='https://localhost:18770').status_code, 400)
+                respuesta = cliente.post('/acceso/conductor', base_url='https://127.0.0.1:18770',
+                    headers={'Origin': 'https://ejemplo.invalid'},
+                    json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
+                self.assertEqual(respuesta.status_code, 403)
+
+    def test_contenedor_local_rechaza_certificado_sin_ip_local(self):
+        cert, clave = self.certificado_para_ip('192.168.12.34')
+        opciones = self.args | {'puerto': 18770, 'escucha_contenedor': True,
+                                'certificado': cert, 'clave': clave}
+        with patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+            with self.assertRaisesRegex(ValueError, 'certificado'):
+                with servidor_sqlite_experimental(**opciones):
+                    pass
+            crear.assert_not_called()
+
+    def test_contenedor_rechaza_puerto_automatico_y_valores_no_booleanos(self):
+        for opciones in ({'escucha_contenedor': True}, {'escucha_contenedor': 1},
+                         {'escucha_contenedor': 'true'}):
+            with self.subTest(opciones=opciones), patch('taxiroute.servidor_sqlite_local.make_server') as crear:
                 with self.assertRaises(ValueError):
-                    with servidor_sqlite_experimental(**(self.args | {'escucha_contenedor': valor})):
+                    with servidor_sqlite_experimental(**(self.args | opciones)):
                         pass
                 crear.assert_not_called()
 

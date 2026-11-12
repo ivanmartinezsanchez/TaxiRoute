@@ -23,7 +23,7 @@ services:
       - --puerto
       - "18770"
       - --direccion
-      - "${TAXIROUTE_IP_PRIVADA:?Indica una IPv4 privada con certificado válido}"
+      - "127.0.0.1"
       - --escucha-contenedor
     ports:
       - "127.0.0.1:18770:18770"

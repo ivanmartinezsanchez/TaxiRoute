@@ -56,16 +56,16 @@ def servidor_sqlite_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas,
     por sí mismo: el integrador proporciona el transporte de PIN. La clave de
     verificación cambia en cada arranque, invalidando desafíos anteriores.
     El modo LAN no establece confianza del certificado ni configura cortafuegos.
-    escucha_contenedor separa el enlace interno de la autoridad LAN validada;
+    escucha_contenedor separa el enlace interno de la autoridad validada;
     quien despliega debe limitar la publicación del puerto y la red del contenedor.
     """
     if type(puerto) is not int or not 0 <= puerto <= 65535:
         raise ValueError("El puerto no es válido.")
     ip = _validar_direccion(direccion)
     modo_red = direccion != '127.0.0.1'
-    if type(escucha_contenedor) is not bool or (escucha_contenedor and not modo_red):
-        raise ValueError('La escucha de contenedor requiere una IPv4 privada explícita.')
-    if modo_red and puerto == 0:
+    if type(escucha_contenedor) is not bool:
+        raise ValueError('La escucha de contenedor debe ser verdadera o falsa.')
+    if (modo_red or escucha_contenedor) and puerto == 0:
         raise ValueError("El acceso de red necesita un puerto explícito.")
     if not callable(enviar_pin):
         raise ValueError("Se necesita un transporte de PIN.")
@@ -80,7 +80,7 @@ def servidor_sqlite_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas,
         vinculo = _registro(conexion)
         if vinculo is None or vinculo['formato'] != 'sqlite' or vinculo['estado'] != 'listo':
             raise ValueError("Se necesita un historial SQLite vinculado y listo.")
-    if modo_red:
+    if modo_red or escucha_contenedor:
         _validar_certificado_lan(cert, ip)
     contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     contexto.minimum_version = ssl.TLSVersion.TLSv1_2
@@ -94,7 +94,7 @@ def servidor_sqlite_experimental(*, ruta_cuentas, ruta_historial, ruta_tarifas,
                 WHERE u.rol='administrador' AND u.habilitado=1 LIMIT 1""").fetchone()
             if admin is None:
                 raise ValueError("La instalación necesita un administrador habilitado.")
-        if modo_red:
+        if modo_red or escucha_contenedor:
             # TRUSTED_HOSTS comprueba el host, pero Werkzeug ignora el puerto.
             app.config['TRUSTED_HOSTS'] = [direccion]
             autoridades = {f'{direccion}:{puerto}'}
