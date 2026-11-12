@@ -16,3 +16,7 @@ Revisión del 11 de noviembre de 2026. El objetivo es mostrar el estado de la ra
 La demo usa cuentas y contraseñas ficticias conocidas, un PIN visible en los registros, un certificado autofirmado y un servidor de desarrollo. Se limita a `127.0.0.1`; no debe abrirse a otros dispositivos ni emplearse con datos reales. La prueba de la API usó una excepción de verificación del certificado únicamente para el cliente local de prueba; no acredita TLS confiable. La conexión desde ubicaciones distintas queda fuera de esta entrega por decisión previa.
 
 El enunciado también pide una interfaz usable en tablet. Por decisión del proyecto no se realizará una prueba física en este dispositivo; se debe presentar esa limitación con claridad.
+
+## Avance del 12 de noviembre
+
+Hay un Compose experimental separado para una instalación SQLite existente, con archivos TLS y OAuth externos y publicación limitada al ordenador. Con datos ficticios se ha probado su arranque y una consulta HTTPS sin sesión desde el propio contenedor. No demuestra acceso desde otro dispositivo ni envío de Gmail desde Docker. El montaje de un archivo ficticio de solo lectura se comprobó por separado en Docker Desktop. Los secretos de Compose local no cifran el archivo del equipo.
