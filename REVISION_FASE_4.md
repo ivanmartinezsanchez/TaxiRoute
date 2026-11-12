@@ -24,3 +24,5 @@ Hay un Compose experimental separado para una instalación SQLite existente, con
 Un recorrido posterior del Compose experimental con un cliente HTTPS de Windows comprobó acceso de conductor, carrera, historial y persistencia tras reiniciar, además del rechazo administrativo con OAuth ficticio inválido. El cliente tuvo que conectar a localhost usando una autoridad IP privada configurada para TLS; no es acceso normal desde el navegador ni una prueba desde otro dispositivo.
 
 Después se ha corregido la autoridad del Compose local: la URL `https://127.0.0.1:18770` y el acceso de conductor se han probado desde un cliente HTTPS en Windows con certificado ficticio verificado. Sigue siendo experimental y no se ha probado con navegador, datos reales ni desde la red del taxi.
+
+El acceso administrativo con correo real se ha comprobado en un contenedor temporal con cuenta ficticia: se recibió el PIN y se accedió al panel. No equivale todavía a validar Compose con datos persistentes reales ni a una instalación de producción.
