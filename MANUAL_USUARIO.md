@@ -50,7 +50,7 @@ La casilla **Mantener la pantalla encendida durante una carrera** depende del na
 
 ## 4. Consultar el historial
 
-En **Mis carreras**, selecciona **Todas las carreras** o **Finalizadas hoy** y pulsa **Actualizar** si lo necesitas. La lista muestra el inicio, la duración y el importe. «Hoy» se calcula con la fecha de finalización y la zona horaria del servidor. En Docker puede no coincidir con la zona horaria del ordenador.
+En **Mis carreras**, selecciona **Todas las carreras** o **Finalizadas hoy** y pulsa **Actualizar** si lo necesitas. La lista muestra el inicio, la duración y el importe. En «Mis carreras», «hoy» se calcula con la fecha de finalización y la zona horaria del navegador. En el historial de la flota del administrador se usa la zona horaria del servidor, que en Docker puede ser distinta; cerca de medianoche los resultados pueden diferir.
 
 El historial de esta demo se guarda en un volumen separado de Docker y permanece tras detener y volver a iniciar el contenedor. La eliminación del volumen borraría esos datos de prueba; los comandos de parada de este manual no lo eliminan.
 

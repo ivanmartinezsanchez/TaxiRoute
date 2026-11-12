@@ -15,6 +15,22 @@ _TOKEN_URI = "https://oauth2.googleapis.com/token"
 _MAX_BYTES = 32768
 
 
+def _validar_contenido(contenido):
+    """Valida sin acceder a la red ni mostrar el contenido del secreto."""
+    if not contenido or len(contenido) > _MAX_BYTES:
+        raise ValueError
+    datos = json.loads(contenido)
+    if not isinstance(datos, dict) or datos.get("token_uri") != _TOKEN_URI:
+        raise ValueError
+    if not all(isinstance(datos.get(campo), str) and datos[campo]
+               for campo in ("client_id", "client_secret", "refresh_token")):
+        raise ValueError
+    alcances = datos.get("scopes")
+    if not isinstance(alcances, list) or ALCANCE_ENVIO not in alcances:
+        raise ValueError
+    return datos
+
+
 def cliente_gmail_desde_secreto(ruta):
     """Lee el secreto externo y renueva en memoria sin modificar el archivo.
 
@@ -29,15 +45,7 @@ def cliente_gmail_desde_secreto(ruta):
             contenido = flujo.read(_MAX_BYTES + 1)
         if len(contenido) > _MAX_BYTES:
             raise ValueError
-        datos = json.loads(contenido)
-        if not isinstance(datos, dict) or datos.get("token_uri") != _TOKEN_URI:
-            raise ValueError
-        if not all(isinstance(datos.get(campo), str) and datos[campo]
-                   for campo in ("client_id", "client_secret", "refresh_token")):
-            raise ValueError
-        alcances = datos.get("scopes")
-        if not isinstance(alcances, list) or ALCANCE_ENVIO not in alcances:
-            raise ValueError
+        datos = _validar_contenido(contenido)
         credenciales = Credentials(token=None, refresh_token=datos["refresh_token"],
                                    token_uri=_TOKEN_URI, client_id=datos["client_id"],
                                    client_secret=datos["client_secret"], scopes=[ALCANCE_ENVIO])

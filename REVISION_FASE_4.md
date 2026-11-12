@@ -9,7 +9,7 @@ Revisión del 11 de noviembre de 2026. El objetivo es mostrar el estado de la ra
 | Panel web de flota | Hay un panel administrativo para consultar el historial de la demo; se ha probado con datos ficticios. | El PIN de la demo aparece en los registros del contenedor y no se envía por correo. No es una configuración para datos reales. |
 | Un comando y persistencia | `docker compose -f compose.sqlite-demo.yaml up --build -d` arranca la demo; el volumen conserva el historial al reiniciar el contenedor. | Requiere Docker y la imagen debe poder construirse. No es una instalación completa y segura para uso real. No se ha comprobado un reinicio del sistema operativo en esta prueba. |
 | Acceso desde dispositivos de la red del taxi | Existe una opción experimental en el servidor SQLite fuera de la demo Docker; se ha probado con solicitudes simuladas. | La demo Docker solo publica el servicio en el propio ordenador. Faltan configuración protegida, certificado confiable y una prueba desde otro dispositivo. |
-| Documentación y entrega | El repositorio incluye enunciado, documentación técnica, instrucciones de la demo y enlace al tablero. | Falta el manual de usuario final y revisar y actualizar el tablero y los resultados de pruebas de la versión entregada. |
+| Documentación y entrega | El repositorio incluye enunciado, documentación técnica, instrucciones de la demo y enlace al tablero. | Existe un manual para la demostración; falta completarlo para la instalación final y revisar el tablero y las pruebas de la versión entregada. |
 
 ## Seguridad y alcance
 
