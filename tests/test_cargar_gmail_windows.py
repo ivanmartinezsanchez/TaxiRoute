@@ -28,7 +28,8 @@ class PruebasTransferenciaWindows(TestCase):
         if argumentos[0] == "ps": return (self.id + "\n").encode()
         if argumentos[0] == "inspect": return json.dumps([self.info]).encode()
         if argumentos[:2] == ["image", "inspect"]: return json.dumps([{"Id": self.imagen, "Config": {"Entrypoint": None, "Env": ["PATH=/usr/local/bin", "HOME=/home/taxiroute"]}}]).encode()
-        if argumentos[0] == "exec": return b""
+        if argumentos[0] == "exec":
+            return b"" if entrada is not None else b"ausente\n"
         raise AssertionError("Comando inesperado")
 
     @patch("taxiroute.cargar_gmail_windows._docker")
@@ -36,6 +37,18 @@ class PruebasTransferenciaWindows(TestCase):
         docker.side_effect = self.respuesta
         self.assertEqual(_verificar_contenedor(), self.id)
         self.assertEqual(docker.call_args.args[0][0], "exec")
+
+    @patch("taxiroute.cargar_gmail_windows._docker")
+    def test_exige_coincidencia_de_rutas_y_permisos_de_montaje(self, docker):
+        from pathlib import Path
+        rutas = {"/datos": Path("datos-ficticios"), "/run/secrets/tls_certificado": Path("certificado-ficticio.pem"),
+                 "/run/secrets/tls_clave": Path("clave-ficticia.pem")}
+        self.info["Mounts"] = [{"Destination": destino, "Source": str(ruta), "RW": destino == "/datos"}
+                              for destino, ruta in rutas.items()]
+        docker.side_effect = self.respuesta
+        self.assertEqual(_verificar_contenedor(rutas_esperadas=rutas), self.id)
+        self.info["Mounts"][0]["Source"] = "otra-carpeta"
+        with self.assertRaises(ErrorCarga): _verificar_contenedor(rutas_esperadas=rutas)
 
     @patch("taxiroute.cargar_gmail_windows._almacen_windows")
     @patch("taxiroute.cargar_gmail_windows._docker")
@@ -88,6 +101,12 @@ class PruebasTransferenciaWindows(TestCase):
         with self.assertRaises(ErrorCarga) as fallo:
             cargar()
         self.assertNotIn("detalle privado", str(fallo.exception))
+
+    @patch("taxiroute.cargar_gmail_windows._almacen_windows")
+    @patch("taxiroute.cargar_gmail_windows._verificar_contenedor", return_value="b" * 64)
+    def test_si_cambia_contenedor_no_lee_el_almacen(self, verificar, almacen):
+        with self.assertRaises(ErrorCarga): cargar(identificador_esperado="a" * 64)
+        almacen.assert_not_called()
 
     @patch("taxiroute.cargar_gmail_windows._almacen_windows")
     @patch("taxiroute.cargar_gmail_windows._verificar_contenedor", return_value="a" * 64)

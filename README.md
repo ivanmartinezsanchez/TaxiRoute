@@ -191,6 +191,7 @@ La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculad
 - [Revisión de la fase 4](./REVISION_FASE_4.md): requisitos, comprobaciones y pendientes para la entrega.
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.
 - [Manual de usuario](./MANUAL_USUARIO.md): inicio y recorrido de la demostración SQLite con Docker y sus límites.
+- [Guía de arranque en Windows](./GUIA_ARRANQUE.md): demostración de entrega y lanzador experimental para instalaciones ya preparadas.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
 
 ## Demostración SQLite con Docker
