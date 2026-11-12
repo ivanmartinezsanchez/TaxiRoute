@@ -42,6 +42,28 @@ class PruebasLanzadorSQLite(TestCase):
         self.assertEqual(capturado['direccion'], '192.168.12.34')
         self.assertIn('Acceso de red experimental', salida.getvalue())
 
+    def test_opciones_contenedor_y_secreto_se_inyectan_sin_lectura_al_arrancar(self):
+        capturado = {}
+        class Servidor:
+            def serve_forever(self):
+                raise KeyboardInterrupt
+        @contextmanager
+        def servidor(**opciones):
+            capturado.update(opciones)
+            yield Servidor()
+        with patch('taxiroute.iniciar_sqlite_local.servidor_sqlite_experimental', servidor), \
+             patch('taxiroute.oauth_gmail_contenedor.cliente_gmail_desde_secreto') as cliente, \
+             patch('sys.stdout', new_callable=StringIO):
+            resultado = main(self.args + ['--direccion', '192.168.12.34', '--escucha-contenedor',
+                                         '--secreto-gmail', 'secreto-ficticio.json'])
+            self.assertEqual(resultado, 0)
+            self.assertTrue(capturado['escucha_contenedor'])
+            cliente.assert_not_called()
+            with patch('taxiroute.correo_gmail.EnviadorGmail') as enviador:
+                capturado['enviar_pin']('demo@example.invalid', '1234567')
+                cliente.assert_called_once()
+                enviador.return_value.assert_called_once_with('demo@example.invalid', '1234567')
+
     def test_fallo_no_muestra_detalle_sensible(self):
         @contextmanager
         def servidor(**_):

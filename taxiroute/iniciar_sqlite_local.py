@@ -29,13 +29,23 @@ def main(argv=None):
     parser.add_argument('--clave', required=True, type=Path, help='Clave TLS PEM')
     parser.add_argument('--puerto', type=int, default=8769, help='Puerto de escucha (por defecto 8769)')
     parser.add_argument('--direccion', default='127.0.0.1', help='IPv4 de escucha; por defecto solo este ordenador')
+    parser.add_argument('--escucha-contenedor', action='store_true', help='Separar escucha interna de la IPv4 privada publicada')
+    parser.add_argument('--secreto-gmail', type=Path, help='Archivo OAuth externo de solo lectura para el correo')
     args = parser.parse_args(argv)
     if not 1 <= args.puerto <= 65535:
         parser.error('El puerto no es válido.')
+    def enviar_pin(destinatario, codigo):
+        if args.secreto_gmail is None:
+            return _enviar_pin(destinatario, codigo)
+        from taxiroute.correo_gmail import EnviadorGmail
+        from taxiroute.oauth_gmail_contenedor import cliente_gmail_desde_secreto
+        return EnviadorGmail(cliente_gmail_desde_secreto(args.secreto_gmail))(destinatario, codigo)
+
     try:
         with servidor_sqlite_experimental(ruta_cuentas=args.cuentas, ruta_historial=args.historial,
                 ruta_tarifas=args.tarifas, certificado=args.certificado, clave=args.clave,
-                puerto=args.puerto, enviar_pin=_enviar_pin, direccion=args.direccion) as servidor:
+                puerto=args.puerto, enviar_pin=enviar_pin, direccion=args.direccion,
+                escucha_contenedor=args.escucha_contenedor) as servidor:
             print(f'Servidor experimental: https://{args.direccion}:{args.puerto}/', flush=True)
             if args.direccion != '127.0.0.1':
                 print('Acceso de red experimental: comprueba el cortafuegos y la confianza del certificado en cada dispositivo.', flush=True)

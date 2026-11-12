@@ -9,7 +9,7 @@
 - **Rama de trabajo observada:** `feature/fase-4-produccion`. La fase 3 se conservó en `feature/fase-3-web-local`; comprueba la rama real y las integraciones antes de modificarlas.
 - **Fases 1 y 2:** integradas según el README. **Fase 3:** cerrada como demostración académica local, no como instalación de producción. Por decisión del proyecto no se hará prueba física en tablet para esta entrega.
 - **Fase 4:** en curso. Ya existen transición y asistente de migración, servidor SQLite, demostración Docker con datos ficticios, API y panel experimentales; la opción LAN del servidor está implementada como experimento y solo se ha probado con solicitudes simuladas; faltan su validación como instalación final, la confianza TLS y el despliegue con un comando.
-- **Docker y LAN:** existe una opción interna probada con solicitudes simuladas para separar la escucha del contenedor de la dirección externa validada. No está conectada a Compose ni habilita acceso real; siguen pendientes TLS confiable, credenciales propias y transporte del PIN.
+- **Docker y LAN:** existe una opción interna probada con solicitudes simuladas para separar la escucha del contenedor de la dirección externa validada. El lanzador experimental puede recibir un secreto OAuth externo, pero no está conectado a Compose ni se han exportado credenciales reales. Siguen pendientes el montaje protegido, TLS confiable y credenciales propias.
 - **Pruebas:** consulta los resultados de GitHub Actions y las pruebas locales de la revisión concreta antes de afirmar que una versión pasa.
 
 ## Decisiones que condicionan el trabajo
