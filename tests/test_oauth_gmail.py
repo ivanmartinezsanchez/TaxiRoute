@@ -83,6 +83,8 @@ class PruebasOAuthGmail(unittest.TestCase):
         credenciales.refresh_token = "ficticio"
         credenciales.to_json.return_value = "alternativa-ficticia"
         autorizar_gmail(self.ruta, perfil="alternativo")
+        opciones = clase.from_client_secrets_file.return_value.run_local_server.call_args.kwargs
+        self.assertEqual(opciones["prompt"], "consent")
         self.almacen.set_password.assert_called_once_with(
             SERVICIO_ALMACEN, CLAVE_ALMACEN_ALTERNATIVA, "alternativa-ficticia")
 

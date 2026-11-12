@@ -69,6 +69,9 @@ def autorizar_gmail(ruta_cliente, *, cuenta_sugerida=None, perfil="principal"):
     }
     if cuenta_sugerida:
         opciones["login_hint"] = cuenta_sugerida
+    if perfil == "alternativo":
+        # Un consentimiento previo puede no devolver un nuevo token de renovación.
+        opciones["prompt"] = "consent"
     # El servidor de retorno no debe registrar la URL con el código OAuth.
     logger = logging.getLogger("google_auth_oauthlib.flow")
     filtro = _NoRegistrar()
