@@ -48,7 +48,8 @@ class PruebasLanzador(TestCase):
         arrancar(*self.argumentos)
         self.assertEqual(docker.call_args.args[0], ["start", "a" * 64])
         self._verificar_contenedor.assert_any_call(permitir_archivo=True, permitir_detenido=True,
-            rutas_esperadas={"/datos":self.datos, "/run/secrets/tls_certificado":self.cert, "/run/secrets/tls_clave":self.clave})
+            rutas_esperadas={"/datos":self.datos.resolve(), "/run/secrets/tls_certificado":self.cert.resolve(),
+                             "/run/secrets/tls_clave":self.clave.resolve()})
         proceso.assert_not_called(); self.cargar.assert_called_once()
 
     @patch("taxiroute.arrancar_windows.subprocess.run")
