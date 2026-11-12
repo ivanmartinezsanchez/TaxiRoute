@@ -26,3 +26,5 @@ Un recorrido posterior del Compose experimental con un cliente HTTPS de Windows 
 Después se ha corregido la autoridad del Compose local: la URL `https://127.0.0.1:18770` y el acceso de conductor se han probado desde un cliente HTTPS en Windows con certificado ficticio verificado. Sigue siendo experimental y no se ha probado con navegador, datos reales ni desde la red del taxi.
 
 El acceso administrativo con correo real se ha comprobado en un contenedor temporal con cuenta ficticia: se recibió el PIN y se accedió al panel. No equivale todavía a validar Compose con datos persistentes reales ni a una instalación de producción.
+
+Posteriormente se verificó el acceso administrativo con PIN por Gmail real en Compose, con cuentas ficticias y datos temporales. Quedan pendientes la preparación de una instalación de uso real, el acceso desde otro dispositivo y la gestión de la autorización después de reinicios o caducidad.
