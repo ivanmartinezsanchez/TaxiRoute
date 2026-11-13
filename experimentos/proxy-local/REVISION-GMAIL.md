@@ -41,6 +41,24 @@ Gmail**. Aún falta integrar un origen fiable de identidades, verificar los
 contenedores en torno a la transferencia con credenciales ficticias y
 comprobar la respuesta ante cambios durante el proceso.
 
+## Ensayo del transporte ficticio
+
+El script `experimentos/proxy-local/probar-transporte-ficticio.py` construye
+las imágenes y toma sus IDs antes de crear un proyecto Docker temporal.
+Comprueba ambos contenedores, sustituye el proxy y verifica que el mismo
+procedimiento de envío se detiene sin transmitir; después realiza un envío
+por stdin con un JSON sin validez para Gmail y comprueba el archivo temporal
+y la identidad posterior. No consulta el almacén ni conecta con Google.
+
+Para repetirlo en Windows, con Docker Desktop y el puerto 18771 libre:
+
+```powershell
+.venv\Scripts\python.exe experimentos\proxy-local\probar-transporte-ficticio.py
+```
+
+Esta prueba no hace atómicas las comprobaciones ni acredita la procedencia
+de las imágenes construidas. No autoriza la carga de credenciales reales.
+
 ## Siguiente diseño a comprobar
 
 El prototipo ya tiene imagen propia del proxy con configuración incorporada,
