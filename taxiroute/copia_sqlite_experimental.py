@@ -103,6 +103,8 @@ def restaurar_copia_sqlite(copia, destino):
     original ni debe utilizarse en paralelo con ella. Invalida también los
     códigos de recuperación, que requieren un procedimiento posterior. Las
     contraseñas, bloqueos y permisos pueden ser antiguos y requieren revisión.
+    Se rechaza una copia sin administrador habilitado y desbloqueado antes de
+    crear el destino; esto no permite recuperar aún una copia en ese estado.
     """
     copia, destino = _preparar_destino(copia, destino)
     marcador = copia / MARCADOR
@@ -110,6 +112,18 @@ def restaurar_copia_sqlite(copia, destino):
         raise CopiaSQLiteError("La copia no está marcada como completa.")
     with bloqueo_historial(copia / "servidor", espera=0):
         _validar(copia)
+        # No presentar como restauración utilizable una copia sin ninguna
+        # cuenta administradora habilitada y desbloqueada. La regeneración de
+        # códigos sigue pendiente; la copia original se conserva para revisión.
+        cuentas_origen = copia / "cuentas.sqlite3"
+        with closing(sqlite3.connect(cuentas_origen.resolve().as_uri() + "?mode=ro", uri=True)) as conexion:
+            disponible = conexion.execute("""SELECT 1 FROM usuarios
+                WHERE rol='administrador' AND habilitado=1 AND bloqueado_en IS NULL
+                  AND intentos_fallidos < 15 LIMIT 1""").fetchone()
+        if not disponible:
+            raise CopiaSQLiteError(
+                "La copia no tiene un administrador habilitado y desbloqueado; requiere revisión."
+            )
         destino.mkdir(mode=0o700)
         _copiar_archivos(copia, destino)
         cuentas = destino / "cuentas.sqlite3"
