@@ -59,3 +59,19 @@ ambas imágenes en memoria y comprueba HTTPS. Rechaza proyectos con
 contenedores existentes y no consulta Gmail. Se ha ensayado con Docker y
 datos ficticios. No es todavía el lanzador de entrega: los IDs no se guardan
 entre ejecuciones y no hay procedimiento de reinicio o reutilización.
+
+
+## Prueba de reinicios
+
+Con Docker Desktop y el puerto local 18771 libre, desde la raíz del proyecto:
+
+```bash
+python experimentos/proxy-local/probar-reinicios.py
+```
+
+El ensayo crea un proyecto temporal con datos ficticios y lo elimina al
+terminar. Comprueba la pérdida del contenido temporal del backend y la
+respuesta HTTPS tras reiniciar cada servicio. En el entorno probado, reiniciar
+solo el backend dejó de responder hasta reiniciar el proxy; esta observación
+puede depender del motor Docker. No prueba carreras activas ni el reinicio de
+Docker Desktop, y no automatiza la recuperación de la instalación real.
