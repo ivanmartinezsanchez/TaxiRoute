@@ -59,6 +59,19 @@ Para repetirlo en Windows, con Docker Desktop y el puerto 18771 libre:
 Esta prueba no hace atómicas las comprobaciones ni acredita la procedencia
 de las imágenes construidas. No autoriza la carga de credenciales reales.
 
+## Función de carga experimental
+
+`taxiroute/carga_proxy_experimental.py` exige una evidencia previa, vuelve a
+verificar ambos contenedores antes de consultar un proveedor inyectado y antes
+de transmitir, y comprueba la identidad y el archivo temporal después. Si falla
+tras intentar el envío, avisa de que pudo haberse realizado. Sus 12 pruebas
+simuladas y el ensayo Docker con JSON ficticio han pasado; en ese ensayo, la
+sustitución del proxy impide llamar tanto al proveedor como al transporte.
+
+No está conectada al almacén ni al lanzador, y todavía no es apta para
+credenciales reales. La identidad de las imágenes debe proceder de un proceso
+de construcción controlado; las verificaciones no forman una operación atómica.
+
 ## Siguiente diseño a comprobar
 
 El prototipo ya tiene imagen propia del proxy con configuración incorporada,

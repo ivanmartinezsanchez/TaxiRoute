@@ -12,14 +12,16 @@ import os
 import subprocess
 import sys
 import uuid
+from unittest.mock import Mock, patch
 
 RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ))
 from taxiroute.demo_sqlite_contenedor import preparar_demo_sqlite
 from taxiroute.oauth_gmail import ALCANCE_ENVIO
 from taxiroute.oauth_gmail_contenedor import _validar_contenido
-from taxiroute.cargar_gmail_windows import CARGADOR, _estado_archivo
-from taxiroute.verificador_proxy_experimental import VerificacionProxyError, verificar_composicion
+from taxiroute.cargar_gmail_windows import _docker, _estado_archivo
+from taxiroute.carga_proxy_experimental import CargaProxyAntesEnvio, cargar_proxy_experimental
+from taxiroute.verificador_proxy_experimental import verificar_composicion
 
 spec = spec_from_file_location("ensayo_proxy", Path(__file__).with_name("probar-integracion.py"))
 util = module_from_spec(spec)
@@ -33,7 +35,6 @@ def ejecutar(argumentos, *, entorno=None, entrada=None):
 
 def main():
     proyecto = "taxiroute-envio-" + uuid.uuid4().hex[:12]
-    enviados = 0
     with TemporaryDirectory(prefix="taxiroute-oauth-ficticio-") as temporal:
         base = Path(temporal)
         datos = preparar_demo_sqlite(base / "datos")
@@ -70,40 +71,33 @@ def main():
                 "scopes": [ALCANCE_ENVIO]}).encode("utf-8")
             _validar_contenido(ficticio)
 
-            def transmitir_si_estable(anterior):
-                nonlocal enviados
-                # La misma función se utiliza tanto en el rechazo como en el éxito.
-                verificar_composicion(**opciones, anterior=anterior)
-                destino = anterior.backend.identificador
-                if _estado_archivo(destino) != "ausente":
-                    raise RuntimeError("El destino dejó de estar vacío.")
-                # Tras intentar exec, un error no descarta una entrega parcial.
+            proveedor = Mock(return_value=ficticio.decode("utf-8"))
+            transporte = Mock(side_effect=_docker)
+
+            # Ambos recorridos invocan la misma función experimental de carga.
+            with patch("taxiroute.carga_proxy_experimental._docker", transporte):
+                ejecutar(compose + ["up", "-d", "--no-deps", "--force-recreate", "proxy"], entorno=entorno)
                 try:
-                    enviados += 1
-                    ejecutar(["docker", "exec", "-i", "--user", "10001:10001", "--workdir",
-                              "/app", destino, *CARGADOR], entrada=ficticio)
-                    verificar_composicion(**opciones, anterior=anterior)
-                    if _estado_archivo(destino) != "presente":
-                        raise RuntimeError
-                except Exception:
-                    raise RuntimeError("No se confirmó la prueba; el envío pudo haberse realizado.") from None
+                    cargar_proxy_experimental(**opciones, evidencia_esperada=evidencia, proveedor=proveedor)
+                except CargaProxyAntesEnvio:
+                    pass
+                else:
+                    raise AssertionError("No se detectó la sustitución del proxy.")
+                proveedor.assert_not_called()
+                transporte.assert_not_called()
+                if _estado_archivo(backend) != "ausente":
+                    raise AssertionError("La prueba rechazada modificó el archivo temporal.")
+                print("Sustitución del proxy: rechazada antes de leer o enviar.")
 
-            # Cambiar el proxy entre comprobaciones debe detener el envío.
-            ejecutar(compose + ["up", "-d", "--no-deps", "--force-recreate", "proxy"], entorno=entorno)
-            try:
-                transmitir_si_estable(evidencia)
-            except VerificacionProxyError:
-                pass
-            else:
-                raise AssertionError("No se detectó la sustitución del proxy.")
-            if enviados != 0 or _estado_archivo(backend) != "ausente":
-                raise AssertionError("Se realizó un envío durante el rechazo.")
-            print("Sustitución del proxy: rechazada antes del envío.")
-
-            evidencia = verificar_composicion(**opciones)
-            transmitir_si_estable(evidencia)
-            if enviados != 1:
-                raise AssertionError("Se esperaba exactamente un intento ficticio.")
+                evidencia = verificar_composicion(**opciones)
+                resultado = cargar_proxy_experimental(
+                    **opciones, evidencia_esperada=evidencia, proveedor=proveedor)
+                if resultado != evidencia:
+                    raise AssertionError("La evidencia cambió tras el envío.")
+                proveedor.assert_called_once_with()
+                transporte.assert_called_once()
+                if _estado_archivo(backend) != "presente":
+                    raise AssertionError("No se confirmó el archivo ficticio.")
             print("Transporte ficticio por stdin y archivo temporal: comprobados.")
         finally:
             subprocess.run(compose + ["down", "-v", "--remove-orphans", "--rmi", "local"],
