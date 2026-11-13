@@ -1,0 +1,80 @@
+# Experimento aislado: solo datos ficticios y publicación local.
+name: taxiroute-proxy-local-experimental
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: experimentos/proxy-local/Dockerfile.laboratorio
+    user: "10001:10001"
+    command:
+      - python
+      - -m
+      - taxiroute.servidor_proxy_experimental
+      - --cuentas
+      - /datos/cuentas.sqlite3
+      - --historial
+      - /datos/historial.sqlite3
+      - --tarifas
+      - /datos/tarifas.json
+      - --certificado
+      - /cert/interno.pem
+      - --clave
+      - /cert/interno.key
+      - --secreto-gmail
+      - /run/taxiroute/gmail_oauth.json
+    ports:
+      - "127.0.0.1:18771:18771"
+    volumes:
+      - type: bind
+        source: "${TAXIROUTE_PROXY_DATOS:?Indica datos ficticios}"
+        target: /datos
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CERT_INTERNO:?Indica archivo ficticio}"
+        target: /cert/interno.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CLAVE_INTERNA:?Indica archivo ficticio}"
+        target: /cert/interno.key
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp
+      - /run/taxiroute:rw,noexec,nosuid,nodev,uid=10001,gid=10001,mode=0700
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+  proxy:
+    image: nginx:stable-alpine
+    network_mode: "service:backend"
+    depends_on:
+      - backend
+    volumes:
+      - type: bind
+        source: "${TAXIROUTE_CERT_INTERNO:?Indica archivo ficticio}"
+        target: /cert/interno.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CERT_EXTERNO:?Indica archivo ficticio}"
+        target: /cert/externo.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CLAVE_EXTERNA:?Indica archivo ficticio}"
+        target: /cert/externo.key
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./experimentos/proxy-local/nginx-local-experimental.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
