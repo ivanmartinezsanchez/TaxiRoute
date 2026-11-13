@@ -49,3 +49,13 @@ python experimentos/proxy-local/probar-integracion.py
 ```
 
 La publicación en localhost limita el acceso desde el ordenador. Otros contenedores que compartan la red Docker del proyecto podrían alcanzar el proxy.
+
+
+## Primer arranque experimental
+
+`taxiroute.arranque_proxy_experimental.arrancar_proxy` prepara una composición
+nueva con rutas y certificados ficticios ya existentes, conserva los IDs de
+ambas imágenes en memoria y comprueba HTTPS. Rechaza proyectos con
+contenedores existentes y no consulta Gmail. Se ha ensayado con Docker y
+datos ficticios. No es todavía el lanzador de entrega: los IDs no se guardan
+entre ejecuciones y no hay procedimiento de reinicio o reutilización.
