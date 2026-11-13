@@ -26,6 +26,21 @@ enviado correo durante esta revisión.
   que impida un reinicio o sustitución durante toda la secuencia de inspección
   y carga.
 
+## Verificador aislado
+
+Existe `taxiroute/verificador_proxy_experimental.py` para comparar los dos
+contenedores con imágenes y rutas esperadas proporcionadas por quien lo llama.
+Devuelve su identidad y datos de arranque y puede rechazar cambios respecto a
+una comprobación anterior. Se ha comprobado con inspecciones ficticias y con
+contenedores Docker temporales; no consulta el almacén ni transmite secretos.
+La prueba de compatibilidad real obtuvo los IDs de los propios contenedores,
+por lo que no demuestra la cadena de confianza de una construcción controlada.
+
+El verificador es una fotografía y **no autoriza por sí solo la carga de
+Gmail**. Aún falta integrar un origen fiable de identidades, verificar los
+contenedores en torno a la transferencia con credenciales ficticias y
+comprobar la respuesta ante cambios durante el proceso.
+
 ## Siguiente diseño a comprobar
 
 El prototipo ya tiene imagen propia del proxy con configuración incorporada,
