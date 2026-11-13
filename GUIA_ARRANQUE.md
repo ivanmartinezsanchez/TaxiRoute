@@ -64,3 +64,23 @@ docker stop --timeout 10 taxiroute-temporal-experimental-taxiroute-1
 Este comando no borra la carpeta de datos. La parada bajo carga no está validada. Si el lanzador informa de un error, no borres ni recrees la instalación: revisa que Docker esté abierto, que las tres rutas correspondan a la instalación y que Gmail siga autorizado. Si el servicio quedó arrancado pero falló la carga del correo, el mensaje lo indica y puedes consultar la situación antes de volver a intentarlo.
 
 La aplicación está publicada solo en el ordenador. El acceso desde otro dispositivo de la red del taxi, la confianza TLS para ese dispositivo y la instalación para datos reales siguen pendientes. La autorización temporal puede ser accesible a administradores del equipo, al daemon Docker y a procesos del mismo usuario del contenedor; tmpfs no garantiza ausencia de swap o volcados.
+
+
+## Opción 3: instalación local con proxy experimental
+
+Esta variante arranca la instalación local en Docker mediante un proxy y conserva los datos de prueba entre arranques. Se ha comprobado en Windows con el acceso de administrador y correo autorizado. Sigue siendo experimental: no está validada para cobros ni datos reales, copias y restauración completas o acceso desde otros dispositivos.
+
+1. Abre Docker Desktop y espera a que esté funcionando.
+2. Abre una terminal de Windows en la carpeta del proyecto. Comprueba que existe el entorno virtual `.venv` y que el perfil de Gmail ya está autorizado en Windows.
+3. Ejecuta:
+
+   ```cmd
+   iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
+   ```
+
+4. Accede a `https://127.0.0.1:18771/`. El certificado es autofirmado, por lo que el navegador puede mostrar una advertencia.
+5. Entra con tus propias credenciales. El código de verificación se envía al correo configurado para el administrador; no lo compartas. Guarda también los códigos de recuperación en privado.
+
+El primer arranque solicita los datos del administrador. Los siguientes intentan reutilizar la instalación sin recrearla. La opción `--conectar-gmail` solicita expresamente cargar el perfil autorizado cuando falta; si ya existe un archivo temporal, el lanzador avisa de que no ha comprobado su identidad ni vigencia. El acceso administrativo puede fallar si la autorización ha caducado o ha sido revocada.
+
+Antes de detener Docker, finaliza las carreras y comprueba que se hayan guardado. Una interrupción puede requerir revisión: la aplicación ofrece cerrar al último punto fiable sin cobrar automáticamente el intervalo desconocido. La recuperación se ha probado con carreras ficticias y no equivale a garantizar una recuperación completa de datos reales. Si el arranque informa de un error, conserva la carpeta y revisa el problema antes de borrar o recrear nada.

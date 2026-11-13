@@ -1,6 +1,12 @@
 # Estado de entrega de TaxiRoute
 
-Actualizado el 11 de noviembre de 2026. Fecha de entrega indicada: 15 de noviembre de 2026. Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
+Actualizado el 14 de noviembre de 2026. Fecha de entrega indicada: 15 de noviembre de 2026. Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
+
+## Avance del 14 de noviembre
+
+- Se ha reutilizado la instalación local con los servicios detenidos y se ha cargado el perfil Gmail autorizado. El acceso administrativo con el correo corregido se ha comprobado manualmente.
+- Se han ejecutado 65 pruebas del proxy en Windows: 64 correctas y una omitida. El acceso sigue limitado al equipo local y usa un certificado autofirmado.
+- El commit local `45b0c1c` recoge la reutilización y recuperación experimental. No constituye todavía una versión validada para cobros reales, copias y restauración completas o acceso desde otros dispositivos.
 
 ## Avance del 13 de noviembre
 
@@ -23,7 +29,7 @@ Actualizado el 11 de noviembre de 2026. Fecha de entrega indicada: 15 de noviemb
 
 ## Trabajo local de reutilización y recuperación
 
-Cambios todavía sin commit por decisión del proyecto. Se ha preparado un
+Los cambios están registrados en el commit local `45b0c1c`. Se ha preparado un
 manifiesto experimental que conserva IDs y rutas sin guardar claves ni tokens,
 rechaza información parcial o certificados públicos cambiados y no sobrescribe
 archivos existentes. La reutilización verifica ambos contenedores incluso
@@ -46,7 +52,7 @@ cuenta ficticia: primer arranque y reapertura, contraseña oculta y
 verificación de permisos. Una carpeta ficticia con acceso adicional fue
 rechazada antes de crear la instalación. La batería local más reciente ha
 pasado 898 pruebas en Windows (3 omitidas) y 898 en Linux aislado (21
-omitidas). No se han creado commits de estos cambios.
+omitidas). Los cambios se han registrado en un commit local; aún no se han publicado en GitHub.
 
 La integración sigue en desarrollo: no está conectada al lanzador habitual ni
 a una instalación propia definitiva con Gmail; no se ha comprobado el reinicio de Windows, ni los
