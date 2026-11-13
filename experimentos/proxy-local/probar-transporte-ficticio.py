@@ -21,6 +21,7 @@ from taxiroute.oauth_gmail import ALCANCE_ENVIO
 from taxiroute.oauth_gmail_contenedor import _validar_contenido
 from taxiroute.cargar_gmail_windows import _docker, _estado_archivo
 from taxiroute.carga_proxy_experimental import CargaProxyAntesEnvio, cargar_proxy_experimental
+from taxiroute.arranque_proxy_experimental import arrancar_proxy
 from taxiroute.verificador_proxy_experimental import verificar_composicion
 
 spec = spec_from_file_location("ensayo_proxy", Path(__file__).with_name("probar-integracion.py"))
@@ -34,7 +35,15 @@ def ejecutar(argumentos, *, entorno=None, entrada=None):
 
 
 def main():
-    proyecto = "taxiroute-envio-" + uuid.uuid4().hex[:12]
+    proyecto = "taxiroute-envio-" + uuid.uuid4().hex
+    # No se limpia un proyecto que existiera antes de este ensayo.
+    for tipo, formato in (("ps", "{{.ID}}"), ("network", "{{.ID}}"), ("volume", "{{.Name}}")):
+        comando = (["docker", "ps", "-a"] if tipo == "ps"
+                   else ["docker", tipo, "ls"])
+        salida = ejecutar(comando + ["--filter", "label=com.docker.compose.project=" + proyecto,
+                                    "--format", formato])
+        if salida.strip():
+            raise RuntimeError("Ya existen recursos con el nombre del ensayo.")
     with TemporaryDirectory(prefix="taxiroute-oauth-ficticio-") as temporal:
         base = Path(temporal)
         datos = preparar_demo_sqlite(base / "datos")
@@ -47,17 +56,13 @@ def main():
                    "TAXIROUTE_CERT_EXTERNO": str(externo), "TAXIROUTE_CLAVE_EXTERNA": str(clave_e)}
         compose = ["docker", "compose", "-p", proyecto, "-f", str(util.COMPOSE)]
         try:
-            # La prueba obtiene las identidades de sus imágenes antes de crear
-            # contenedores. Esto no acredita procedencia ni protege ante Docker hostil.
-            ejecutar(compose + ["build"], entorno=entorno)
-            imagenes = {}
-            for servicio in ("backend", "proxy"):
-                salida = ejecutar(["docker", "image", "inspect", f"{proyecto}-{servicio}",
-                                   "--format", "{{.Id}}"])
-                imagenes[servicio] = salida.decode("ascii").strip()
-            ejecutar(compose + ["up", "-d", "--no-build"], entorno=entorno)
+            # El arranque comprueba TLS y captura IDs antes de crear servicios.
+            # Los IDs no acreditan procedencia ni protegen frente a Docker hostil.
+            arranque = arrancar_proxy(proyecto=proyecto, **rutas)
+            imagenes = {"backend": arranque.imagen_backend, "proxy": arranque.imagen_proxy}
             opciones = dict(proyecto=proyecto, imagenes_esperadas=imagenes, rutas_esperadas=rutas)
-            evidencia = verificar_composicion(**opciones)
+            evidencia = arranque.evidencia
+            print("Primer arranque ficticio con HTTPS e identidades: comprobado.")
             backend = evidencia.backend.identificador
             if _estado_archivo(backend) != "ausente":
                 raise RuntimeError("La instalación de prueba no empezó vacía.")

@@ -43,8 +43,9 @@ comprobar la respuesta ante cambios durante el proceso.
 
 ## Ensayo del transporte ficticio
 
-El script `experimentos/proxy-local/probar-transporte-ficticio.py` construye
-las imágenes y toma sus IDs antes de crear un proyecto Docker temporal.
+El script `experimentos/proxy-local/probar-transporte-ficticio.py` utiliza el
+primer arranque experimental para construir las imágenes y tomar sus IDs antes
+de crear un proyecto Docker temporal; también comprueba HTTPS local.
 Comprueba ambos contenedores, sustituye el proxy y verifica que el mismo
 procedimiento de envío se detiene sin transmitir; después realiza un envío
 por stdin con un JSON sin validez para Gmail y comprueba el archivo temporal
