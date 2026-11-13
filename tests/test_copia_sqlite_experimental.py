@@ -11,6 +11,8 @@ from taxiroute.copia_sqlite_experimental import (
 )
 from taxiroute.instalacion_inicial import preparar_instalacion
 from taxiroute.bloqueo import bloqueo_historial, HistorialOcupado
+from taxiroute.codigos_recuperacion_experimentales import _verificador
+from taxiroute.recuperacion_admin_experimental import RecuperacionDenegada, recuperar_administrador
 
 
 class PruebasCopiaSQLite(unittest.TestCase):
@@ -18,10 +20,15 @@ class PruebasCopiaSQLite(unittest.TestCase):
         self.temporal = TemporaryDirectory(prefix="taxi-copia-")
         self.addCleanup(self.temporal.cleanup)
         self.base = Path(self.temporal.name).resolve()
+        self.codigos = []
+        def confirmar_codigos(codigos):
+            self.codigos.extend(codigos)
+            return len(codigos) == 5
+
         self.datos = preparar_instalacion(
             self.base / "instalacion", usuario="AdminPrueba", nombre="Administrador prueba",
             correo="demo@example.invalid", contrasena="SeguraPrueba123!",
-            confirmar_codigos=lambda codigos: len(codigos) == 5,
+            confirmar_codigos=confirmar_codigos,
         ).datos
         self.copia = self.base / "copia"
         self.restaurada = self.base / "restaurada"
@@ -48,6 +55,41 @@ class PruebasCopiaSQLite(unittest.TestCase):
                     filas = c.execute(f"SELECT {columna} FROM {tabla}").fetchall()
                     self.assertTrue(filas)
                     self.assertTrue(all((fila[0] is not None) == revocada for fila in filas))
+
+    def test_restauracion_invalida_codigo_y_no_modifica_origen_bloqueado(self):
+        cuentas = self.datos / "cuentas.sqlite3"
+        with closing(sqlite3.connect(cuentas)) as c, c:
+            usuario = c.execute("SELECT id FROM usuarios").fetchone()[0]
+            c.execute("""UPDATE usuarios SET intentos_fallidos=15, bloqueado_en=?,
+                         proximo_intento_en=NULL WHERE id=?""", ("2026-11-01T00:00:00+00:00", usuario))
+        def estado(ruta):
+            with closing(sqlite3.connect(ruta)) as c:
+                return (
+                    c.execute("SELECT * FROM usuarios").fetchall(),
+                    c.execute("SELECT * FROM codigos_recuperacion ORDER BY verificador").fetchall(),
+                    c.execute("SELECT * FROM auditoria_cuentas").fetchall(),
+                )
+        original = estado(cuentas)
+        verificador = _verificador(usuario, self.codigos[0])
+        with closing(sqlite3.connect(cuentas)) as c:
+            self.assertEqual(c.execute("""SELECT usado_en, invalidado_en FROM codigos_recuperacion
+                WHERE usuario_id=? AND verificador=?""", (usuario, verificador)).fetchone(), (None, None))
+        crear_copia_sqlite(self.datos, self.copia)
+        restaurar_copia_sqlite(self.copia, self.restaurada)
+        restaurada = self.restaurada / "cuentas.sqlite3"
+        with self.assertRaises(RecuperacionDenegada):
+            recuperar_administrador(restaurada, "AdminPrueba", "SeguraPrueba123!", self.codigos[0])
+        with closing(sqlite3.connect(restaurada)) as c:
+            bloqueado, fallos = c.execute(
+                "SELECT bloqueado_en, intentos_fallidos FROM usuarios WHERE id=?", (usuario,)
+            ).fetchone()
+            codigo = c.execute("""SELECT usado_en, invalidado_en FROM codigos_recuperacion
+                WHERE usuario_id=? AND verificador=?""", (usuario, verificador)).fetchone()
+        self.assertIsNotNone(bloqueado)
+        self.assertEqual(fallos, 16)
+        self.assertIsNone(codigo[0])
+        self.assertIsNotNone(codigo[1])
+        self.assertEqual(estado(cuentas), original)
 
     def test_fallo_de_copia_deja_carpeta_incompleta_sin_marcar(self):
         with patch("taxiroute.copia_sqlite_experimental._copiar_archivos", side_effect=OSError("fallo simulado")):
