@@ -1,9 +1,6 @@
 # Preparación del correo en la variante con proxy
 
-Esta nota recoge la revisión y el ensayo del 13 de noviembre de 2026. La variante con proxy
-es experimental y no debe recibir credenciales de Gmail hasta completar y
-comprobar una integración específica. No se ha accedido al almacén ni se ha
-enviado correo durante esta revisión.
+Esta nota recoge el trabajo del 13 de noviembre de 2026. La variante con proxy es experimental. La revisión inicial no accedió al almacén; posteriormente se probó la carga temporal del perfil autorizado sin enviar correos. Aún no existe una instalación definitiva validada.
 
 ## Puntos pendientes
 
@@ -72,6 +69,15 @@ sustitución del proxy impide llamar tanto al proveedor como al transporte.
 No está conectada al almacén ni al lanzador, y todavía no es apta para
 credenciales reales. La identidad de las imágenes debe proceder de un proceso
 de construcción controlado; las verificaciones no forman una operación atómica.
+
+## Comprobación temporal del perfil autorizado
+
+Se ha cargado el perfil ya autorizado desde el almacén de Windows en una
+instalación SQLite temporal con cuenta ficticia. Se detuvieron los servicios
+y se comprobó la recarga tras reutilizarlos. No se enviaron correos ni se
+mostró el contenido de la credencial; los recursos temporales se eliminaron.
+La prueba comprueba presencia y recarga, no la identidad o vigencia del
+perfil ni la recepción de mensajes. No equivale a una instalación definitiva.
 
 ## Siguiente diseño a comprobar
 

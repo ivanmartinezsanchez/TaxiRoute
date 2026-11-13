@@ -23,6 +23,7 @@ class EstadoContenedor:
     imagen: str
     iniciado: str
     reinicios: int
+    activo: bool = True
 
 
 @dataclass(frozen=True)
@@ -92,12 +93,13 @@ def _verificar_montajes(contenedor, esperados):
             raise ValueError("Montaje no válido.")
 
 
-def _comprobar(servicio, contenedor, imagen, esperado, proyecto, montajes):
+def _comprobar(servicio, contenedor, imagen, esperado, proyecto, montajes, *, permitir_detenidos=False):
     identificador = contenedor["Id"]
     estado, config, host = contenedor["State"], contenedor["Config"], contenedor["HostConfig"]
     if (not isinstance(identificador, str) or not _ID.fullmatch(identificador)
             or contenedor["Image"] != esperado or imagen["Id"] != esperado
-            or estado["Status"] != "running" or estado["Running"] is not True
+            or not ((estado["Status"] == "running" and estado["Running"] is True)
+                    or (permitir_detenidos and estado["Status"] == "exited" and estado["Running"] is False))
             or estado["Paused"] is not False or estado["Restarting"] is not False
             or estado["Dead"] is not False or not isinstance(estado["StartedAt"], str)
             or not estado["StartedAt"].endswith("Z")
@@ -121,10 +123,10 @@ def _comprobar(servicio, contenedor, imagen, esperado, proyecto, montajes):
             or host.get("UTSMode") != ""):
         raise ValueError("Aislamiento no válido.")
     _verificar_montajes(contenedor, montajes)
-    return EstadoContenedor(identificador, esperado, estado["StartedAt"], contenedor["RestartCount"])
+    return EstadoContenedor(identificador, esperado, estado["StartedAt"], contenedor["RestartCount"], estado["Running"])
 
 
-def verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None):
+def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None, permitir_detenidos=False):
     """Devuelve identidad y arranque observados, sin acceso al almacén OAuth.
 
     Las imágenes deben indicarse por ID inmutable obtenido fuera de esta función,
@@ -162,7 +164,8 @@ def verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, ante
             img = _inspeccion(["image", "inspect", imagenes_esperadas[servicio]])
             if c["Id"] != ids[0]:
                 raise ValueError("El contenedor cambió.")
-            evidencia = _comprobar(servicio, c, img, imagenes_esperadas[servicio], proyecto, montajes[servicio])
+            evidencia = _comprobar(servicio, c, img, imagenes_esperadas[servicio], proyecto, montajes[servicio],
+                                   permitir_detenidos=permitir_detenidos)
             contenedores[servicio], evidencias[servicio] = c, evidencia
 
         b, p = contenedores["backend"], contenedores["proxy"]
@@ -189,3 +192,23 @@ def verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, ante
     except (ValueError, TypeError, KeyError, IndexError, OSError, UnicodeError,
             subprocess.SubprocessError, json.JSONDecodeError) as exc:
         raise VerificacionProxyError("No se pudo verificar la composición experimental.") from exc
+
+
+def verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None):
+    """Verifica exclusivamente servicios activos para la carga experimental."""
+    return _verificar_composicion(proyecto=proyecto, imagenes_esperadas=imagenes_esperadas,
+        rutas_esperadas=rutas_esperadas, anterior=anterior)
+
+
+def verificar_para_reutilizar(*, proyecto, imagenes_esperadas, rutas_esperadas, contenedores_esperados):
+    """Inspecciona activos o detenidos sin iniciarlos ni autorizar credenciales."""
+    if (not isinstance(contenedores_esperados, dict)
+            or set(contenedores_esperados) != {"backend", "proxy"}
+            or not all(isinstance(v, str) and _ID.fullmatch(v) for v in contenedores_esperados.values())):
+        raise VerificacionProxyError("Faltan identificadores confiables de los contenedores.")
+    actual = _verificar_composicion(proyecto=proyecto, imagenes_esperadas=imagenes_esperadas,
+        rutas_esperadas=rutas_esperadas, permitir_detenidos=True)
+    if (actual.backend.identificador != contenedores_esperados["backend"]
+            or actual.proxy.identificador != contenedores_esperados["proxy"]):
+        raise VerificacionProxyError("Los contenedores no coinciden con la instalación.")
+    return actual

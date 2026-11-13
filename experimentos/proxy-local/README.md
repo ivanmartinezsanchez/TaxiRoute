@@ -7,7 +7,7 @@ Requiere Docker Desktop y conexión para construir la imagen y descargar depende
     $repositorio = (Resolve-Path (Join-Path (Get-Location) "..\..")).Path
     docker build -f (Join-Path (Get-Location) "Dockerfile.laboratorio") -t taxiroute-proxy-lab:local $repositorio
 
-Se usa el archivo .dockerignore del repositorio para filtrar el contexto; revísalo si se añaden archivos sensibles. Gunicorn está fijado a 27.0.0. La imagen base, Nginx y el resto de dependencias no están fijados a un digest ni a versiones exactas, por lo que la construcción no es completamente determinista.
+Se usa el archivo .dockerignore del repositorio para filtrar el contexto; revísalo si se añaden archivos sensibles. La base de Python está fijada por digest y las dependencias del backend por versiones exactas en `requirements-docker.lock`. Este laboratorio conserva una etiqueta mutable de Nginx; los paquetes no están fijados por hashes, por lo que la construcción no es completamente determinista ni acredita por sí sola la procedencia.
 
 Desde esta carpeta, usa un nombre de proyecto exclusivo, por ejemplo:
 
@@ -19,4 +19,4 @@ El último comando elimina los contenedores y el volumen de ese proyecto Compose
 
 La prueba conserva el Host externo, rechaza autoridades y orígenes incorrectos, comprueba inicio de sesión y atributos de cookie, dos conductores concurrentes con historiales aislados y doce conexiones TLS incompletas. Los certificados temporales son ficticios y se verifican en ambos tramos; el backend usa puerto 18772 y la autoridad pública simulada es 127.0.0.1:18771.
 
-Limitaciones: usa imagen base, Nginx y dependencias sin fijar por completo ni verificadas para producción; arranca el backend como root; utiliza el mismo certificado y clave de prueba en proxy y backend; el certificado no establece confianza en dispositivos; no prueba Gmail, datos reales, reinicios, restauración, carga sostenida ni acceso LAN. Una limitación de tiempo no impide toda denegación de servicio. No está integrado en el lanzador ni en la entrega y necesita revisión antes de aplicarlo.
+Limitaciones: usa Nginx con etiqueta mutable y dependencias sin hashes ni verificadas para producción; arranca el backend como root; utiliza el mismo certificado y clave de prueba en proxy y backend; el certificado no establece confianza en dispositivos; no prueba Gmail, datos reales, reinicios, restauración, carga sostenida ni acceso LAN. Una limitación de tiempo no impide toda denegación de servicio. No está integrado en el lanzador ni en la entrega y necesita revisión antes de aplicarlo.

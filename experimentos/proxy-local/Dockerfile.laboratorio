@@ -1,8 +1,8 @@
 # Solo para el laboratorio aislado con datos ficticios; no es producción.
-FROM python:3.13-slim
+FROM python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY requirements.txt /app/requirements.txt
-RUN python -m pip install --no-cache-dir -r /app/requirements.txt "gunicorn==27.0.0"
+COPY requirements-docker.lock /app/requirements-docker.lock
+RUN python -m pip install --no-cache-dir --no-deps -r /app/requirements-docker.lock && python -m pip check
 COPY taxiroute/ /app/taxiroute/
 COPY configuracion/tarifas.json /app/configuracion/tarifas.json

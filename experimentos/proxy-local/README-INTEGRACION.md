@@ -11,13 +11,10 @@ La aplicación utiliza una carpeta de cuentas, historial y tarifas ya creada
 mediante las herramientas de prueba; las rutas del Compose se proporcionan
 con TAXIROUTE_PROXY_DATOS, TAXIROUTE_CERT_INTERNO, TAXIROUTE_CLAVE_INTERNA,
 TAXIROUTE_CERT_EXTERNO y TAXIROUTE_CLAVE_EXTERNA. No se crean ni migran cuentas.
-La clave temporal de Gmail se busca en /run/taxiroute/gmail_oauth.json, pero el
-cargador existente verifica otro comando y aún no admite esta composición:
-el acceso administrativo mediante correo no está integrado ni probado aquí.
+La autorización temporal se busca en /run/taxiroute/gmail_oauth.json. La entrada experimental admite `--conectar-gmail` de forma explícita y verifica permisos y contenedores antes de consultar el perfil. La carga y recarga se han probado con un almacén simulado y con el perfil autorizado en una instalación temporal, sin enviar correo; no se ha validado todavía una instalación definitiva.
 
 No sustituye la demo ni el primer arranque. El proxy recibe su clave externa y solo el certificado público del backend.
-Se ejecuta como usuario 101, con raíz de solo lectura y sin capacidades; su configuración se incorpora a la imagen y su base está fijada por digest. No se han fijado
-todas las versiones ni revisado certificados confiables, cierre bajo carga,
+Se ejecuta como usuario 101, con raíz de solo lectura y sin capacidades; su configuración se incorpora a la imagen y su base está fijada por digest. La base de Python también tiene digest y las dependencias tienen versiones exactas, pero no hashes; faltan certificados confiables, cierre bajo carga,
 recuperación, Gmail o exposición a la red. No usar para cobros o datos reales.
 
 ## Prueba reproducible en Windows
@@ -75,3 +72,35 @@ respuesta HTTPS tras reiniciar cada servicio. En el entorno probado, reiniciar
 solo el backend dejó de responder hasta reiniciar el proxy; esta observación
 puede depender del motor Docker. No prueba carreras activas ni el reinicio de
 Docker Desktop, y no automatiza la recuperación de la instalación real.
+
+
+## Prueba local de reutilización y recuperación
+
+Con Docker Desktop abierto, el entorno virtual activo y el puerto 18771 libre:
+
+```bash
+python experimentos/proxy-local/probar-reutilizacion.py
+```
+
+Se crean datos, cuentas y un archivo de correo ficticios en una instalación
+temporal. El ensayo comprueba reapertura, interrupciones de carrera, revisión
+del último punto fiable y recuperación del proxy. Sus recursos temporales se
+eliminan al terminar.
+
+También se ha probado `--reiniciar-desktop`, que reinicia Docker Desktop
+durante una carrera ficticia. Esta opción afecta al servicio Docker del
+equipo y aborta si detecta otros contenedores activos; no la uses si alguien
+más está utilizando Docker. Los resultados no equivalen a una prueba de
+reinicio de Windows ni autorizan datos o credenciales reales.
+
+
+## Entrada separada de prueba
+
+`python -m taxiroute.iniciar_proxy_local_experimental` prepara una instalación
+nueva propia y luego puede reutilizarla; se ha comprobado interactivamente en
+Windows con una cuenta ficticia. Por defecto utiliza una carpeta distinta de
+la instalación anterior y no importa sus datos. Si encuentra una carpeta
+existente sin identidad proxy completa, se detiene y pide revisión.
+
+Esta entrada no consulta Gmail salvo con la opción explícita `--conectar-gmail`, probada con perfil ficticio y con el perfil autorizado en una instalación temporal sin enviar correos. No sustituye `iniciar-taxiroute.cmd` y solo debe utilizarse con datos de prueba. No está validada para el despliegue
+definitivo, los permisos de archivos reales ni la red del taxi.

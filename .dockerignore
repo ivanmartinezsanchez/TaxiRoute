@@ -1,6 +1,7 @@
 # Enviar al proceso de construcción solo los archivos de ejecución.
 **
 !requirements.txt
+!requirements-docker.lock
 !taxiroute/
 !taxiroute/**
 !configuracion/

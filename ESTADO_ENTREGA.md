@@ -18,7 +18,44 @@ Actualizado el 11 de noviembre de 2026. Fecha de entrega indicada: 15 de noviemb
 - El primer arranque experimental del proxy valida rutas y certificados con claves distintas, captura IDs de imagen antes de crear contenedores y comprueba HTTPS. Se ha probado con Docker ficticio y rechaza un segundo arranque sin detener los servicios; sus ocho pruebas y las seis del lanzador anterior pasan en Windows. No consulta Gmail, conserva IDs solo en memoria y no admite aún reinicios o reutilización; no es el lanzador final.
 - La prueba conjunta usa ahora el primer arranque experimental y la función de carga: comprueba HTTPS y, con datos ficticios, rechaza la sustitución del proxy antes de leer o enviar y carga una vez el JSON de prueba. No accede al almacén ni Gmail; faltan persistencia y procedencia verificable de IDs, reinicios y validación de la instalación final.
 - En Docker con datos ficticios, reiniciar solo el proxy conservó el acceso HTTPS; reiniciar solo el backend dejó ambos contenedores activos pero HTTPS dejó de responder y tmpfs se vació. Reiniciar después el proxy recuperó HTTPS sin reiniciar otra vez el backend; también se recuperó al detener ambos y arrancar primero el backend y después el proxy. No se probó una carrera activa ni el reinicio de Docker Desktop. El arranque final debe detectar esta situación; no basta comprobar que ambos contenedores están activos.
+- La imagen experimental del backend fija ahora la base Python por digest y sus dependencias por versiones exactas; se ha reconstruido y la prueba de reutilización con datos ficticios ha pasado. Los paquetes no están fijados por hashes y la identidad capturada no acredita por sí sola la procedencia.
 - Se cuenta con móvil y tablet para una futura prueba en la misma red. Todavía no se ha habilitado ni validado el acceso LAN con TLS confiable.
+
+## Trabajo local de reutilización y recuperación
+
+Cambios todavía sin commit por decisión del proyecto. Se ha preparado un
+manifiesto experimental que conserva IDs y rutas sin guardar claves ni tokens,
+rechaza información parcial o certificados públicos cambiados y no sobrescribe
+archivos existentes. La reutilización verifica ambos contenedores incluso
+detenidos, coordina intentos que comparten carpeta y arranca sin recrear.
+Puede recuperar el proxy si HTTPS deja de responder, y recargar la autorización
+solo mediante un proveedor inyectado después de comprobar el destino.
+
+Con Docker Desktop para Windows, cuentas y correo ficticios se ha probado el
+cierre y reapertura, una interrupción forzada y un reinicio del backend con
+carreras activas. Se confirmó manualmente cada revisión y que el final y el
+importe coinciden con el último punto fiable. También se reinició Docker
+Desktop durante otra carrera ficticia, tras comprobar que no había otros
+contenedores activos: se recuperaron el historial, la carrera para revisión y
+la autorización ficticia.
+
+Existe una entrada independiente `python -m taxiroute.iniciar_proxy_local_experimental`; su primer arranque interactivo y posterior reutilización se han probado con cuenta y datos ficticios. No reemplaza al lanzador habitual. Con `--conectar-gmail` consulta el perfil autorizado solo tras comprobar permisos e identidades; la carga y recarga se han probado con proveedor ficticio y con el perfil autorizado real en una instalación temporal, sin enviar correo. Esa instalación temporal se ha eliminado.
+
+El acceso experimental de Windows se ha comprobado interactivamente con una
+cuenta ficticia: primer arranque y reapertura, contraseña oculta y
+verificación de permisos. Una carpeta ficticia con acceso adicional fue
+rechazada antes de crear la instalación. La batería local más reciente ha
+pasado 898 pruebas en Windows (3 omitidas) y 898 en Linux aislado (21
+omitidas). No se han creado commits de estos cambios.
+
+La integración sigue en desarrollo: no está conectada al lanzador habitual ni
+a una instalación propia definitiva con Gmail; no se ha comprobado el reinicio de Windows, ni los
+permisos de una instalación real concreta. Las inspecciones y el reinicio del proxy
+no son atómicos y pueden interrumpir solicitudes; los bloqueos solo coordinan
+los procesos que comparten la misma carpeta y los respetan. Los IDs detectan
+cambios pero no acreditan la procedencia de las imágenes ni protegen frente a
+administradores del equipo o Docker. Las pruebas no acreditan uso real ni
+acceso de móvil o tablet.
 
 ## Lo que existe
 

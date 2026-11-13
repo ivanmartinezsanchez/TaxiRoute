@@ -39,10 +39,10 @@ def _comprobar_requisitos():
         raise ErrorPrimerArranque("Comprueba que Docker Desktop esté abierto y que Gmail esté autorizado en Windows.") from None
 
 
-def _crear(carpeta):
+def _crear(carpeta, *, comprobar_requisitos=None):
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise ErrorPrimerArranque("Para crear la cuenta necesitas una terminal interactiva.")
-    _comprobar_requisitos()
+    (_comprobar_requisitos if comprobar_requisitos is None else comprobar_requisitos)()
     print("Primera ejecución: se creará una instalación nueva, sin importar datos anteriores.")
     print("La contraseña temporal debe tener al menos 12 caracteres, una mayúscula, tres minúsculas, tres números y un símbolo.")
     usuario = input("Usuario administrador [Admin]: ").strip() or "Admin"
