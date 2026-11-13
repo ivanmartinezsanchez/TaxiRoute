@@ -5,7 +5,7 @@ Actualizado el 14 de noviembre de 2026. Fecha de entrega indicada: 15 de noviemb
 ## Avance del 14 de noviembre
 
 - Se ha reutilizado la instalación local con los servicios detenidos y se ha cargado el perfil Gmail autorizado. El acceso administrativo con el correo corregido se ha comprobado manualmente.
-- Se han ejecutado 65 pruebas del proxy en Windows: 64 correctas y una omitida. El acceso sigue limitado al equipo local y usa un certificado autofirmado.
+- En Windows se han ejecutado 898 pruebas automatizadas: 895 correctas y tres omitidas. Incluyen las pruebas del proxy; no sustituyen la comprobación de acceso desde otros dispositivos ni una prueba completa con datos reales. El acceso sigue limitado al equipo local y usa un certificado autofirmado.
 - El commit local `45b0c1c` recoge la reutilización y recuperación experimental. No constituye todavía una versión validada para cobros reales, copias y restauración completas o acceso desde otros dispositivos.
 
 ## Avance del 13 de noviembre
