@@ -4,6 +4,7 @@ Actualizado el 14 de noviembre de 2026. Fecha de entrega indicada: 15 de noviemb
 
 ## Avance del 14 de noviembre
 
+- Existe un segundo ensayo de restauración en Windows: compara la copia con una instalación de referencia detenida, exige la contraseña y un código vigentes en la copia, invalida los códigos antiguos en el destino y genera otros. Tras un fallo conserva una carpeta identificada como incompleta y no publica el destino final. Las 16 pruebas de copia y recuperación han pasado con datos ficticios. No valida que la referencia sea la versión más reciente, no recupera por sí solo una instalación perdida o dañada, no verifica ACL efectivas del destino y no protege frente a procesos que ignoren los bloqueos. No está integrado en el lanzador ni es apto para datos reales.
 - La restauración experimental rechaza una copia sin administrador habilitado y desbloqueado antes de crear el destino. Nueve pruebas con datos ficticios han pasado; sigue sin regenerar los códigos y no permite recuperar todavía una copia con todos los administradores bloqueados o deshabilitados.
 - Se ha reutilizado la instalación local con los servicios detenidos y se ha cargado el perfil Gmail autorizado. El acceso administrativo con el correo corregido se ha comprobado manualmente.
 - En Windows se han ejecutado 898 pruebas automatizadas: 895 correctas y tres omitidas. Incluyen las pruebas del proxy; no sustituyen la comprobación de acceso desde otros dispositivos ni una prueba completa con datos reales. El acceso sigue limitado al equipo local y usa un certificado autofirmado.
