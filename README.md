@@ -2,11 +2,11 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado: fases 1 y 2 implementadas, probadas e integradas en main.** La aplicación permite gestionar carreras desde la terminal y consultar un historial local.
+> **Estado:** las fases 1 y 2 están integradas en `main`; la fase 3 se cerró como demostración académica local y la fase 4 se desarrolla en `feature/fase-4-produccion`. La instalación definitiva, el acceso desde la red del taxi y su validación siguen pendientes. Consulta el [estado de entrega](ESTADO_ENTREGA.md) para los detalles.
 
 ## Qué problema aborda
 
-TaxiRoute calcula el importe de una carrera según el tiempo transcurrido en dos estados indicados por el conductor: parado y en movimiento. Permite cerrar una carrera y comenzar otra sin reiniciar el programa. La fase 2 añade historial persistente, configuración de tarifas y registros de actividad. La autenticación y las interfaces visuales corresponden a entregas posteriores.
+TaxiRoute calcula el importe de una carrera según el tiempo transcurrido en dos estados indicados por el conductor: parado y en movimiento. Permite cerrar una carrera y comenzar otra sin reiniciar el programa. La fase 2 añade historial persistente, configuración de tarifas y registros de actividad. Las fases posteriores incorporan una interfaz web y acceso protegido en configuraciones separadas; sus límites se detallan más abajo.
 
 El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s en movimiento**. La velocidad no se medirá automáticamente: el cambio de estado será manual salvo que se acuerde otra cosa. Estas cifras y reglas son datos docentes; no están verificadas como tarifas vigentes ni como un sistema homologado para cobros reales.
 
@@ -16,8 +16,8 @@ El prototipo usa las tarifas del ejercicio: **0,02 €/s parado** y **0,05 €/s
 |---|---|---|
 | 1 | Aplicación de terminal: iniciar, cambiar estado, finalizar y repetir carreras | Implementada y probada |
 | 2 | Historial persistente, registros, tarifas configurables y pruebas | Completada e integrada |
-| 3 | Componentes orientados a objetos, acceso protegido e interfaz táctil para flota | En desarrollo en la rama de fase 3 |
-| 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | Componentes experimentales en desarrollo |
+| 3 | Componentes orientados a objetos, acceso protegido e interfaz táctil para flota | Cerrada como demostración académica local; validación física en tablet pendiente |
+| 4 | Base de datos relacional, API REST, panel web y despliegue con un comando | En desarrollo; falta integrar y validar la instalación final y el acceso desde otros dispositivos |
 
 Cada entrega requerirá código, una demostración y un tablero GitHub Projects actualizado. El seguimiento se realiza en el [tablero público de TaxiRoute](https://github.com/users/ivanmartinezsanchez/projects/2).
 
@@ -25,7 +25,7 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 - Python 3.13, versión utilizada en las pruebas automatizadas de GitHub. La compatibilidad con otras versiones no se da por verificada.
 - Git y una cuenta de GitHub para gestionar el código.
-- Docker y Docker Compose son opcionales para probar la imagen experimental; no son necesarios para ejecutar la aplicación por terminal.
+- Docker Desktop y Docker Compose son necesarios para la demostración de la fase 4; no hacen falta para ejecutar la aplicación de terminal de las fases anteriores.
 
 ## Instalación y ejecución
 
@@ -65,7 +65,7 @@ Dentro del entorno activado se utiliza `python`. Para salir del entorno después
 
 ## Interfaz web local de fase 3
 
-La entrega de esta fase es una demostración académica local, no una instalación lista para uso real. El acceso protegido se ha probado con cuentas temporales y, en una prueba separada, con un código enviado a correo real. Por decisión del proyecto no se ha realizado una prueba física en tablet. El [estado de entrega](ESTADO_ENTREGA.md) detalla las comprobaciones y las limitaciones.
+La entrega de esta fase es una demostración académica local, no una instalación lista para uso real. El acceso protegido se ha probado con cuentas temporales y, en una prueba separada, con un código enviado a correo real. La prueba física en móvil y tablet está pendiente. El [estado de entrega](ESTADO_ENTREGA.md) detalla las comprobaciones y las limitaciones.
 
 El [alcance de acceso protegido y flota](ALCANCE_FASE_3.md) recoge las decisiones del 7 de noviembre de 2026. Hay una demostración experimental con cuentas y HTTPS local. Su panel de administración permite consultar el historial de la flota, filtrar las carreras finalizadas hoy y recorrer los resultados de 100 en 100. Las carreras antiguas sin propietario aparecen como «Sin asignar»; el registro y la asignación de vehículos siguen pendientes. El acceso desde distintas ubicaciones mediante una red privada, con el ordenador del administrador como servidor y una única sesión válida por cuenta, queda aprobado para una entrega posterior. Por ahora se continúa con la versión local.
 
@@ -190,6 +190,7 @@ La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculad
 - [Diseño de migración a SQLite](./DISENO_MIGRACION_FASE_4.md): objetivos, comprobaciones y límites de la fase 4.
 - [Revisión de la fase 4](./REVISION_FASE_4.md): requisitos, comprobaciones y pendientes para la entrega.
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.
+- [Servidor local con proxy experimental](./experimentos/proxy-local/README-INTEGRACION.md): cómo repetir las pruebas aisladas de Docker y qué falta para integrarlo.
 - [Manual de usuario](./MANUAL_USUARIO.md): inicio y recorrido de la demostración SQLite con Docker y sus límites.
 - [Guía de arranque en Windows](./GUIA_ARRANQUE.md): demostración de entrega y lanzador experimental para instalaciones ya preparadas.
 - [Tablero de GitHub Projects](https://github.com/users/ivanmartinezsanchez/projects/2): tareas organizadas por fase.
