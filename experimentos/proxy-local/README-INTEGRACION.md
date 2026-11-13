@@ -15,8 +15,8 @@ La clave temporal de Gmail se busca en /run/taxiroute/gmail_oauth.json, pero el
 cargador existente verifica otro comando y aún no admite esta composición:
 el acceso administrativo mediante correo no está integrado ni probado aquí.
 
-No sustituye la demo ni el primer arranque. El proxy recibe su clave externa y solo el certificado público del backend;
-Nginx se ejecuta como root en el contenedor. No se han fijado
+No sustituye la demo ni el primer arranque. El proxy recibe su clave externa y solo el certificado público del backend.
+Se ejecuta como usuario 101, con raíz de solo lectura y sin capacidades; su configuración se incorpora a la imagen y su base está fijada por digest. No se han fijado
 todas las versiones ni revisado certificados confiables, cierre bajo carga,
 recuperación, Gmail o exposición a la red. No usar para cobros o datos reales.
 
@@ -34,24 +34,18 @@ temporal. Construye la imagen y levanta un proyecto Compose de nombre
 aleatorio; al terminar o fallar retira sus contenedores, red e imagen. Requiere
 el puerto 18771 libre. No usa la cuenta OAuth ni los datos de la instalación.
 
-La prueba desde Windows comprobó Host y Origin inválidos, atributos de la
+La prueba desde Windows verificó también el usuario y las restricciones del contenedor del proxy, y comprobó Host y Origin inválidos, atributos de la
 cookie, dos conductores con carreras simultáneas e historiales separados y
 respuesta ante 12 negociaciones TLS incompletas, que se cerraron al vencer el
 plazo. HTTPS se verificó con certificados distintos en ambos tramos. No se
 probó un navegador, la confianza del dispositivo, Gmail, restauración, caídas,
 carga prolongada ni acceso desde otro dispositivo.
 
-## Repetir la prueba aislada
 
-Con Docker Desktop abierto, el entorno virtual activo y el puerto local 18771
-libre, desde la raíz del proyecto:
+Desde Git Bash, con el entorno virtual activo, también se puede ejecutar:
 
 ```bash
 python experimentos/proxy-local/probar-integracion.py
 ```
 
-El script crea datos y certificados ficticios en un directorio temporal, usa un
-nombre de proyecto Docker aleatorio y elimina sus propios recursos al finalizar.
-No utiliza las cuentas ni las credenciales existentes. Publicar el puerto solo
-en localhost limita el acceso desde el ordenador, pero otros contenedores que
-compartan la red Docker del proyecto podrían alcanzar el proxy.
+La publicación en localhost limita el acceso desde el ordenador. Otros contenedores que compartan la red Docker del proyecto podrían alcanzar el proxy.

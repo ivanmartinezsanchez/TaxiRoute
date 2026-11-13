@@ -1,0 +1,6 @@
+# Solo para el proxy experimental con datos ficticios.
+FROM nginx@sha256:583b7f2fce1cdb8da5ad5c39ebd3c33b98b87d493190e548bdee1fa8c619c311
+COPY nginx-local-experimental.conf /etc/nginx/nginx.conf
+USER 101:101
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]

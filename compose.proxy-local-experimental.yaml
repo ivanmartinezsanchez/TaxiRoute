@@ -51,7 +51,17 @@ services:
     security_opt:
       - no-new-privileges:true
   proxy:
-    image: nginx:stable-alpine
+    build:
+      context: ./experimentos/proxy-local
+      dockerfile: Dockerfile.proxy
+    user: "101:101"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,uid=101,gid=101,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     network_mode: "service:backend"
     depends_on:
       - backend
@@ -74,7 +84,3 @@ services:
         read_only: true
         bind:
           create_host_path: false
-      - type: bind
-        source: ./experimentos/proxy-local/nginx-local-experimental.conf
-        target: /etc/nginx/nginx.conf
-        read_only: true

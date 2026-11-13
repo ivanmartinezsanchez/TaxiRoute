@@ -9,6 +9,7 @@ from ipaddress import ip_address
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import os
+import json
 import subprocess
 import sys
 import uuid
@@ -67,6 +68,35 @@ def main():
         compose = ["docker", "compose", "-p", nombre, "-f", str(COMPOSE)]
         try:
             subprocess.run(compose + ["up", "--build", "-d"], cwd=RAIZ, env=entorno, check=True)
+            resultado = subprocess.run(compose + ["ps", "-q", "proxy"], cwd=RAIZ, env=entorno,
+                                       check=True, capture_output=True, text=True)
+            identificador = resultado.stdout.strip()
+            if not identificador:
+                raise RuntimeError("No se encontró el proxy experimental.")
+            inspeccion = subprocess.run(["docker", "inspect", identificador], check=True,
+                                        capture_output=True, text=True)
+            info = json.loads(inspeccion.stdout)[0]
+            config, host = info["Config"], info["HostConfig"]
+            montajes = {m["Destination"] for m in info["Mounts"]}
+            backend = subprocess.run(compose + ["ps", "-q", "backend"], cwd=RAIZ, env=entorno,
+                                     check=True, capture_output=True, text=True).stdout.strip()
+            opciones_tmp = host.get("Tmpfs", {}).get("/tmp", "").split(",")
+            if (config["User"] != "101:101" or config["Entrypoint"] != ["nginx"]
+                    or not host["ReadonlyRootfs"] or host["Privileged"]
+                    or "ALL" not in (host.get("CapDrop") or [])
+                    or "no-new-privileges:true" not in (host.get("SecurityOpt") or [])
+                    or set(host.get("Tmpfs", {})) != {"/tmp"}
+                    or set(opciones_tmp) != {"rw", "noexec", "nosuid", "nodev", "uid=101", "gid=101", "mode=0700"}
+                    or len(opciones_tmp) != 7
+                    or host["NetworkMode"] != "container:" + backend
+                    or montajes != {"/cert/interno.pem", "/cert/externo.pem", "/cert/externo.key"}
+                    or any(m["RW"] for m in info["Mounts"])):
+                raise RuntimeError("El proxy no tiene la configuración aislada esperada.")
+            usuario = subprocess.run(["docker", "exec", identificador, "id", "-u"],
+                                     check=True, capture_output=True, text=True).stdout.strip()
+            if usuario != "101":
+                raise RuntimeError("El proxy no se está ejecutando con el usuario esperado.")
+            print("Proxy: UID 101, raíz de solo lectura, capacidades retiradas y configuración incorporada.")
             prueba = (RAIZ / "experimentos/proxy-local/prueba.py").read_text(encoding="utf-8")
             prueba = prueba.replace('"/prueba/certificado.pem"', repr(str(externo)))
             prueba = prueba.replace('"/prueba/clave.pem"', repr(str(llave_e)))
