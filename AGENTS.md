@@ -23,4 +23,4 @@ Estas instrucciones recogen las preferencias de trabajo y las decisiones del pro
 
 ## Estado a tener presente
 
-Las fases 1 y 2 están integradas según el README. La fase 3 se ha cerrado como demostración académica local, con las limitaciones descritas en ESTADO_ENTREGA.md; no se ha probado una tablet física por decisión del proyecto. La fase 4 está en desarrollo en su rama. La web habitual anterior no debe darse por protegida ni la recuperación por terminada. Antes de retomar, verifica el estado real de la rama, los archivos y las pruebas; no supongas que los documentos históricos siguen actualizados.
+Las fases 1 y 2 están integradas según el README. La fase 3 se ha cerrado como demostración académica local, con las limitaciones descritas en ESTADO_ENTREGA.md; hay móvil y tablet disponibles para una futura prueba física en la misma red. La fase 4 está en desarrollo en su rama. La web habitual anterior no debe darse por protegida ni la recuperación por terminada. Antes de retomar, verifica el estado real de la rama, los archivos y las pruebas; no supongas que los documentos históricos siguen actualizados.

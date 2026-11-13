@@ -2,6 +2,14 @@
 
 Actualizado el 11 de noviembre de 2026. Fecha de entrega indicada: 15 de noviembre de 2026. Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
 
+## Avance del 13 de noviembre
+
+- Las últimas ejecuciones comprobadas de GitHub Actions terminaron correctamente en Windows, macOS y Ubuntu. El aviso anterior de fallo se corrigió; cada cambio posterior necesita una ejecución nueva.
+- Con una carpeta y un archivo ficticios creados en LOCALAPPDATA se verificaron los permisos heredados: solo aparecieron entradas de permiso para el usuario actual, SYSTEM y Administradores. Un contenedor sin red, con usuario 10001, pudo leer el archivo montado. Esto no comprueba los permisos de los secretos reales ni garantiza seguridad frente a administradores o Docker.
+- Hay un prototipo aislado de copia y restauración SQLite para instalaciones detenidas. Sus siete pruebas con datos temporales pasaron en Windows. No es un procedimiento de recuperación terminado: invalida los códigos de recuperación sin regenerarlos, no detecta todas las copias antiguas ni garantiza exclusión entre Windows y Docker. Antes de usarlo con información real hay que resolver estos límites y verificar permisos.
+- En una prueba Docker aislada del prototipo Gunicorn, una conexión TLS incompleta no impidió responder, pero con cinco conexiones abiertas sin terminar el TLS una petición legítima agotó un plazo de tres segundos; el servicio volvió a responder al cerrarlas. No está preparado para exposición LAN sin resolver esta limitación y volver a probarlo.
+- Se cuenta con móvil y tablet para una futura prueba en la misma red. Todavía no se ha habilitado ni validado el acceso LAN con TLS confiable.
+
 ## Lo que existe
 
 - Las fases 1 y 2 están integradas según el README y conservan su historial CSV.
