@@ -66,6 +66,42 @@ class PruebasApiDurable(unittest.TestCase):
         filas = HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True).consultar()
         self.assertEqual([fila["importe"] for fila in filas], ["0.20", "0.10"])
 
+    def test_reintento_de_cierre_no_duplica_ni_cierra_otra_carrera(self):
+        self.assertEqual(self.login(self.ana_web, "Ana").status_code, 200)
+        inicio = {"revision": 0, "id_operacion": str(uuid4())}
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/iniciar", inicio).status_code, 200)
+        self.avanzar(10)
+        # La operación llega al servidor, pero el cliente pierde la respuesta.
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1}).status_code, 200)
+        repetida = self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1})
+        self.assertEqual(repetida.status_code, 409)
+        historial = HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True)
+        self.assertEqual([fila["importe"] for fila in historial.consultar()], ["0.20"])
+        inicio_siguiente = {"revision": 2, "id_operacion": str(uuid4())}
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/iniciar", inicio_siguiente).status_code, 200)
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1}).status_code, 409)
+        actual = self.ana_web.get("/api/durable/carrera", base_url=self.url)
+        self.assertTrue(actual.json["activa"])
+        self.assertEqual(actual.json["revision"], 3)
+        self.assertEqual(len(historial.consultar()), 1)
+
+    def test_sesion_no_disponible_al_confirmar_no_justifica_repetir_cierre(self):
+        from unittest.mock import patch
+        self.assertEqual(self.login(self.ana_web, "Ana").status_code, 200)
+        inicio = {"revision": 0, "id_operacion": str(uuid4())}
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/iniciar", inicio).status_code, 200)
+        self.avanzar(10)
+        consultar = self.sesiones.consultar
+        def consulta_con_expiracion(token, *, interaccion=False):
+            return None if interaccion else consultar(token)
+        with patch.object(self.sesiones, "consultar", side_effect=consulta_con_expiracion):
+            respuesta = self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1})
+        self.assertEqual(respuesta.status_code, 401)
+        historial = HistorialSQLite(self.historial, usuario_id=self.ana.id, exigir_existente=True)
+        self.assertEqual([fila["importe"] for fila in historial.consultar()], ["0.20"])
+        self.assertEqual(self.post(self.ana_web, "/api/durable/carrera/finalizar", {"revision": 1}).status_code, 409)
+        self.assertEqual(len(historial.consultar()), 1)
+
     def test_aislamiento_y_restricciones(self):
         ruta = "/api/durable/carrera/iniciar"
         datos = {"revision": 0, "id_operacion": str(uuid4())}

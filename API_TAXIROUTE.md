@@ -25,7 +25,7 @@ La revisión es un entero que identifica el estado conocido por el cliente. Prim
 
 En el inicio y los cambios de estado, `id_operacion` es un UUID en formato canónico generado por el cliente. El cliente conserva el mismo identificador para reintentar esa misma operación con la misma acción y revisión; el servidor puede reconocer que ya fue registrada. No debe reutilizarse para otra acción.
 
-**El cierre no dispone aún de la misma garantía de reintento.** Si la respuesta a `finalizar` se pierde o hay un error de almacenamiento, no se debe asumir ni que se guardó ni que falló. Hay que consultar el estado y el historial y, si la aplicación lo solicita, seguir el flujo de revisión.
+**El cierre no dispone aún de la misma garantía de reintento.** Si la respuesta a `finalizar` se pierde o hay un error de almacenamiento, no se debe asumir ni que se guardó ni que falló. Hay que consultar el estado y el historial y, si la aplicación lo solicita, seguir el flujo de revisión. En las pruebas, repetir un cierre ya confirmado con la revisión anterior devolvió `409`, no duplicó la carrera y tampoco cerró una carrera posterior. También se simuló una sesión no disponible después de guardar: la respuesta fue `401` aunque el historial ya contenía la carrera. Estos casos no garantizan el comportamiento ante todos los cortes ni constituyen un protocolo de reintento idempotente.
 
 ## Ejemplo de cuerpos
 
