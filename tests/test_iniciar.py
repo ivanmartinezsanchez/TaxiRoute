@@ -47,6 +47,23 @@ class PruebasPrimerArranque(unittest.TestCase):
         self.assertEqual(codigo,1);self.assertFalse(self.carpeta.exists());iniciar.assert_not_called()
         self.assertIn("contraseñas no coinciden",error);self.assertNotIn(self.clave,salida+error)
 
+    def test_errata_al_confirmar_permite_corregir_sin_repetir_codigos(self):
+        entradas = ["AdminPrueba", "Prueba", "demo@example.invalid", "GUADADOS", "GUARDADOS"]
+        codigo, salida, error, iniciar = self.ejecutar(entradas=entradas)
+        self.assertEqual((codigo, error), (0, ""))
+        self.assertIn("No se reconoce la respuesta", salida)
+        self.assertEqual(salida.count("Guarda estos cinco códigos"), 1)
+        self.assertNotIn(self.clave, salida + error)
+        iniciar.assert_called_once()
+
+    def test_errata_y_cancelacion_no_prosiguen_con_el_arranque(self):
+        entradas = ["AdminPrueba", "Prueba", "demo@example.invalid", "GUADADOS", ""]
+        codigo, salida, error, iniciar = self.ejecutar(entradas=entradas)
+        self.assertEqual(codigo, 130)
+        self.assertIn("No se reconoce la respuesta", salida)
+        self.assertIn("consérvalos", error)
+        iniciar.assert_not_called()
+
     def test_terminal_sin_entrada_oculta_no_crea_instalacion(self):
         import getpass
         import warnings

@@ -20,10 +20,11 @@ class PruebasInicioProxy(unittest.TestCase):
         self.addCleanup(self.stack.close)
         prefijo = "taxiroute.iniciar_proxy_local_experimental."
         for nombre in ("_crear", "revisar_instalacion", "_crear_tls_interno", "iniciar_y_registrar",
-                       "reutilizar", "verificar_permisos_windows", "webbrowser.open"):
+                       "reutilizar", "verificar_permisos_windows", "codigo_distinto", "webbrowser.open"):
             nombre_atributo = nombre.replace("webbrowser.open", "navegador").lstrip("_")
             setattr(self, nombre_atributo, self.stack.enter_context(patch(prefijo + nombre)))
         self.reutilizar.return_value = SimpleNamespace(correo="ausente", servicios_recuperados=False)
+        self.codigo_distinto.return_value = False
         self.crear_tls_interno.return_value = (Path("interno.pem"), Path("interno.key"))
 
     def rutas(self):
@@ -48,6 +49,69 @@ class PruebasInicioProxy(unittest.TestCase):
         self.iniciar_y_registrar.assert_called_once()
         self.reutilizar.assert_called_once_with(self.carpeta / "proxy-local")
         self.navegador.assert_not_called()
+
+    def test_contrasenas_distintas_se_explican_sin_crear_instalacion(self):
+        from taxiroute.iniciar import ErrorPrimerArranque
+        self.crear.side_effect = ErrorPrimerArranque("Las contraseñas no coinciden; no se ha creado la instalación.")
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual(codigo, 1)
+        self.assertIn("contraseñas no coinciden", errores)
+        self.assertFalse(self.carpeta.exists())
+        self.iniciar_y_registrar.assert_not_called()
+        self.reutilizar.assert_not_called()
+
+    def test_error_no_reconocido_no_expone_detalles(self):
+        from taxiroute.iniciar import ErrorPrimerArranque
+        self.crear.side_effect = ErrorPrimerArranque("detalle-privado-ficticio")
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual(codigo, 1)
+        self.assertNotIn("detalle-privado-ficticio", salida + errores)
+        self.assertIn("primer arranque", errores)
+
+    def test_usuario_o_contrasena_invalidos_se_explican_sin_exponer_valor(self):
+        from taxiroute.cuentas import DatosCuentaInvalidos
+        self.crear.side_effect = DatosCuentaInvalidos("valor-privado-ficticio")
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual(codigo, 1)
+        self.assertIn("usuario o la contraseña", errores)
+        self.assertNotIn("valor-privado-ficticio", salida + errores)
+
+    @patch("taxiroute.iniciar_proxy_local_experimental._docker", side_effect=RuntimeError("detalle-privado-ficticio"))
+    def test_docker_no_disponible_se_explica_sin_revelar_detalles(self, docker):
+        def preparar(carpeta, *, comprobar_requisitos):
+            comprobar_requisitos()
+        self.crear.side_effect = preparar
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual(codigo, 1)
+        self.assertIn("Docker Desktop no responde", errores)
+        self.assertNotIn("detalle-privado-ficticio", salida + errores)
+        self.assertFalse(self.carpeta.exists())
+        self.iniciar_y_registrar.assert_not_called()
+
+    def test_terminal_que_no_oculta_contrasena_se_explicita(self):
+        import getpass
+        self.crear.side_effect = getpass.GetPassWarning("detalle-privado-ficticio")
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual(codigo, 1)
+        self.assertIn("no puede ocultar", errores)
+        self.assertNotIn("detalle-privado-ficticio", salida + errores)
+
+    def test_avisa_de_codigo_distinto_sin_interrumpir_el_arranque(self):
+        self.crear.side_effect = lambda carpeta, **_: (carpeta.mkdir() or self.rutas())
+        self.reutilizar.return_value = SimpleNamespace(correo="ausente", servicios_recuperados=False,
+            evidencia=SimpleNamespace(backend=SimpleNamespace(identificador="a" * 64)))
+        self.codigo_distinto.return_value = True
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual((codigo, errores), (0, ""))
+        self.assertIn("distintos de los que ejecuta esta instalación", salida)
+        self.codigo_distinto.assert_called_once_with("a" * 64)
+
+    def test_avisa_si_no_puede_comprobar_codigo_sin_interrumpir(self):
+        self.crear.side_effect = lambda carpeta, **_: (carpeta.mkdir() or self.rutas())
+        self.codigo_distinto.return_value = None
+        codigo, salida, errores = self.ejecutar()
+        self.assertEqual((codigo, errores), (0, ""))
+        self.assertIn("no se ha podido comprobar", salida)
 
     def test_instalacion_preparada_se_reutiliza_sin_regenerar(self):
         identidad = self.carpeta / "proxy-local"

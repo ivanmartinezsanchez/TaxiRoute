@@ -61,7 +61,13 @@ def _crear(carpeta, *, comprobar_requisitos=None):
         print("La cuenta solo se creará si confirmas; pueden quedar visibles en la terminal.")
         for codigo in codigos:
             print(codigo)
-        return input("Escribe GUARDADOS para continuar, o pulsa Intro para cancelar: ").strip().upper() == "GUARDADOS"
+        while True:
+            confirmacion = input("Escribe GUARDADOS para continuar, o pulsa Intro para cancelar: ").strip().upper()
+            if confirmacion == "GUARDADOS":
+                return True
+            if not confirmacion:
+                return False
+            print("No se reconoce la respuesta. Escribe GUARDADOS o pulsa Intro para cancelar.")
     try:
         return preparar_instalacion(carpeta, usuario=usuario, nombre=nombre, correo=correo,
                                    contrasena=clave, confirmar_codigos=confirmar_codigos)

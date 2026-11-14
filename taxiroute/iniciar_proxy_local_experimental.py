@@ -21,7 +21,9 @@ from cryptography.x509.oid import NameOID
 from taxiroute.arranque_proxy_experimental import PROYECTO
 from taxiroute.cargar_gmail_windows import _docker
 from taxiroute.carga_proxy_experimental import CargaProxyPosibleExposicion
-from taxiroute.iniciar import _crear
+from taxiroute.iniciar import ErrorPrimerArranque, _crear
+from taxiroute.cuentas import DatosCuentaInvalidos
+from taxiroute.estado_codigo import codigo_distinto
 from taxiroute.inicializacion_administrador import InicializacionCancelada
 from taxiroute.instalacion_inicial import revisar_instalacion
 from taxiroute.manifiesto_proxy_experimental import ARCHIVO, MARCADOR
@@ -36,7 +38,7 @@ def _comprobar_docker():
     try:
         _docker(["version", "--format", "{{.Server.Version}}"])
     except Exception:
-        raise ValueError("Docker Desktop no está disponible.") from None
+        raise ErrorPrimerArranque("Docker Desktop no está disponible.") from None
 
 
 def _leer_correo(carpeta):
@@ -110,6 +112,13 @@ def main(argv=None):
         print("Comprobando servicios y conexión HTTPS; puede tardar unos segundos.", flush=True)
         resultado = (reutilizar(identidad, proveedor=lambda: _leer_correo(carpeta))
                      if args.conectar_gmail else reutilizar(identidad))
+        backend = getattr(getattr(resultado, "evidencia", None), "backend", None)
+        diferencia = codigo_distinto(getattr(backend, "identificador", None))
+        if diferencia is True:
+            print("Aviso: algunos archivos del proyecto son distintos de los que ejecuta esta instalación.")
+            print("Actualizar el repositorio no actualiza el contenedor; se necesita una actualización segura.")
+        elif diferencia is None:
+            print("Aviso: no se ha podido comprobar si algunos archivos de la instalación coinciden con el proyecto.")
         if resultado.servicios_recuperados:
             print("Se han recuperado los servicios locales de TaxiRoute.")
         if resultado.correo == "cargado":
@@ -126,6 +135,23 @@ def main(argv=None):
     except (KeyboardInterrupt, EOFError, InicializacionCancelada):
         print("Operación cancelada. Conserva cualquier carpeta parcial para revisión.", file=sys.stderr)
         return 130
+    except getpass.GetPassWarning:
+        print("La terminal no puede ocultar la contraseña. Usa una terminal interactiva compatible.", file=sys.stderr)
+        return 1
+    except ErrorPrimerArranque as error:
+        mensajes = {
+            "Las contraseñas no coinciden; no se ha creado la instalación.":
+                "Las contraseñas no coinciden; no se ha creado la instalación.",
+            "Para crear la cuenta necesitas una terminal interactiva.":
+                "Para crear la cuenta necesitas una terminal interactiva.",
+            "Docker Desktop no está disponible.":
+                "Docker Desktop no responde. Ábrelo y espera a que termine de arrancar.",
+        }
+        print(mensajes.get(str(error), "No se pudo preparar el primer arranque. Revisa los requisitos."), file=sys.stderr)
+        return 1
+    except DatosCuentaInvalidos:
+        print("El usuario o la contraseña no son válidos. Revisa los requisitos indicados y conserva cualquier carpeta parcial.", file=sys.stderr)
+        return 1
     except ErrorReutilizacion as error:
         print(str(error), file=sys.stderr)
         return 1
@@ -135,7 +161,7 @@ def main(argv=None):
     except PermisosProxyError:
         print("No se pueden comprobar los permisos de la instalación. Conserva la carpeta y revisa sus permisos.", file=sys.stderr)
         return 1
-    except (getpass.GetPassWarning, OSError, ValueError, sqlite3.Error):
+    except (OSError, ValueError, sqlite3.Error):
         print("No se pudo iniciar. Conserva la instalación y revisa su estado antes de reintentar.", file=sys.stderr)
         return 1
 
