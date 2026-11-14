@@ -12,7 +12,7 @@ class PruebasManifiesto(unittest.TestCase):
     def setUp(self):
         temporal = TemporaryDirectory(prefix="taxiroute-identidad-")
         self.addCleanup(temporal.cleanup)
-        self.raiz = Path(temporal.name)
+        self.raiz = Path(temporal.name).resolve()
         self.carpeta = self.raiz / "instalacion"
         self.carpeta.mkdir()
         datos = self.raiz / "datos"
