@@ -62,11 +62,27 @@ class PruebasReciboCierre(unittest.TestCase):
     def test_error_al_insertar_revierte_el_punto_final(self):
         with conectar(self.ruta) as c:
             c.execute("CREATE TRIGGER fallo_recibo BEFORE INSERT ON recibos_cierre_ensayo BEGIN SELECT RAISE(ABORT, 'ficticio'); END")
-        with self.assertRaises(sqlite3.IntegrityError):
-            self.llamar()
         with conectar(self.ruta) as c:
+            c.execute("BEGIN IMMEDIATE")
+            with self.assertRaises(sqlite3.IntegrityError):
+                preparar(c, id_operacion=self.operacion, usuario_id=self.ana.id, revision=1, punto=self.final)
             fila = c.execute("SELECT estado_registro, revision FROM carreras_recuperacion").fetchone()
             self.assertEqual(tuple(fila), ("activa", 1))
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 0)
+            # La transacción exterior continúa utilizable después del fallo.
+            c.execute("UPDATE usuarios SET nombre_visible='Conservado' WHERE id=?", (self.ana.id,))
+            c.commit()
+        with conectar(self.ruta) as c:
+            self.assertEqual(c.execute("SELECT nombre_visible FROM usuarios WHERE id=?", (self.ana.id,)).fetchone()[0], "Conservado")
+
+    def test_identificador_usado_por_otra_operacion_no_prepara_cierre(self):
+        with conectar(self.ruta) as c:
+            c.execute("""INSERT INTO intenciones_operacion(id, usuario_id, accion, revision, carrera_id, creada_en)
+                VALUES (?, ?, 'iniciar', 0, NULL, '2026-11-08T12:00:00+00:00')""", (self.operacion, self.ana.id))
+        with self.assertRaises(ReciboCierreError):
+            self.llamar()
+        with conectar(self.ruta) as c:
+            self.assertEqual(c.execute("SELECT estado_registro FROM carreras_recuperacion").fetchone()[0], "activa")
             self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 0)
 
     def test_transaccion_revertida_no_confirma_cierre_ni_recibo(self):
