@@ -11,6 +11,7 @@ import sqlite3
 
 from taxiroute.migracion_cierre_experimental import MigracionCierreError, migrar_en_transaccion
 from taxiroute.base_cuentas import conectar, inicializar_base
+from taxiroute.arranque_recuperacion import ArranqueRecuperacionError, crear_flota_con_recuperacion
 from taxiroute.cuentas import crear_cuenta
 from taxiroute.puntos_control import PuntoControl, guardar_punto
 from taxiroute.sesiones import ServicioSesiones
@@ -96,6 +97,15 @@ class PruebasMigracionComponente(TestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             resultados = list(pool.map(lambda _: ejecutar(), range(2)))
         self.assertEqual(sorted(resultados), [False, True])
+
+    def test_servidor_v14_rechaza_base_migrada_sin_modificar_datos(self):
+        self.assertTrue(self.migrar())
+        anterior = self.estado()
+        with self.assertRaises(ArranqueRecuperacionError):
+            crear_flota_con_recuperacion(self.ruta, lambda usuario: None, modo_durable_experimental=True)
+        self.assertEqual(self.estado(), anterior)
+        with conectar(self.ruta) as c:
+            self.assertEqual(c.execute("PRAGMA user_version").fetchone()[0], 15)
 
     def test_no_acepta_sin_transaccion(self):
         with conectar(self.ruta) as c:

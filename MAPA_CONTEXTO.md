@@ -11,7 +11,7 @@
 - **Certificados:** el servidor comprueba vigencia y dirección en los modos indicados en [ESTADO_ENTREGA.md](ESTADO_ENTREGA.md). Se probó una autoridad temporal en el ordenador, sin instalarla en Android; el usuario prefirió dejar esa instalación pendiente.
 - **Recuperación:** se han probado interrupciones de carreras ficticias y revisión del último punto fiable. Las copias/restauraciones y los comprobantes de cierre siguen siendo experimentales; no acreditan recuperación completa de datos reales.
 - **Cierre y migración:** un comprobante interno y una migración v14→v15 se prueban por separado. Ninguno está conectado a la API ni al lanzador; no migrar datos reales antes de coordinar imagen, base, copia y pruebas de interrupción. El cierre actual no tiene reintento idempotente completo.
-- **Docker:** al último intento el motor no respondía, por lo que no pudo inspeccionarse la instancia ficticia del certificado. Verificar su estado antes de afirmar que está detenida o volver a publicar un puerto.
+- **Docker:** se inició Docker Desktop, se comprobó que la instancia ficticia del certificado estaba detenida y se reabrió la instalación local con el perfil Gmail autorizado, sin enviar correo. Verifica siempre el estado actual antes de modificar servicios o publicar puertos.
 - **Pruebas:** consulta GitHub Actions y los resultados de la revisión concreta antes de afirmar que una versión pasa. El detalle histórico y los límites están en [ESTADO_ENTREGA.md](ESTADO_ENTREGA.md).
 
 ## Decisiones que condicionan el trabajo
