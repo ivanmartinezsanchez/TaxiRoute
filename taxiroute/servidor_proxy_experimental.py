@@ -13,7 +13,11 @@ def main(argv=None):
         parser.add_argument("--" + nombre, type=Path, required=True)
     parser.add_argument("--direccion", default="127.0.0.1",
                         help="IPv4 privada de la autoridad externa; no publica puertos")
+    parser.add_argument("--puerto-externo", type=int, default=18771,
+                        help="Puerto de la autoridad externa; no publica puertos")
     args = parser.parse_args(argv)
+    if not 1 <= args.puerto_externo <= 65535:
+        parser.error("El puerto externo no es válido.")
     try:
         _validar_direccion(args.direccion)
     except ValueError:
@@ -26,7 +30,7 @@ def main(argv=None):
 
     aplicacion = dict(ruta_cuentas=args.cuentas, ruta_historial=args.historial,
         ruta_tarifas=args.tarifas, certificado=args.certificado, clave=args.clave,
-        direccion=args.direccion, puerto=18771, enviar_pin=enviar)
+        direccion=args.direccion, puerto=args.puerto_externo, enviar_pin=enviar)
     opciones = dict(escucha="127.0.0.1", puerto=18772,
         certificado=args.certificado, clave=args.clave, aplicacion=aplicacion)
     try:

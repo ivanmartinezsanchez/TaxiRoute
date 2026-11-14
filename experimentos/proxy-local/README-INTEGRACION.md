@@ -104,3 +104,14 @@ existente sin identidad proxy completa, se detiene y pide revisión.
 
 Esta entrada no consulta Gmail salvo con la opción explícita `--conectar-gmail`, probada con perfil ficticio y con el perfil autorizado en una instalación temporal sin enviar correos. No sustituye `iniciar-taxiroute.cmd` y solo debe utilizarse con datos de prueba. No está validada para el despliegue
 definitivo, los permisos de archivos reales ni la red del taxi.
+
+
+## Composición aislada para una prueba en red privada
+
+`compose.red-ficticia.yaml` prepara un backend y proxy separados para una prueba puntual con datos ficticios. Exige configurar explícitamente `TAXIROUTE_RED_IP`, `TAXIROUTE_RED_DATOS`, `TAXIROUTE_RED_CERT_INTERNO`, `TAXIROUTE_RED_CLAVE_INTERNA`, `TAXIROUTE_RED_CERT_EXTERNO` y `TAXIROUTE_RED_CLAVE_EXTERNA`. La IP debe ser privada y corresponder al equipo; el puerto externo de esta prueba es el 18773. No reutilices la carpeta de la instalación real ni credenciales de Gmail.
+
+Los dos certificados deben ser distintos. El interno necesita el nombre DNS `taxiroute-backend.local` para la verificación del proxy y la IP elegida para la validación del servidor; el externo necesita esa IP para el navegador. Esta configuración no instala confianza en el móvil ni modifica el cortafuegos. Una dirección privada puede ser accesible a otros dispositivos de la misma red.
+
+Con una instalación temporal, cuenta ficticia y certificados autofirmados, se comprobó el acceso desde un móvil conectado a la misma Wi-Fi: entrada de conductor, carrera, cambios de estado, cierre e historial. Se detuvieron después los contenedores de la prueba; la instalación principal permaneció activa. No se comprobó una tablet ni se acredita TLS confiable, aislamiento de la red o preparación para datos reales.
+
+El ensayo requiere una carpeta de datos SQLite ficticia previamente preparada y archivos TLS externos: no es todavía un procedimiento de instalación final. Ante un fallo conserva los datos para revisión y detén solo los contenedores del proyecto de prueba que hayas identificado.
