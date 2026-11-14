@@ -113,13 +113,13 @@ class PruebasServidorSQLite(unittest.TestCase):
                 json={'usuario': 'Ana', 'contrasena': 'ConductorPrueba123!'})
             self.assertEqual(acceso.status_code, 200)
 
-    def certificado_para_ip(self, direccion):
+    def certificado_para_ip(self, direccion, *, inicio=timedelta(minutes=-1), fin=timedelta(days=1)):
         clave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Prueba ficticia')])
         ahora = datetime.now(timezone.utc)
         cert = (x509.CertificateBuilder().subject_name(nombre).issuer_name(nombre)
                 .public_key(clave.public_key()).serial_number(x509.random_serial_number())
-                .not_valid_before(ahora - timedelta(minutes=1)).not_valid_after(ahora + timedelta(days=1))
+                .not_valid_before(ahora + inicio).not_valid_after(ahora + fin)
                 .add_extension(x509.SubjectAlternativeName([x509.IPAddress(IPv4Address(direccion))]), critical=False)
                 .sign(clave, hashes.SHA256()))
         cert_path = self.raiz / 'red-cert.pem'
@@ -152,6 +152,19 @@ class PruebasServidorSQLite(unittest.TestCase):
                 with servidor_sqlite_experimental(**(self.args | {'direccion': '192.168.12.34'})):
                     pass
             crear.assert_not_called()
+
+    def test_red_rechaza_certificado_caducado_o_aun_no_valido(self):
+        intervalos = ((timedelta(days=-2), timedelta(days=-1)),
+                      (timedelta(days=1), timedelta(days=2)))
+        for inicio, fin in intervalos:
+            with self.subTest(inicio=inicio, fin=fin), patch('taxiroute.servidor_sqlite_local.make_server') as crear:
+                cert, clave = self.certificado_para_ip('192.168.12.34', inicio=inicio, fin=fin)
+                opciones = self.args | {'direccion': '192.168.12.34', 'puerto': 8769,
+                                        'certificado': cert, 'clave': clave}
+                with self.assertRaisesRegex(ValueError, 'certificado'):
+                    with servidor_sqlite_experimental(**opciones):
+                        pass
+                crear.assert_not_called()
 
     def test_red_acepta_solo_host_y_puerto_configurados_sin_escuchar_en_red(self):
         cert, clave = self.certificado_para_ip('192.168.12.34')

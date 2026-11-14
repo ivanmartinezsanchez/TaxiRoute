@@ -5,6 +5,7 @@ explícita y TLS configurado por el integrador. El transporte de PIN se inyecta;
 no se inicializan cuentas, credenciales ni certificados. No es producción.
 """
 from contextlib import closing, contextmanager
+from datetime import datetime, timezone
 from ipaddress import IPv4Address, ip_network
 from pathlib import Path
 from secrets import token_bytes
@@ -36,9 +37,12 @@ def _validar_direccion(direccion):
 
 
 def _validar_certificado_lan(certificado, ip):
-    """Comprueba el SAN, no la confianza del certificado en otros dispositivos."""
+    """Comprueba vigencia y SAN; no establece confianza en otros dispositivos."""
     try:
         certificado = x509.load_pem_x509_certificate(Path(certificado).read_bytes())
+        ahora = datetime.now(timezone.utc)
+        if not certificado.not_valid_before_utc <= ahora < certificado.not_valid_after_utc:
+            raise ValueError("El certificado todavía no es válido o ha caducado.")
         nombres = certificado.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         if ip not in nombres.get_values_for_type(x509.IPAddress):
             raise ValueError("El certificado no incluye la dirección de red elegida.")
