@@ -16,7 +16,7 @@ class ReciboCierreError(ValueError):
     pass
 
 
-TABLA = """CREATE TABLE recibos_cierre_ensayo (
+TABLA = """CREATE TABLE recibos_cierre (
     id TEXT PRIMARY KEY NOT NULL,
     usuario_id TEXT NOT NULL REFERENCES usuarios(id),
     carrera_id TEXT NOT NULL UNIQUE REFERENCES carreras_recuperacion(id),
@@ -40,7 +40,7 @@ def consultar(conexion, *, id_operacion, usuario_id, revision):
         raise ReciboCierreError("Identificador no válido.") from None
     if not isinstance(usuario_id, str) or not usuario_id.strip() or type(revision) is not int or not 0 <= revision < 2**63 - 1:
         raise ReciboCierreError("Datos de consulta no válidos.")
-    fila = conexion.execute("SELECT * FROM recibos_cierre_ensayo WHERE id=?", (id_operacion,)).fetchone()
+    fila = conexion.execute("SELECT * FROM recibos_cierre WHERE id=?", (id_operacion,)).fetchone()
     if fila is None:
         return None
     if fila["usuario_id"] != usuario_id or fila["revision"] != revision:
@@ -73,7 +73,7 @@ def preparar(conexion, *, id_operacion, usuario_id, revision, punto):
         raise ReciboCierreError("La captura no coincide con la operación.")
     _validar(punto)
     contenido = _codificar(punto)
-    existente = conexion.execute("SELECT * FROM recibos_cierre_ensayo WHERE id=?", (id_operacion,)).fetchone()
+    existente = conexion.execute("SELECT * FROM recibos_cierre WHERE id=?", (id_operacion,)).fetchone()
     if existente is not None:
         if (existente["usuario_id"], existente["carrera_id"], existente["revision"], existente["punto_json"]) != (
                 usuario_id, punto.carrera_id, revision, contenido):
@@ -92,10 +92,10 @@ def preparar(conexion, *, id_operacion, usuario_id, revision, punto):
     conexion.execute(f"SAVEPOINT {marca}")
     try:
         resumen = preparar_punto_final_en_transaccion(conexion, punto, punto.ultimo_control)
-        conexion.execute("""INSERT INTO recibos_cierre_ensayo
+        conexion.execute("""INSERT INTO recibos_cierre
             (id, usuario_id, carrera_id, revision, punto_json, creado_en) VALUES (?, ?, ?, ?, ?, ?)""",
             (id_operacion, usuario_id, punto.carrera_id, revision, contenido, datetime.now(timezone.utc).isoformat()))
-        fila = conexion.execute("SELECT * FROM recibos_cierre_ensayo WHERE id=?", (id_operacion,)).fetchone()
+        fila = conexion.execute("SELECT * FROM recibos_cierre WHERE id=?", (id_operacion,)).fetchone()
         if fila is None or (fila["usuario_id"], fila["carrera_id"], fila["revision"], fila["punto_json"]) != (
                 usuario_id, punto.carrera_id, revision, contenido):
             raise ReciboCierreError("No se pudo verificar el comprobante.")

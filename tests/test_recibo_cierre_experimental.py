@@ -50,7 +50,7 @@ class PruebasReciboCierre(unittest.TestCase):
         self.assertEqual((primero[1], primero[2], segundo[1], segundo[2]),
                          ("guardado_pendiente", False, "guardado_pendiente", True))
         with conectar(self.ruta) as c:
-            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 1)
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre").fetchone()[0], 1)
 
     def test_id_reutilizado_por_otra_cuenta_o_captura_se_rechaza(self):
         self.llamar()
@@ -61,14 +61,14 @@ class PruebasReciboCierre(unittest.TestCase):
 
     def test_error_al_insertar_revierte_el_punto_final(self):
         with conectar(self.ruta) as c:
-            c.execute("CREATE TRIGGER fallo_recibo BEFORE INSERT ON recibos_cierre_ensayo BEGIN SELECT RAISE(ABORT, 'ficticio'); END")
+            c.execute("CREATE TRIGGER fallo_recibo BEFORE INSERT ON recibos_cierre BEGIN SELECT RAISE(ABORT, 'ficticio'); END")
         with conectar(self.ruta) as c:
             c.execute("BEGIN IMMEDIATE")
             with self.assertRaises(sqlite3.IntegrityError):
                 preparar(c, id_operacion=self.operacion, usuario_id=self.ana.id, revision=1, punto=self.final)
             fila = c.execute("SELECT estado_registro, revision FROM carreras_recuperacion").fetchone()
             self.assertEqual(tuple(fila), ("activa", 1))
-            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 0)
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre").fetchone()[0], 0)
             # La transacción exterior continúa utilizable después del fallo.
             c.execute("UPDATE usuarios SET nombre_visible='Conservado' WHERE id=?", (self.ana.id,))
             c.commit()
@@ -83,7 +83,7 @@ class PruebasReciboCierre(unittest.TestCase):
             self.llamar()
         with conectar(self.ruta) as c:
             self.assertEqual(c.execute("SELECT estado_registro FROM carreras_recuperacion").fetchone()[0], "activa")
-            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 0)
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre").fetchone()[0], 0)
 
     def test_transaccion_revertida_no_confirma_cierre_ni_recibo(self):
         with conectar(self.ruta) as c:
@@ -91,17 +91,17 @@ class PruebasReciboCierre(unittest.TestCase):
             preparar(c, id_operacion=self.operacion, usuario_id=self.ana.id, revision=1, punto=self.final)
             c.rollback()
             self.assertEqual(c.execute("SELECT estado_registro FROM carreras_recuperacion").fetchone()[0], "activa")
-            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 0)
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre").fetchone()[0], 0)
 
     def test_recibo_alterado_durante_guardado_revierte_el_cierre(self):
         with conectar(self.ruta) as c:
-            c.execute("""CREATE TRIGGER alterar_recibo AFTER INSERT ON recibos_cierre_ensayo
-                BEGIN UPDATE recibos_cierre_ensayo SET punto_json='{}' WHERE id=NEW.id; END""")
+            c.execute("""CREATE TRIGGER alterar_recibo AFTER INSERT ON recibos_cierre
+                BEGIN UPDATE recibos_cierre SET punto_json='{}' WHERE id=NEW.id; END""")
         with self.assertRaises(ReciboCierreError):
             self.llamar()
         with conectar(self.ruta) as c:
             self.assertEqual(c.execute("SELECT estado_registro FROM carreras_recuperacion").fetchone()[0], "activa")
-            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 0)
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre").fetchone()[0], 0)
 
     def test_reintentos_simultaneos_producen_un_solo_comprobante(self):
         barrera = Barrier(2)
@@ -112,7 +112,7 @@ class PruebasReciboCierre(unittest.TestCase):
             resultados = list(ejecutor.map(lambda _: ejecutar(), range(2)))
         self.assertEqual(sorted(r[2] for r in resultados), [False, True])
         with conectar(self.ruta) as c:
-            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre_ensayo").fetchone()[0], 1)
+            self.assertEqual(c.execute("SELECT count(*) FROM recibos_cierre").fetchone()[0], 1)
 
     def test_consulta_al_reabrir_y_rechaza_cuenta_ajena(self):
         resumen, _, _ = self.llamar()
