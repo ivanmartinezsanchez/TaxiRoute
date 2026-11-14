@@ -18,6 +18,15 @@ from taxiroute.manifiesto_proxy_experimental import ARCHIVO, MARCADOR, crear_man
 from taxiroute.verificador_proxy_experimental import verificar_composicion, verificar_para_reutilizar
 
 
+MARCADOR_ACTUALIZACION = ".actualizacion-pendiente"
+
+
+def _exigir_sin_actualizacion_pendiente(carpeta):
+    """Rechaza el arranque si existe una actualización interrumpida."""
+    if os.path.lexists(Path(carpeta) / MARCADOR_ACTUALIZACION):
+        raise ErrorReutilizacion("Hay una actualización pendiente de revisión. No se han iniciado servicios ni cargado credenciales.")
+
+
 class ErrorReutilizacion(RuntimeError):
     """La instalación necesita revisión antes de continuar."""
 
@@ -61,6 +70,7 @@ def _iniciar_y_registrar(carpeta, *, proyecto, rutas):
         if not carpeta.is_dir() or carpeta.is_symlink() or (hasattr(carpeta, "is_junction") and carpeta.is_junction()):
             raise ValueError("Carpeta no válida.")
         carpeta = carpeta.resolve(strict=True)
+        _exigir_sin_actualizacion_pendiente(carpeta)
         if any(os.path.lexists(p / ".git") for p in (carpeta, *carpeta.parents)):
             raise ValueError("La carpeta debe estar fuera de Git.")
         if os.path.lexists(carpeta / ARCHIVO) or os.path.lexists(carpeta / MARCADOR):
@@ -97,6 +107,7 @@ def _reutilizar(carpeta, *, proveedor=None):
     suministra, solo se consulta después de validar HTTPS y el destino.
     """
     try:
+        _exigir_sin_actualizacion_pendiente(carpeta)
         m = leer_manifiesto(carpeta)
         rutas = {k: Path(v) for k, v in m.rutas.items()}
         _validar_certificados(rutas["cert_interno"], rutas["clave_interna"], interno=True)

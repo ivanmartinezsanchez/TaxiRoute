@@ -38,6 +38,40 @@ class PruebasReutilizacion(unittest.TestCase):
         self.verificar_composicion.return_value = evidencia()
         self.estado_archivo.return_value = "presente"
 
+    def test_actualizacion_pendiente_impide_reutilizar_y_leer_credenciales(self):
+        from taxiroute.reutilizacion_proxy_experimental import MARCADOR_ACTUALIZACION
+        with TemporaryDirectory(prefix="taxi-actualizacion-") as temporal:
+            carpeta = Path(temporal).resolve()
+            (carpeta / MARCADOR_ACTUALIZACION).write_text("pendiente ficticio", encoding="utf-8")
+            proveedor = Mock()
+            with self.assertRaisesRegex(ErrorReutilizacion, "actualización pendiente"):
+                reutilizar(carpeta, proveedor=proveedor)
+            self.leer_manifiesto.assert_not_called()
+            self.verificar_para_reutilizar.assert_not_called()
+            self.docker.assert_not_called()
+            proveedor.assert_not_called()
+
+    def test_marcador_se_verifica_con_el_bloqueo_real(self):
+        from taxiroute.reutilizacion_proxy_experimental import MARCADOR_ACTUALIZACION
+        self.bloqueo_instalacion.side_effect = lambda carpeta: _bloqueo_instalacion(carpeta)
+        with TemporaryDirectory(prefix="taxi-actualizacion-real-") as temporal:
+            carpeta = Path(temporal).resolve()
+            (carpeta / MARCADOR_ACTUALIZACION).write_text("pendiente ficticio", encoding="utf-8")
+            with self.assertRaisesRegex(ErrorReutilizacion, "actualización pendiente"):
+                reutilizar(carpeta, proveedor=Mock())
+            self.leer_manifiesto.assert_not_called()
+            self.docker.assert_not_called()
+
+    def test_actualizacion_pendiente_impide_primer_arranque(self):
+        from taxiroute.reutilizacion_proxy_experimental import MARCADOR_ACTUALIZACION
+        with TemporaryDirectory(prefix="taxi-actualizacion-") as temporal:
+            carpeta = Path(temporal).resolve()
+            (carpeta / MARCADOR_ACTUALIZACION).write_text("pendiente ficticio", encoding="utf-8")
+            with self.assertRaises(ErrorReutilizacion):
+                iniciar_y_registrar(carpeta, proyecto="taxi-prueba", rutas=self.rutas)
+            self.arrancar_proxy.assert_not_called()
+            self.crear_manifiesto.assert_not_called()
+
     def test_activos_responden_sin_reiniciar_ni_leer_proveedor(self):
         proveedor = Mock()
         resultado = reutilizar("instalacion", proveedor=proveedor)
