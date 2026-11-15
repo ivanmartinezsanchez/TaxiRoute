@@ -52,6 +52,7 @@ class PruebasBootstrapWindows(TestCase):
         segunda = self.ejecutar("--no-abrir")
         self.assertEqual(segunda.returncode, 0, segunda.stderr.decode(errors="replace"))
         self.assertIn(b"LANZADOR_FICTICIO --no-abrir", segunda.stdout)
+        self.assertNotIn(b"--conectar-gmail", segunda.stdout)
         self.assertNotIn(b"Preparando el entorno", segunda.stdout)
         self.assertEqual((self.raiz / ".venv" / "pyvenv.cfg").stat().st_mtime_ns, marca)
 
