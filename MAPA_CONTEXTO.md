@@ -1,12 +1,12 @@
 # Mapa de contexto de TaxiRoute
 
-Última revisión: 14 de noviembre de 2026. Es una guía de entrada; antes de actuar, comprueba la rama, los cambios y el estado real de Docker y de las pruebas.
+Última revisión: 15 de noviembre de 2026. Es una guía de entrada; antes de actuar, comprueba la rama, los cambios y el estado real de Docker y de las pruebas.
 
 ## Situación en una mirada
 
 - **Objetivo y plazo:** taxímetro formativo en Python con historial, acceso protegido y web adaptable. La entrega se había indicado para el 15 de noviembre de 2026; se ha comunicado una ampliación de uno o dos días, sin fecha exacta confirmada. El enunciado está en [ENUNCIADO.md](ENUNCIADO.md).
 - **Ramas:** las fases 1 y 2 están integradas según el README; la fase 3 se cerró como demostración académica local. La fase 4 se desarrolla en `feature/fase-4-produccion`.
-- **Instalación:** hay un lanzador experimental con proxy, Docker, SQLite, cuenta propia y Gmail autorizado. El acceso administrativo se comprobó; no se considera una instalación lista para datos o cobros reales. La imagen registrada se reutiliza y no se actualiza por hacer `git pull`.
+- **Instalación:** hay un lanzador experimental con proxy, Docker, SQLite, cuenta propia y Gmail autorizado. En Windows, si `.venv` no existe, lo prepara con Python 3.13 y las dependencias; no instala Python y no cambia un entorno existente. El acceso administrativo se comprobó; no se considera una instalación lista para datos o cobros reales. La imagen registrada se reutiliza y no se actualiza por hacer `git pull`.
 - **Red:** una instancia Docker ficticia separada se probó desde un móvil Android en la misma Wi-Fi: acceso de conductor, carrera, cambios de estado, cierre e historial. Se utilizó un certificado autofirmado. No se probó tablet; quedan pendientes confianza TLS e integración de la instalación final.
 - **Certificados:** el servidor comprueba vigencia y dirección en los modos indicados en [ESTADO_ENTREGA.md](ESTADO_ENTREGA.md). Se probó una autoridad temporal en el ordenador, sin instalarla en Android; el usuario prefirió dejar esa instalación pendiente.
 - **Recuperación:** se han probado interrupciones de carreras ficticias y revisión del último punto fiable. Las copias/restauraciones y los comprobantes de cierre siguen siendo experimentales; no acreditan recuperación completa de datos reales.

@@ -2,6 +2,11 @@
 
 Actualizado el 14 de noviembre de 2026. Fecha de entrega indicada: 15 de noviembre de 2026. Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
 
+## Avance del 15 de noviembre
+
+- El arrancador de Windows prepara `.venv` e instala las dependencias si no existe; conserva un entorno previo y mantiene un marcador si la preparación se interrumpe. Se han superado cinco pruebas con carpetas temporales y, por separado, una instalación temporal con las dependencias reales y `pip check`. Sigue requiriendo Python 3.13, Docker y, para el acceso administrativo, Gmail autorizado con la opción explícita. La actualización segura de la imagen y el acceso de la instalación propia desde otros dispositivos siguen pendientes.
+- Se ha añadido un manual de la instalación local con cuenta propia y se ha abierto una solicitud de integración en borrador para las fases 3 y 4. No se han presentado los puntos pendientes como terminados.
+
 ## Avance del 14 de noviembre
 
 - La preparación interna de una actualización verifica permisos, identidad, servicios detenidos, ausencia de otros contenedores activos y consistencia de datos sin carreras ni operaciones pendientes, manteniendo bloqueos cooperativos. Nueve pruebas con instalaciones ficticias y Docker simulado han pasado. No reemplaza imágenes ni comprueba coordinación frente a procesos ajenos; aún no está conectada a un actualizador.

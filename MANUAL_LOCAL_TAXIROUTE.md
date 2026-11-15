@@ -7,7 +7,7 @@ La instalación sigue en preparación: utiliza datos de prueba y no está valida
 ## 1. Arrancar la aplicación
 
 1. Abre Docker Desktop y espera a que termine de iniciarse.
-2. Abre una terminal en la carpeta del proyecto. En Windows, puedes usar la terminal de VS Code con el entorno virtual del proyecto ya preparado.
+2. Abre una terminal en la carpeta del proyecto. En Windows, puedes usar la terminal de VS Code. Necesitas Python 3.13 instalado; si todavía no existe `.venv`, el arrancador lo crea e instala las dependencias, para lo que necesita conexión a internet. Si el entorno ya existe, lo utiliza sin reinstalarlo.
 3. Ejecuta:
 
    ```cmd
@@ -20,7 +20,7 @@ La instalación sigue en preparación: utiliza datos de prueba y no está valida
 
 La primera vez se solicita crear el administrador y guardar cinco códigos de recuperación. Guárdalos en privado. Si te equivocas al escribir `GUARDADOS`, el asistente vuelve a pedir la confirmación; pulsa Intro para cancelar. Si la preparación se interrumpe y queda una carpeta parcial, consérvala para revisión en lugar de borrarla o repetir la creación a ciegas.
 
-Si el lanzador indica que el código del proyecto y el contenedor son distintos, la instalación sigue usando la imagen anterior. Descargar cambios del repositorio no actualiza el contenedor automáticamente. No lo borres para forzar la actualización: el procedimiento seguro de sustitución sigue pendiente.
+Si la preparación del entorno se interrumpe, conserva la carpeta `.venv` y revisa el error antes de volver a intentarlo. Si el lanzador indica que el código del proyecto y el contenedor son distintos, la instalación sigue usando la imagen anterior. Descargar cambios del repositorio no actualiza el contenedor automáticamente. No lo borres para forzar la actualización: el procedimiento seguro de sustitución sigue pendiente.
 
 ## 2. Entrar
 

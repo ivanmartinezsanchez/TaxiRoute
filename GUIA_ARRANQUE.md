@@ -71,7 +71,7 @@ La aplicación está publicada solo en el ordenador. El acceso desde otro dispos
 Esta variante arranca la instalación local en Docker mediante un proxy y conserva los datos de prueba entre arranques. Se ha comprobado en Windows con el acceso de administrador y correo autorizado. Sigue siendo experimental: no está validada para cobros ni datos reales, copias y restauración completas o acceso desde otros dispositivos.
 
 1. Abre Docker Desktop y espera a que esté funcionando.
-2. Abre una terminal de Windows en la carpeta del proyecto. Comprueba que existe el entorno virtual `.venv` y que el perfil de Gmail ya está autorizado en Windows.
+2. Abre una terminal de Windows en la carpeta del proyecto. Necesitas Python 3.13 y el perfil de Gmail ya autorizado. Si `.venv` no existe, el lanzador lo crea e instala las dependencias desde internet; si ya existe, lo conserva.
 3. Ejecuta:
 
    ```cmd
