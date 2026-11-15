@@ -31,6 +31,8 @@ En la pantalla de acceso, selecciona **Conductor** o **Administrador** y escribe
 
 No compartas contraseñas, códigos de correo ni códigos de recuperación. Si el correo no llega, revisa la carpeta de spam y comprueba que el perfil de Gmail esté autorizado y que el lanzador se haya iniciado con `--conectar-gmail`. Un archivo temporal de autorización existente no garantiza por sí solo que la autorización siga vigente.
 
+La sesión caduca tras una hora sin interacción o, como máximo, ocho horas después de iniciarse. Las consultas automáticas de pantalla no prolongan ese plazo. Si caduca, vuelve a entrar; cerrar o perder la sesión no finaliza automáticamente la carrera.
+
 ## 3. Hacer una carrera
 
 1. En **Tu taxímetro**, pulsa **Iniciar carrera**. Comienza en estado parado.
@@ -55,6 +57,8 @@ Entra como administrador y selecciona **Administración**. Desde allí puedes vo
 En **Tarifas para nuevas carreras**, introduce los importes por segundo y pulsa **Guardar tarifas**. Usa un punto para los decimales. El cambio no modifica las tarifas de una carrera que ya está en marcha.
 
 En **Añadir conductor**, introduce usuario, nombre visible y contraseña temporal; repítela y pulsa **Crear conductor**. La contraseña debe tener de 12 a 128 caracteres, al menos una mayúscula, tres minúsculas, tres números y un símbolo. Comunícala por un medio seguro. El conductor deberá cambiarla al primer acceso.
+
+Para cambiar la contraseña de un conductor, escribe una nueva contraseña temporal en su ficha y pulsa **Restablecer contraseña**. Se revocan sus sesiones y tendrá que cambiarla al entrar; un bloqueo o una desactivación existentes se conservan. Comunica la contraseña por un medio seguro.
 
 En **Cuentas de conductores**, las acciones tienen efectos distintos:
 
