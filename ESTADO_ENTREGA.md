@@ -1,6 +1,6 @@
 # Estado de entrega de TaxiRoute
 
-Actualizado el 15 de noviembre de 2026. La fecha inicial de entrega era el 15 de noviembre; se ha indicado una ampliación aproximada de uno o dos días. Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
+Este documento distingue el trabajo probado de lo pendiente; los resultados deben actualizarse al cambiar el código.
 
 ## Avance del 15 de noviembre
 

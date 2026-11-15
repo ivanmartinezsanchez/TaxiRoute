@@ -8,6 +8,7 @@ Estas instrucciones recogen las preferencias de trabajo y las decisiones del pro
 - Comparte avances mientras trabajas. Cuando sea viable, muestra los cambios y pruebas en el editor o en la terminal visible; si no puedes, dilo y ofrece comandos reproducibles. No afirmes que una ventana o prueba se ha visto si no lo has verificado.
 - Toma decisiones rutinarias con criterio y continúa dentro del alcance autorizado. Presenta alternativas, ventajas y dificultades cuando la decisión cambie de forma material el funcionamiento, el coste, la arquitectura, la pérdida de datos o la experiencia. Explica tu recomendación y acuerda la decisión cuando sea necesario.
 - Usa agentes en tareas independientes cuando aporten valor y esté permitido. Reparte alcances claros, evita ediciones simultáneas de los mismos archivos, revisa sus resultados y explica lo relevante. Usa o instala habilidades útiles dentro de las autorizaciones y restricciones aplicables; no trates su instalación como prueba de calidad.
+- No registres fechas ni plazos de entrega del proyecto en la documentación, salvo que se solicite expresamente.
 - Mantén una comunicación natural y personal. En documentación, pull requests y comprobaciones evita atribuciones como «Iván ha realizado»; expresa el trabajo de forma natural, por ejemplo «se ha comprobado», sin inventar autorías o pruebas.
 
 ## Criterios de desarrollo
