@@ -42,7 +42,7 @@ pause
 exit /b 0
 
 :falta_python
-echo No se encuentra Python 3.13. Instala Python 3.13 y vuelve a intentarlo.
+echo No se encuentra Python 3.13 mediante el lanzador py. Comprueba ambos y vuelve a intentarlo.
 pause
 exit /b 1
 

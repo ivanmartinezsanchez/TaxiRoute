@@ -7,7 +7,7 @@ La instalación sigue en preparación: utiliza datos de prueba y no está valida
 ## 1. Arrancar la aplicación
 
 1. Abre Docker Desktop y espera a que termine de iniciarse.
-2. Abre una terminal en la carpeta del proyecto. En Windows, puedes usar la terminal de VS Code. Necesitas Python 3.13 instalado; si todavía no existe `.venv`, el arrancador lo crea e instala las dependencias, para lo que necesita conexión a internet. Si el entorno ya existe, lo utiliza sin reinstalarlo.
+2. Abre una terminal en la carpeta del proyecto. En Windows, puedes usar la terminal de VS Code. Necesitas Python 3.13 instalado y accesible mediante el lanzador `py`; si todavía no existe `.venv`, el arrancador lo crea e instala las dependencias, para lo que necesita conexión a internet. Si el entorno ya existe, lo utiliza sin reinstalarlo.
 3. Ejecuta:
 
    ```cmd
