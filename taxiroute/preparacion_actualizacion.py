@@ -10,7 +10,7 @@ from pathlib import Path
 
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.cargar_gmail_windows import _docker
-from taxiroute.copia_sqlite_experimental import _validar
+from taxiroute.copia_sqlite_experimental import _copiar_archivos, _preparar_destino, _validar
 from taxiroute.instalacion_inicial import revisar_instalacion
 from taxiroute.manifiesto_proxy_experimental import leer_manifiesto
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
@@ -58,3 +58,29 @@ def instalacion_detenida(carpeta):
         if entregado:
             raise
         raise PreparacionActualizacionError("No se pudo verificar la instalación; requiere revisión.") from None
+
+
+def preparar_copia_datos(carpeta, destino):
+    """Copia cuentas, historial y tarifas de una instalación detenida.
+
+    Mantiene el mismo bloqueo durante la comprobación y la copia. No copia
+    certificados, credenciales ni el manifiesto y no constituye una
+    restauración ni autoriza una actualización. Ante errores conserva una
+    carpeta incompleta sin marcador de éxito para su revisión.
+    """
+    carpeta = Path(carpeta).expanduser().absolute()
+    with instalacion_detenida(carpeta):
+        rutas = revisar_instalacion(carpeta)
+        verificar_permisos_windows(destino, permitir_ausente=True)
+        origen, destino = _preparar_destino(rutas.datos, destino)
+        raiz = carpeta.resolve(strict=True)
+        if destino == raiz or raiz in destino.parents:
+            raise PreparacionActualizacionError("La copia debe quedar fuera de la instalación.")
+        destino.mkdir(mode=0o700)
+        verificar_permisos_windows(destino)
+        _copiar_archivos(origen, destino)
+        _validar(destino)
+        verificar_permisos_windows(destino)
+        with (destino / "COPIA_DATOS_PREVIA.txt").open("x", encoding="utf-8", newline="\n") as archivo:
+            archivo.write("TaxiRoute: copia de datos previa comprobada; no es una restauración completa.\n")
+        return destino
