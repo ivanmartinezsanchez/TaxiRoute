@@ -190,6 +190,7 @@ La fase 4 dispone de un servidor experimental para instalaciones SQLite vinculad
 - [Diseño de migración a SQLite](./DISENO_MIGRACION_FASE_4.md): objetivos, comprobaciones y límites de la fase 4.
 - [Revisión de la fase 4](./REVISION_FASE_4.md): requisitos, comprobaciones y pendientes para la entrega.
 - [API de TaxiRoute](./API_TAXIROUTE.md): rutas actuales, autenticación y límites de integración.
+- [Manual de la instalación local](./MANUAL_LOCAL_TAXIROUTE.md): acceso, carreras y administración de la instalación con cuenta propia.
 - [API experimental](./API_EXPERIMENTAL.md): acceso, operaciones de carrera, historial y límites actuales.
 - [Servidor local con proxy experimental](./experimentos/proxy-local/README-INTEGRACION.md): cómo repetir las pruebas aisladas de Docker y qué falta para integrarlo.
 - [Manual de usuario](./MANUAL_USUARIO.md): inicio y recorrido de la demostración SQLite con Docker y sus límites.
