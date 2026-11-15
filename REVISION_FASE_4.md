@@ -11,6 +11,16 @@ Revisión del 11 de noviembre de 2026. El objetivo es mostrar el estado de la ra
 | Acceso desde dispositivos de la red del taxi | Existe una opción experimental en el servidor SQLite fuera de la demo Docker; se ha probado con solicitudes simuladas. | La demo Docker solo publica el servicio en el propio ordenador. Faltan configuración protegida, certificado confiable y una prueba desde otro dispositivo. |
 | Documentación y entrega | El repositorio incluye enunciado, documentación técnica, instrucciones de la demo y enlace al tablero. | Existe un manual para la demostración; falta completarlo para la instalación final y revisar el tablero y las pruebas de la versión entregada. |
 
+## Actualización del 15 de noviembre
+
+- Se ha abierto la solicitud de integración [#18](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/18) como borrador. Las fases 3 y 4 siguen en la rama `feature/fase-4-produccion`; todavía no están integradas en `main`.
+- Se ha comprobado en un teléfono Android una carrera ficticia por la red local: inicio, cambio de estado, finalización y consulta en el historial. Se utilizó una instancia aislada con certificado autofirmado; no acredita que el certificado de la instalación propia sea confiable ni que esa instalación esté disponible desde el teléfono.
+- El acceso de administrador con PIN enviado por Gmail se ha comprobado en Docker Compose con cuenta ficticia. También se ha preparado una instalación local con cuenta propia, cuyo acceso se ha comprobado. La carga del perfil de Gmail requiere la opción explícita documentada.
+- El arrancador de Windows puede crear el entorno Python e instalar dependencias cuando no existe, y respeta los entornos existentes. Sigue necesitando Docker Desktop y Python 3.13; el [manual local](MANUAL_LOCAL_TAXIROUTE.md) describe su uso.
+- La actualización segura de la imagen y los datos de la instalación existente, la recuperación completa, la confianza HTTPS en Android y el acceso de esa instalación desde otros dispositivos siguen pendientes. El código actualizado en GitHub no sustituye automáticamente los contenedores existentes.
+
+La tabla anterior conserva la fotografía de la revisión del 11 de noviembre. Para el detalle más reciente de las pruebas y sus límites, consulta [Estado de entrega](ESTADO_ENTREGA.md).
+
 ## Seguridad y alcance
 
 La demo usa cuentas y contraseñas ficticias conocidas, un PIN visible en los registros, un certificado autofirmado y un servidor de desarrollo. Se limita a `127.0.0.1`; no debe abrirse a otros dispositivos ni emplearse con datos reales. La prueba de la API usó una excepción de verificación del certificado únicamente para el cliente local de prueba; no acredita TLS confiable. La conexión desde ubicaciones distintas queda fuera de esta entrega por decisión previa.
