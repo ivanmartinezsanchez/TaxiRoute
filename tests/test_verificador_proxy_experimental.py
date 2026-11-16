@@ -7,7 +7,7 @@ import json
 import unittest
 
 from taxiroute.verificador_proxy_experimental import (
-    COMANDO_BACKEND, VerificacionProxyError, verificar_composicion,
+    COMANDO_BACKEND, VerificacionProxyError, verificar_composicion, verificar_composicion_red,
 )
 
 
@@ -112,6 +112,31 @@ class PruebasVerificador(unittest.TestCase):
                 alterar(self.contenedores)
                 with self.assertRaises(VerificacionProxyError):
                     self.verificar()
+
+    def test_red_exige_autoridad_y_enlace_exactos(self):
+        direccion, puerto = "192.168.1.25", 18773
+        self.contenedores["backend"]["Config"]["Cmd"] += [
+            "--direccion", direccion, "--puerto-externo", str(puerto)]
+        self.contenedores["backend"]["HostConfig"]["PortBindings"] = {
+            "18771/tcp": [{"HostIp": direccion, "HostPort": str(puerto)}]}
+        opciones = dict(proyecto=self.proyecto, imagenes_esperadas=self.imagenes,
+                        rutas_esperadas=self.rutas, direccion=direccion, puerto=puerto)
+        verificar_composicion_red(**opciones)
+        with self.assertRaises(VerificacionProxyError):
+            self.verificar()
+        self.contenedores["backend"]["Config"]["Cmd"][-1] = "9999"
+        with self.assertRaises(VerificacionProxyError):
+            verificar_composicion_red(**opciones)
+        self.contenedores["backend"]["Config"]["Cmd"][-1] = str(puerto)
+        for puerto_invalido in (0, 65536, True):
+            with self.subTest(puerto=puerto_invalido), self.assertRaises(VerificacionProxyError):
+                verificar_composicion_red(**{**opciones, "puerto": puerto_invalido})
+        self.contenedores["backend"]["HostConfig"]["PortBindings"]["18771/tcp"][0]["HostIp"] = "0.0.0.0"
+        with self.assertRaises(VerificacionProxyError):
+            verificar_composicion_red(**opciones)
+        for ip in ("0.0.0.0", "8.8.8.8", "127.0.0.1"):
+            with self.subTest(ip=ip), self.assertRaises(VerificacionProxyError):
+                verificar_composicion_red(**{**opciones, "direccion": ip})
 
     def test_rechaza_reinicio_mismo_id_y_cambio_de_arranque(self):
         anterior = self.verificar()

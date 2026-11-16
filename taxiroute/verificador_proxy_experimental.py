@@ -126,7 +126,7 @@ def _comprobar(servicio, contenedor, imagen, esperado, proyecto, montajes, *, pe
     return EstadoContenedor(identificador, esperado, estado["StartedAt"], contenedor["RestartCount"], estado["Running"])
 
 
-def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None, permitir_detenidos=False):
+def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None, permitir_detenidos=False, direccion="127.0.0.1", puerto=18771):
     """Devuelve identidad y arranque observados, sin acceso al almacén OAuth.
 
     Las imágenes deben indicarse por ID inmutable obtenido fuera de esta función,
@@ -168,13 +168,16 @@ def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, ant
                                    permitir_detenidos=permitir_detenidos)
             contenedores[servicio], evidencias[servicio] = c, evidencia
 
+        comando_backend = COMANDO_BACKEND if direccion == "127.0.0.1" else (
+            COMANDO_BACKEND + ["--direccion", direccion, "--puerto-externo", str(puerto)]
+        )
         b, p = contenedores["backend"], contenedores["proxy"]
         bc, bh, pc, ph = b["Config"], b["HostConfig"], p["Config"], p["HostConfig"]
         if (bc["User"] != "10001:10001" or bc["WorkingDir"] != "/app"
-                or bc["Entrypoint"] not in (None, []) or bc["Cmd"] != COMANDO_BACKEND
+                or bc["Entrypoint"] not in (None, []) or bc["Cmd"] != comando_backend
                 or bh["NetworkMode"] != f"{proyecto}_default"
                 or set(b["NetworkSettings"]["Networks"]) != {f"{proyecto}_default"}
-                or bh["PortBindings"] != {"18771/tcp": [{"HostIp": "127.0.0.1", "HostPort": "18771"}]}
+                or bh["PortBindings"] != {"18771/tcp": [{"HostIp": direccion, "HostPort": str(puerto)}]}
                 or not _tmpfs_real(bh["Tmpfs"], {"/tmp": [], "/run/taxiroute":
                     ["rw", "noexec", "nosuid", "nodev", "uid=10001", "gid=10001", "mode=0700"]})
                 or pc["User"] != "101:101" or pc["WorkingDir"] != "/"
@@ -198,6 +201,24 @@ def verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, ante
     """Verifica exclusivamente servicios activos para la carga experimental."""
     return _verificar_composicion(proyecto=proyecto, imagenes_esperadas=imagenes_esperadas,
         rutas_esperadas=rutas_esperadas, anterior=anterior)
+
+
+
+def verificar_composicion_red(*, proyecto, imagenes_esperadas, rutas_esperadas, direccion, puerto, anterior=None):
+    """Verifica una composición activa de red con autoridad explícita.
+
+    No publica servicios, no autoriza el envío de credenciales ni acredita
+    que la IP pertenezca al ordenador o que el certificado sea confiable.
+    """
+    from taxiroute.servidor_sqlite_local import _validar_direccion
+    try:
+        _validar_direccion(direccion)
+        if direccion == "127.0.0.1" or type(puerto) is not int or not 1 <= puerto <= 65535:
+            raise ValueError("Se necesita una dirección y puerto de red privados.")
+    except (TypeError, ValueError) as exc:
+        raise VerificacionProxyError("La autoridad de red no es válida.") from exc
+    return _verificar_composicion(proyecto=proyecto, imagenes_esperadas=imagenes_esperadas,
+        rutas_esperadas=rutas_esperadas, anterior=anterior, direccion=direccion, puerto=puerto)
 
 
 def verificar_para_reutilizar(*, proyecto, imagenes_esperadas, rutas_esperadas, contenedores_esperados):
