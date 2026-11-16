@@ -5,7 +5,8 @@ import json
 import hashlib
 import unittest
 
-from taxiroute.manifiesto_proxy_experimental import ARCHIVO, MARCADOR, ErrorManifiesto, crear_manifiesto, leer_manifiesto
+from taxiroute.manifiesto_proxy_experimental import (ARCHIVO, MARCADOR, ErrorManifiesto,
+    crear_manifiesto, leer_manifiesto, crear_manifiesto_red, leer_manifiesto_red)
 
 
 class PruebasManifiesto(unittest.TestCase):
@@ -75,6 +76,51 @@ class PruebasManifiesto(unittest.TestCase):
         with self.assertRaises(ErrorManifiesto):
             self.crear()
         self.assertFalse((self.carpeta / ARCHIVO).exists())
+
+
+    def crear_red(self, direccion="192.168.1.25", puerto=18773):
+        return crear_manifiesto_red(self.carpeta, proyecto="taxi-ficticio", imagenes=self.imagenes,
+            contenedores=self.contenedores, rutas=self.rutas, direccion=direccion, puerto=puerto)
+
+    def test_red_crea_y_relee_con_autoridad_explicita(self):
+        resultado = self.crear_red()
+        self.assertEqual(leer_manifiesto_red(self.carpeta), resultado)
+        self.assertEqual((resultado.version, resultado.direccion, resultado.puerto), (2, "192.168.1.25", 18773))
+        with self.assertRaises(ErrorManifiesto):
+            leer_manifiesto(self.carpeta)
+
+    def test_lector_red_rechaza_v1(self):
+        self.crear()
+        with self.assertRaises(ErrorManifiesto):
+            leer_manifiesto_red(self.carpeta)
+
+    def test_rechaza_direcciones_y_puertos_no_admisibles(self):
+        for ip in ("127.0.0.1", "0.0.0.0", "8.8.8.8", "169.254.1.1", "::1", "192.168.001.1", None):
+            with self.subTest(ip=ip), self.assertRaises(ErrorManifiesto):
+                self.crear_red(direccion=ip)
+        for puerto in (0, 65536, -1, True, "18773", None):
+            with self.subTest(puerto=puerto), self.assertRaises(ErrorManifiesto):
+                self.crear_red(puerto=puerto)
+        self.assertFalse((self.carpeta / ARCHIVO).exists())
+
+    def test_rechaza_campo_extra_y_autoridad_invalida_al_leer(self):
+        self.crear_red()
+        ruta = self.carpeta / ARCHIVO
+        original = json.loads(ruta.read_text(encoding="utf-8"))
+        for cambios in ({"extra": True}, {"direccion": "8.8.8.8"}, {"puerto": True}, {"version": 1}):
+            with self.subTest(cambios=cambios):
+                contenido = json.dumps({**original, **cambios}, ensure_ascii=False).encode("utf-8")
+                ruta.write_bytes(contenido)
+                (self.carpeta / MARCADOR).write_text(hashlib.sha256(contenido).hexdigest(), encoding="ascii")
+                with self.assertRaises(ErrorManifiesto):
+                    leer_manifiesto_red(self.carpeta)
+
+    def test_red_no_sobrescribe_manifiesto_existente(self):
+        self.crear()
+        antes = (self.carpeta / ARCHIVO).read_bytes()
+        with self.assertRaises(ErrorManifiesto):
+            self.crear_red()
+        self.assertEqual((self.carpeta / ARCHIVO).read_bytes(), antes)
 
 
 if __name__ == "__main__":

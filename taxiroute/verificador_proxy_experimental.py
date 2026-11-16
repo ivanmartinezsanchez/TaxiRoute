@@ -221,6 +221,35 @@ def verificar_composicion_red(*, proyecto, imagenes_esperadas, rutas_esperadas, 
         rutas_esperadas=rutas_esperadas, anterior=anterior, direccion=direccion, puerto=puerto)
 
 
+
+def verificar_instalacion_red(carpeta):
+    """Comprueba identidad, certificados y contenedores activos de una red.
+
+    No inicia servicios, no verifica que la IP pertenezca al host ni establece
+    confianza en dispositivos. No autoriza por sí sola la carga de credenciales.
+    """
+    from taxiroute.arranque_proxy_experimental import _claves_distintas, _validar_certificados
+    from taxiroute.manifiesto_proxy_experimental import leer_manifiesto_red
+    try:
+        manifiesto = leer_manifiesto_red(carpeta)
+        rutas = {nombre: Path(ruta) for nombre, ruta in manifiesto.rutas.items()}
+        _validar_certificados(rutas["cert_interno"], rutas["clave_interna"],
+                              interno=True, direccion=manifiesto.direccion)
+        _validar_certificados(rutas["cert_externo"], rutas["clave_externa"],
+                              interno=False, direccion=manifiesto.direccion)
+        _claves_distintas(rutas["cert_interno"], rutas["cert_externo"])
+        evidencia = verificar_composicion_red(proyecto=manifiesto.proyecto,
+            imagenes_esperadas=manifiesto.imagenes, rutas_esperadas=rutas,
+            direccion=manifiesto.direccion, puerto=manifiesto.puerto)
+        if (evidencia.backend.identificador != manifiesto.contenedores["backend"]
+                or evidencia.proxy.identificador != manifiesto.contenedores["proxy"]
+                or leer_manifiesto_red(carpeta) != manifiesto):
+            raise ValueError("La identidad de red ha cambiado.")
+        return evidencia
+    except Exception as exc:
+        raise VerificacionProxyError("No se pudo verificar la instalación de red.") from exc
+
+
 def verificar_para_reutilizar(*, proyecto, imagenes_esperadas, rutas_esperadas, contenedores_esperados):
     """Inspecciona activos o detenidos sin iniciarlos ni autorizar credenciales."""
     if (not isinstance(contenedores_esperados, dict)

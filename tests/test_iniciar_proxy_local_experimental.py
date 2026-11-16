@@ -182,6 +182,22 @@ class PruebasInicioProxy(unittest.TestCase):
 
 
 class PruebasCertificadoInterno(unittest.TestCase):
+    def test_red_interna_incluye_ip_privada_y_conserva_localhost(self):
+        with TemporaryDirectory(prefix="cert-proxy-") as t:
+            destino = Path(t) / "tls"
+            certificado, clave = _crear_tls_interno(destino, direccion="192.168.1.25")
+            _validar_certificados(certificado, clave, interno=True)
+            _validar_certificados(certificado, clave, interno=True, direccion="192.168.1.25")
+            with self.assertRaises(ValueError):
+                _validar_certificados(certificado, clave, interno=True, direccion="192.168.1.26")
+
+    def test_red_interna_rechaza_ip_publica_antes_de_crear_carpeta(self):
+        with TemporaryDirectory(prefix="cert-proxy-") as t:
+            destino = Path(t) / "tls"
+            with self.assertRaises(ValueError):
+                _crear_tls_interno(destino, direccion="8.8.8.8")
+            self.assertFalse(destino.exists())
+
     def test_certificado_identifica_ip_y_dns_y_no_sobrescribe(self):
         with TemporaryDirectory(prefix="cert-proxy-") as t:
             destino = Path(t) / "tls"

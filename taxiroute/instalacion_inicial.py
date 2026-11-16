@@ -59,8 +59,13 @@ def _comprobar_datos(usuario, nombre, correo, contrasena, confirmar_codigos):
         raise ValueError("Es necesario confirmar los códigos de recuperación.")
 
 
-def _generar_certificado(carpeta):
-    """Certificado autofirmado local; no establece confianza en el navegador."""
+def _generar_certificado(carpeta, *, direccion="127.0.0.1"):
+    """Certificado autofirmado; no establece confianza en el navegador."""
+    from taxiroute.servidor_sqlite_local import _validar_direccion
+    ip = _validar_direccion(direccion)
+    direcciones = [x509.IPAddress(ip_address("127.0.0.1"))]
+    if direccion != "127.0.0.1":
+        direcciones.append(x509.IPAddress(ip))
     carpeta.mkdir(mode=0o700)
     clave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "TaxiRoute local")])
@@ -68,7 +73,7 @@ def _generar_certificado(carpeta):
     certificado = (x509.CertificateBuilder().subject_name(nombre).issuer_name(nombre)
         .public_key(clave.public_key()).serial_number(x509.random_serial_number())
         .not_valid_before(ahora - timedelta(minutes=1)).not_valid_after(ahora + timedelta(days=90))
-        .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ip_address("127.0.0.1"))]), critical=False)
+        .add_extension(x509.SubjectAlternativeName(direcciones), critical=False)
         .sign(clave, hashes.SHA256()))
     ruta_clave, ruta_certificado = carpeta / "clave.pem", carpeta / "certificado.pem"
     descriptor = os.open(ruta_clave, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

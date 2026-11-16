@@ -57,8 +57,13 @@ def _carpeta_predeterminada():
     return Path(base) / "TaxiRoute-Proxy-MVP"
 
 
-def _crear_tls_interno(carpeta):
+def _crear_tls_interno(carpeta, *, direccion="127.0.0.1"):
     """Crea un par nuevo; conserva cualquier preparación parcial al fallar."""
+    from taxiroute.servidor_sqlite_local import _validar_direccion
+    ip = _validar_direccion(direccion)
+    direcciones = [x509.IPAddress(ip_address("127.0.0.1"))]
+    if direccion != "127.0.0.1":
+        direcciones.append(x509.IPAddress(ip))
     carpeta.mkdir(mode=0o700)
     clave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     sujeto = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "taxiroute-backend.local")])
@@ -67,7 +72,7 @@ def _crear_tls_interno(carpeta):
         .public_key(clave.public_key()).serial_number(x509.random_serial_number())
         .not_valid_before(ahora - timedelta(minutes=1)).not_valid_after(ahora + timedelta(days=90))
         .add_extension(x509.SubjectAlternativeName([x509.DNSName("taxiroute-backend.local"),
-            x509.IPAddress(ip_address("127.0.0.1"))]), critical=False)
+            *direcciones]), critical=False)
         .sign(clave, hashes.SHA256()))
     ruta_cert, ruta_clave = carpeta / "interno.pem", carpeta / "interno.key"
     descriptor = os.open(ruta_clave, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

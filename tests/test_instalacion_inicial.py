@@ -10,7 +10,7 @@ from cryptography import x509
 from ipaddress import ip_address
 
 from taxiroute.bloqueo import bloqueo_historial
-from taxiroute.instalacion_inicial import ARCHIVO_MARCADOR, preparar_instalacion, revisar_instalacion
+from taxiroute.instalacion_inicial import ARCHIVO_MARCADOR, _generar_certificado, preparar_instalacion, revisar_instalacion
 from taxiroute.inicializacion_administrador import InicializacionCancelada
 from taxiroute.verificar_historial_sqlite import verificar_historial_sqlite_vinculado
 
@@ -23,6 +23,19 @@ class PruebasInstalacionInicial(unittest.TestCase):
         self.carpeta = self.base / "instalacion nueva"
         self.datos = dict(usuario="AdminPrueba", nombre="Administración prueba", correo="demo@example.invalid",
                           contrasena="SeguraPrueba123!", confirmar_codigos=lambda codigos: len(codigos) == 5)
+
+    def test_certificado_externo_admite_red_privada_y_rechaza_publica(self):
+        destino = self.base / "tls-red"
+        certificado, clave = _generar_certificado(destino, direccion="192.168.1.25")
+        from taxiroute.arranque_proxy_experimental import _validar_certificados
+        _validar_certificados(certificado, clave, interno=False, direccion="192.168.1.25")
+        _validar_certificados(certificado, clave, interno=False)
+        with self.assertRaises(ValueError):
+            _validar_certificados(certificado, clave, interno=False, direccion="192.168.1.26")
+        otra = self.base / "tls-publico"
+        with self.assertRaises(ValueError):
+            _generar_certificado(otra, direccion="8.8.8.8")
+        self.assertFalse(otra.exists())
 
     def test_crea_administrador_propio_historial_vinculado_y_tls(self):
         rutas = preparar_instalacion(self.carpeta, **self.datos)

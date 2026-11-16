@@ -6,6 +6,7 @@ antes de usar datos reales.
 """
 from dataclasses import asdict, dataclass
 import hashlib
+from ipaddress import IPv4Address, ip_network
 import json
 import os
 from pathlib import Path
@@ -34,6 +35,27 @@ class Manifiesto:
     contenedores: dict
     rutas: dict
     certificados: dict
+
+
+@dataclass(frozen=True)
+class ManifiestoRed(Manifiesto):
+    direccion: str
+    puerto: int
+
+
+def _datos_red(proyecto, imagenes, contenedores, rutas, *, direccion, puerto, instalacion=None):
+    if not isinstance(direccion, str):
+        raise ValueError("La dirección debe ser IPv4 explícita.")
+    ip = IPv4Address(direccion)
+    redes = (ip_network("10.0.0.0/8"), ip_network("172.16.0.0/12"), ip_network("192.168.0.0/16"))
+    if str(ip) != direccion or not any(ip in red for red in redes):
+        raise ValueError("La dirección debe ser IPv4 privada.")
+    if type(puerto) is not int or not 1 <= puerto <= 65535:
+        raise ValueError("El puerto no es válido.")
+    local = _datos(proyecto, imagenes, contenedores, rutas, instalacion=instalacion)
+    valores = asdict(local)
+    valores["version"] = 2
+    return ManifiestoRed(**valores, direccion=direccion, puerto=puerto)
 
 
 def _ruta(valor, *, directorio):
@@ -67,13 +89,14 @@ def _datos(proyecto, imagenes, contenedores, rutas, *, instalacion=None):
     return Manifiesto(1, ident, proyecto, dict(imagenes), dict(contenedores), caminos, hashes)
 
 
-def crear_manifiesto(carpeta, *, proyecto, imagenes, contenedores, rutas):
+def _crear_manifiesto(carpeta, *, proyecto, imagenes, contenedores, rutas, red=None):
     """Crea un archivo nuevo; conserva cualquier escritura parcial para revisión."""
     try:
         carpeta = Path(_ruta(carpeta, directorio=True))
         if any(os.path.lexists(p / ".git") for p in (carpeta, *carpeta.parents)):
             raise ValueError("El manifiesto debe estar fuera de Git.")
-        manifiesto = _datos(proyecto, imagenes, contenedores, rutas)
+        manifiesto = (_datos(proyecto, imagenes, contenedores, rutas) if red is None else
+                      _datos_red(proyecto, imagenes, contenedores, rutas, **red))
         contenido = json.dumps(asdict(manifiesto), ensure_ascii=False, sort_keys=True).encode("utf-8")
         if len(contenido) > _MAXIMO:
             raise ValueError("Manifiesto demasiado grande.")
@@ -92,7 +115,30 @@ def crear_manifiesto(carpeta, *, proyecto, imagenes, contenedores, rutas):
         raise ErrorManifiesto("No se pudo crear el manifiesto; no se sobrescribió ningún archivo.") from error
 
 
+def crear_manifiesto(carpeta, *, proyecto, imagenes, contenedores, rutas):
+    """Crea una identidad local v1; nunca sustituye archivos existentes."""
+    return _crear_manifiesto(carpeta, proyecto=proyecto, imagenes=imagenes,
+                             contenedores=contenedores, rutas=rutas)
+
+
+def crear_manifiesto_red(carpeta, *, proyecto, imagenes, contenedores, rutas, direccion, puerto):
+    """Crea una identidad de red v2; no habilita servicios ni autoriza credenciales."""
+    return _crear_manifiesto(carpeta, proyecto=proyecto, imagenes=imagenes,
+                             contenedores=contenedores, rutas=rutas,
+                             red={"direccion": direccion, "puerto": puerto})
+
+
 def leer_manifiesto(carpeta):
+    """Lee solo v1 local para no habilitar red en llamadores existentes."""
+    return _leer_manifiesto(carpeta, version=1)
+
+
+def leer_manifiesto_red(carpeta):
+    """Lee solo una identidad v2 de red; no verifica propiedad de la IP."""
+    return _leer_manifiesto(carpeta, version=2)
+
+
+def _leer_manifiesto(carpeta, *, version):
     """Rechaza archivos incompletos, rutas cambiadas o certificados distintos."""
     try:
         carpeta = Path(_ruta(carpeta, directorio=True))
@@ -119,11 +165,16 @@ def leer_manifiesto(carpeta):
                 resultado[clave] = valor
             return resultado
         valor = json.loads(contenido.decode("utf-8"), object_pairs_hook=sin_duplicados)
-        if (not isinstance(valor, dict) or set(valor) != set(Manifiesto.__dataclass_fields__)
-                or type(valor["version"]) is not int or valor["version"] != 1):
+        clase = Manifiesto if version == 1 else ManifiestoRed
+        if (not isinstance(valor, dict) or set(valor) != set(clase.__dataclass_fields__)
+                or type(valor["version"]) is not int or valor["version"] != version):
             raise ValueError("Formato no válido.")
-        actual = _datos(valor["proyecto"], valor["imagenes"], valor["contenedores"], valor["rutas"],
-                        instalacion=valor["instalacion"])
+        comunes = (valor["proyecto"], valor["imagenes"], valor["contenedores"], valor["rutas"])
+        if version == 1:
+            actual = _datos(*comunes, instalacion=valor["instalacion"])
+        else:
+            actual = _datos_red(*comunes, instalacion=valor["instalacion"],
+                                direccion=valor["direccion"], puerto=valor["puerto"])
         if asdict(actual) != valor:
             raise ValueError("La instalación ha cambiado.")
         return actual

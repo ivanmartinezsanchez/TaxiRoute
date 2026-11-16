@@ -7,7 +7,7 @@ import json
 import unittest
 
 from taxiroute.verificador_proxy_experimental import (
-    COMANDO_BACKEND, VerificacionProxyError, verificar_composicion, verificar_composicion_red,
+    COMANDO_BACKEND, VerificacionProxyError, verificar_composicion, verificar_composicion_red, verificar_instalacion_red,
 )
 
 
@@ -137,6 +137,23 @@ class PruebasVerificador(unittest.TestCase):
         for ip in ("0.0.0.0", "8.8.8.8", "127.0.0.1"):
             with self.subTest(ip=ip), self.assertRaises(VerificacionProxyError):
                 verificar_composicion_red(**{**opciones, "direccion": ip})
+
+    def test_identidad_de_red_verifica_certificados_y_contenedores(self):
+        from types import SimpleNamespace
+        identidad = SimpleNamespace(proyecto=self.proyecto, imagenes=self.imagenes,
+            rutas=self.rutas, direccion="192.168.1.25", puerto=18773, contenedores=self.ids)
+        self.contenedores["backend"]["Config"]["Cmd"] += ["--direccion", identidad.direccion,
+                                                          "--puerto-externo", str(identidad.puerto)]
+        self.contenedores["backend"]["HostConfig"]["PortBindings"] = {
+            "18771/tcp": [{"HostIp": identidad.direccion, "HostPort": str(identidad.puerto)}]}
+        with patch("taxiroute.manifiesto_proxy_experimental.leer_manifiesto_red", return_value=identidad), \
+             patch("taxiroute.arranque_proxy_experimental._validar_certificados") as certificados, \
+             patch("taxiroute.arranque_proxy_experimental._claves_distintas"):
+            verificar_instalacion_red(self.rutas["datos"])
+            self.assertEqual(certificados.call_count, 2)
+            identidad.contenedores = {**self.ids, "backend": "f" * 64}
+            with self.assertRaises(VerificacionProxyError):
+                verificar_instalacion_red(self.rutas["datos"])
 
     def test_rechaza_reinicio_mismo_id_y_cambio_de_arranque(self):
         anterior = self.verificar()
