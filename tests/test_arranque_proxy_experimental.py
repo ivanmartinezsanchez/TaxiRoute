@@ -104,11 +104,11 @@ class PruebasCertificados(unittest.TestCase):
         self.addCleanup(t.cleanup)
         self.base = Path(t.name)
 
-    def certificado(self, *, dns, dias):
+    def certificado(self, *, dns, dias, direccion="127.0.0.1"):
         clave = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "prueba")])
         ahora = datetime.now(timezone.utc)
-        alt = [x509.IPAddress(ip_address("127.0.0.1"))]
+        alt = [x509.IPAddress(ip_address(direccion))]
         if dns:
             alt.append(x509.DNSName(dns))
         certificado = (x509.CertificateBuilder().subject_name(nombre).issuer_name(nombre)
@@ -138,6 +138,14 @@ class PruebasCertificados(unittest.TestCase):
         self.assertNotEqual(archivos[0].read_bytes(), archivos[1].read_bytes())
         with self.assertRaises(ValueError):
             _claves_distintas(*archivos)
+
+    def test_certificado_debe_coincidir_con_direccion_solicitada(self):
+        cert, clave = self.certificado(dns=None, dias=1, direccion="192.168.1.7")
+        _validar_certificados(cert, clave, interno=False, direccion="192.168.1.7")
+        with self.assertRaises(ValueError):
+            _validar_certificados(cert, clave, interno=False, direccion="192.168.1.8")
+        with self.assertRaises(ValueError):
+            _validar_certificados(cert, clave, interno=False)
 
     def test_san_y_vigencia(self):
         cert, clave = self.certificado(dns="taxiroute-backend.local", dias=1)

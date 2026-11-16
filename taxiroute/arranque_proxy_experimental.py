@@ -41,7 +41,7 @@ class ResultadoArranque:
     imagen_proxy: str
 
 
-def _validar_certificados(certificado, clave, *, interno):
+def _validar_certificados(certificado, clave, *, interno, direccion="127.0.0.1"):
     contexto = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     contexto.minimum_version = ssl.TLSVersion.TLSv1_2
     contexto.load_cert_chain(str(certificado), str(clave))
@@ -50,8 +50,8 @@ def _validar_certificados(certificado, clave, *, interno):
     if not cert.not_valid_before_utc <= ahora <= cert.not_valid_after_utc:
         raise ValueError("Certificado fuera de vigencia.")
     nombres = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
-    if ip_address("127.0.0.1") not in nombres.get_values_for_type(x509.IPAddress):
-        raise ValueError("Falta la dirección local.")
+    if ip_address(direccion) not in nombres.get_values_for_type(x509.IPAddress):
+        raise ValueError("El certificado no incluye la dirección solicitada.")
     if interno and "taxiroute-backend.local" not in nombres.get_values_for_type(x509.DNSName):
         raise ValueError("Falta el nombre interno.")
 
