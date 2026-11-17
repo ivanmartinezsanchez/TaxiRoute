@@ -29,7 +29,7 @@ Cada entrega requerirá código, una demostración y un tablero GitHub Projects 
 
 ## Instalación y ejecución
 
-Clona el repositorio y entra en su carpeta. La rama `main` incluye la fase 2, integrada mediante la [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17).
+Clona el repositorio y entra en su carpeta. La rama `main` incluye la fase 2, integrada mediante la [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17). El trabajo de las fases 3 y 4 permanece en la rama `feature/fase-4-produccion` y se puede revisar en la [pull request #18](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/18).
 
 ```bash
 git clone https://github.com/ivanmartinezsanchez/TaxiRoute.git
@@ -65,7 +65,7 @@ Dentro del entorno activado se utiliza `python`. Para salir del entorno después
 
 ## Interfaz web local de fase 3
 
-La entrega de esta fase es una demostración académica local, no una instalación lista para uso real. El acceso protegido se ha probado con cuentas temporales y, en una prueba separada, con un código enviado a correo real. La prueba física en móvil y tablet está pendiente. El [estado de entrega](ESTADO_ENTREGA.md) detalla las comprobaciones y las limitaciones.
+La entrega de esta fase es una demostración académica local, no una instalación lista para uso real. El acceso protegido se ha probado con cuentas temporales y, en una prueba separada, con un código enviado a correo real. Una instalación separada de fase 4 se ha probado desde un móvil; la prueba física de esta fase en móvil y tablet sigue pendiente. El [estado de entrega](ESTADO_ENTREGA.md) detalla las comprobaciones y las limitaciones.
 
 El [alcance de acceso protegido y flota](ALCANCE_FASE_3.md) recoge las decisiones del 7 de noviembre de 2026. Hay una demostración experimental con cuentas y HTTPS local. Su panel de administración permite consultar el historial de la flota, filtrar las carreras finalizadas hoy y recorrer los resultados de 100 en 100. Las carreras antiguas sin propietario aparecen como «Sin asignar»; el registro y la asignación de vehículos siguen pendientes. El acceso desde distintas ubicaciones mediante una red privada, con el ordenador del administrador como servidor y una única sesión válida por cuenta, queda aprobado para una entrega posterior. Por ahora se continúa con la versión local.
 

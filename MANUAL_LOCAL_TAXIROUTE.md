@@ -7,14 +7,28 @@ La instalación sigue en preparación: utiliza datos de prueba y no está valida
 ## 1. Arrancar la aplicación
 
 1. Abre Docker Desktop y espera a que termine de iniciarse.
-2. Abre una terminal en la carpeta del proyecto. En Windows, puedes usar la terminal de VS Code. Necesitas Python 3.13 instalado y accesible mediante el lanzador `py`; si todavía no existe `.venv`, el arrancador lo crea e instala las dependencias, para lo que necesita conexión a internet. Si el entorno ya existe, lo utiliza sin reinstalarlo.
-3. Ejecuta:
+2. Abre una terminal en la carpeta del proyecto. En Windows puedes usar la terminal de VS Code. Si todavía no existe `.venv`, necesitas Python 3.13 accesible mediante el lanzador `py` y conexión a internet: el arrancador crea el entorno e instala las dependencias. Si el entorno ya existe, lo utiliza sin reinstalarlo.
+3. Ejecuta el comando correspondiente a tu terminal:
+
+   **Git Bash:**
+
+   ```bash
+   ./iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
+   ```
+
+   **PowerShell:**
+
+   ```powershell
+   .\iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
+   ```
+
+   **Símbolo del sistema (cmd):**
 
    ```cmd
    iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
    ```
 
-   Esta opción solicita cargar el perfil de Gmail previamente autorizado, necesario para enviar el código de acceso del administrador. No envía un correo por el mero hecho de arrancar.
+   La opción solicita cargar el perfil de Gmail previamente autorizado, necesario para enviar el código de acceso del administrador. No envía un correo por el mero hecho de arrancar.
 
 4. Abre [TaxiRoute en este ordenador](https://127.0.0.1:18771/). El certificado local es autofirmado, por lo que el navegador puede mostrar una advertencia. La confianza HTTPS definitiva sigue pendiente.
 
