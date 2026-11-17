@@ -1,0 +1,90 @@
+# Experimento aislado: solo datos ficticios y publicación local.
+name: taxiroute-proxy-red-experimental
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: experimentos/proxy-local/Dockerfile.laboratorio
+    user: "10001:10001"
+    command:
+      - python
+      - -m
+      - taxiroute.servidor_proxy_experimental
+      - --cuentas
+      - /datos/cuentas.sqlite3
+      - --historial
+      - /datos/historial.sqlite3
+      - --tarifas
+      - /datos/tarifas.json
+      - --certificado
+      - /cert/interno.pem
+      - --clave
+      - /cert/interno.key
+      - --secreto-gmail
+      - /run/taxiroute/gmail_oauth.json
+      - --direccion
+      - "${TAXIROUTE_RED_IP:?Indica IP privada}"
+      - --puerto-externo
+      - "${TAXIROUTE_RED_PUERTO:?Indica puerto}"
+    ports:
+      - "${TAXIROUTE_RED_IP:?Indica IP privada}:${TAXIROUTE_RED_PUERTO:?Indica puerto}:18771"
+    volumes:
+      - type: bind
+        source: "${TAXIROUTE_PROXY_DATOS:?Indica datos ficticios}"
+        target: /datos
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CERT_INTERNO:?Indica archivo ficticio}"
+        target: /cert/interno.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CLAVE_INTERNA:?Indica archivo ficticio}"
+        target: /cert/interno.key
+        read_only: true
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp
+      - /run/taxiroute:rw,noexec,nosuid,nodev,uid=10001,gid=10001,mode=0700
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+  proxy:
+    build:
+      context: ./experimentos/proxy-local
+      dockerfile: Dockerfile.proxy
+    user: "101:101"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,uid=101,gid=101,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    network_mode: "service:backend"
+    depends_on:
+      - backend
+    volumes:
+      - type: bind
+        source: "${TAXIROUTE_CERT_INTERNO:?Indica archivo ficticio}"
+        target: /cert/interno.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CERT_EXTERNO:?Indica archivo ficticio}"
+        target: /cert/externo.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${TAXIROUTE_CLAVE_EXTERNA:?Indica archivo ficticio}"
+        target: /cert/externo.key
+        read_only: true
+        bind:
+          create_host_path: false
