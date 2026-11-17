@@ -11,6 +11,7 @@ from taxiroute.reutilizacion_proxy_experimental import MARCADOR_ACTUALIZACION, E
 from taxiroute.transicion_local_red import TransicionLocalRedError, transicionar_local_a_red
 from taxiroute.verificador_proxy_experimental import EstadoComposicion, EstadoContenedor
 from taxiroute.manifiesto_proxy_experimental import leer_manifiesto_red
+from taxiroute.diario_transicion import consultar_diario, DiarioTransicionError, registrar_estado
 
 
 class PruebasTransicionLocalRed(TestCase):
@@ -70,6 +71,7 @@ class PruebasTransicionLocalRed(TestCase):
         esperado = self.configurar()
         resultado = transicionar_local_a_red(**self.opciones)
         self.assertEqual(resultado.evidencia, esperado)
+        self.assertEqual(consultar_diario(self.identidad)['estado'], 'PUBLICADA')
         self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
         manifiesto = leer_manifiesto_red(resultado.identidad)
         self.assertEqual((manifiesto.direccion, manifiesto.puerto), ('192.168.1.25', 18773))
@@ -96,6 +98,7 @@ class PruebasTransicionLocalRed(TestCase):
             with self.assertRaises(TransicionLocalRedError):
                 transicionar_local_a_red(**self.opciones)
         self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())
+        self.assertEqual(consultar_diario(self.identidad)['estado'], 'CANCELADA')
         self.assertTrue((self.opciones['copia'] / 'cuentas.sqlite3').is_file())
 
     def test_fallo_al_publicar_no_intenta_quitar_barrera(self):
@@ -106,6 +109,26 @@ class PruebasTransicionLocalRed(TestCase):
                 transicionar_local_a_red(**self.opciones)
         restaurar.assert_not_called()
         self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+        registro = consultar_diario(self.identidad)
+        self.assertEqual(registro['estado'], 'PUBLICACION_INTENTADA')
+        with self.assertRaises(DiarioTransicionError):
+            registrar_estado(self.identidad, registro['id'], 'CANCELACION_SOLICITADA')
+
+    def test_fallo_al_registrar_intento_no_inicia_red_ni_libera_barrera(self):
+        self.configurar()
+        from taxiroute.diario_transicion import registrar_estado as registrar_real
+        def fallo_despues_de_registrar(identidad, diario, estado):
+            if estado == 'PUBLICACION_INTENTADA':
+                registrar_real(identidad, diario, estado)
+                raise OSError('fallo de confirmación')
+            return registrar_real(identidad, diario, estado)
+        with patch('taxiroute.transicion_local_red.registrar_estado', side_effect=fallo_despues_de_registrar), \
+             patch('taxiroute.transicion_local_red.arrancar_red') as arrancar:
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        arrancar.assert_not_called()
+        self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+        self.assertEqual(consultar_diario(self.identidad)['estado'], 'PUBLICACION_INTENTADA')
 
     def test_destino_existente_no_bloquea_instalacion(self):
         self.configurar()

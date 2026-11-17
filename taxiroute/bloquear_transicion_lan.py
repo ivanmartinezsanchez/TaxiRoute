@@ -10,6 +10,7 @@ import os
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.cargar_gmail_windows import _docker
 from taxiroute.copia_sqlite_experimental import _validar
+from taxiroute.diario_transicion import cancelacion_autorizada
 from taxiroute.instalacion_inicial import revisar_instalacion
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
 from taxiroute.preparacion_actualizacion import instalacion_detenida
@@ -67,7 +68,7 @@ def bloquear_local_para_transicion(carpeta, copia):
         raise TransicionRedError('No se pudo preparar la transición; conserva los datos y revisa cualquier marcador.') from None
 
 
-def restaurar_local_antes_de_publicar(carpeta, copia, marcador_creado):
+def restaurar_local_antes_de_publicar(carpeta, copia, marcador_creado, diario):
     """Retira solo la barrera recién creada si aún no se intentó publicar LAN.
 
     Solo para el proceso que acaba de crear la barrera: el llamador tiene la
@@ -84,7 +85,7 @@ def restaurar_local_antes_de_publicar(carpeta, copia, marcador_creado):
         identidad = rutas.carpeta / 'proxy-local'
         marcador = identidad / MARCADOR_ACTUALIZACION
         with _bloqueo_instalacion(identidad), bloqueo_historial(rutas.datos / 'servidor', espera=0):
-            with bloqueo_historial(copia / 'servidor', espera=0):
+            with bloqueo_historial(copia / 'servidor', espera=0), cancelacion_autorizada(identidad, diario):
                 info = marcador.lstat()
                 if (marcador.is_symlink() or not marcador.is_file()
                         or (info.st_dev, info.st_ino) != marcador_creado

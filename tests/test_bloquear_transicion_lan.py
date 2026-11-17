@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from taxiroute.bloquear_transicion_lan import TransicionRedError, bloquear_local_para_transicion, restaurar_local_antes_de_publicar
 from taxiroute.copia_sqlite_experimental import _copiar_archivos
+from taxiroute.diario_transicion import iniciar_diario, registrar_estado
 from taxiroute.reutilizacion_proxy_experimental import MARCADOR_ACTUALIZACION, ErrorReutilizacion, reutilizar
 import test_preparacion_actualizacion as fixtures
 
@@ -62,9 +63,11 @@ class PruebasBloqueoTransicion(TestCase):
         copia = self.preparar_copia()
         marcador = bloquear_local_para_transicion(self.raiz, copia)
         info = marcador.stat()
+        diario = iniciar_diario(self.identidad)
+        registrar_estado(self.identidad, diario, 'CANCELACION_SOLICITADA')
         with patch('taxiroute.bloquear_transicion_lan.leer_manifiesto', return_value=self.manifiesto), \
              patch('taxiroute.bloquear_transicion_lan.verificar_para_reutilizar', return_value=fixtures.estado()):
-            self.assertTrue(restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino)))
+            self.assertTrue(restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino), diario))
         self.assertFalse(marcador.exists())
         self.assertTrue((copia / 'cuentas.sqlite3').exists())
 
@@ -72,20 +75,34 @@ class PruebasBloqueoTransicion(TestCase):
         copia = self.preparar_copia()
         marcador = bloquear_local_para_transicion(self.raiz, copia)
         info = marcador.stat()
+        diario = iniciar_diario(self.identidad)
+        registrar_estado(self.identidad, diario, 'CANCELACION_SOLICITADA')
         self.docker_bloqueo.return_value = b'activo'
         with patch('taxiroute.bloquear_transicion_lan.leer_manifiesto', return_value=self.manifiesto), \
              patch('taxiroute.bloquear_transicion_lan.verificar_para_reutilizar', return_value=fixtures.estado()), \
              self.assertRaises(TransicionRedError):
-            restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino))
+            restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino), diario)
         self.assertTrue(marcador.exists())
 
     def test_no_recupera_si_copia_cambia(self):
         copia = self.preparar_copia()
         marcador = bloquear_local_para_transicion(self.raiz, copia)
         info = marcador.stat()
+        diario = iniciar_diario(self.identidad)
+        registrar_estado(self.identidad, diario, 'CANCELACION_SOLICITADA')
         (copia / 'tarifas.json').write_text('{}', encoding='utf-8')
         with patch('taxiroute.bloquear_transicion_lan.leer_manifiesto', return_value=self.manifiesto), \
              patch('taxiroute.bloquear_transicion_lan.verificar_para_reutilizar', return_value=fixtures.estado()), \
              self.assertRaises(TransicionRedError):
-            restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino))
+            restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino), diario)
         self.assertTrue(marcador.exists())
+
+    def test_no_recupera_si_hubo_intento_de_publicacion(self):
+        copia = self.preparar_copia()
+        marcador = bloquear_local_para_transicion(self.raiz, copia)
+        info = marcador.stat()
+        diario = iniciar_diario(self.identidad)
+        registrar_estado(self.identidad, diario, 'PUBLICACION_INTENTADA')
+        with self.assertRaises(TransicionRedError):
+            restaurar_local_antes_de_publicar(self.raiz, copia, (info.st_dev, info.st_ino), diario)
+        self.assertTrue(marcador.is_file())

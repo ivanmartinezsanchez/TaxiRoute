@@ -15,6 +15,7 @@ from taxiroute.arranque_red import _PROYECTO, arrancar_red
 from taxiroute.bloquear_transicion_lan import bloquear_local_para_transicion, restaurar_local_antes_de_publicar
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.copia_sqlite_experimental import _copiar_archivos, _validar
+from taxiroute.diario_transicion import iniciar_diario, registrar_estado
 from taxiroute.iniciar_proxy_local_experimental import _crear_tls_interno
 from taxiroute.instalacion_inicial import _generar_certificado, revisar_instalacion
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
@@ -45,6 +46,8 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
     confiable en los clientes ni evita acceso simultáneo de procesos externos.
     """
     barrera = None
+    diario = None
+    identidad_origen = None
     publicacion_intentada = False
     try:
         origen = Path(origen).expanduser().absolute()
@@ -69,6 +72,8 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
         if not info_marcador.st_ino:
             raise ValueError("La identidad de la barrera no se puede comprobar.")
         barrera = (info_marcador.st_dev, info_marcador.st_ino)
+        identidad_origen = marcador.parent
+        diario = iniciar_diario(identidad_origen)
         destino.mkdir(mode=0o700)
         verificar_permisos_windows(destino)
         datos = destino / 'datos'
@@ -99,19 +104,26 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
         identidad = destino / 'proxy-local'
         identidad.mkdir(mode=0o700)
         verificar_permisos_windows(destino)
+        registrar_estado(identidad_origen, diario, "PUBLICACION_INTENTADA")
         publicacion_intentada = True
         evidencia = arrancar_red(identidad=identidad, proyecto=proyecto, direccion=direccion, puerto=puerto,
                                  datos=datos, cert_interno=cert_interno, clave_interna=clave_interna,
                                  cert_externo=cert_externo, clave_externa=clave_externa)
         if reutilizar_red(identidad) != evidencia:
             raise ValueError('La identidad LAN ha cambiado.')
+        registrar_estado(identidad_origen, diario, 'PUBLICADA')
         return ResultadoTransicion(destino, identidad, evidencia)
     except Exception:
-        if barrera is not None and not publicacion_intentada:
+        if barrera is not None and diario is not None and not publicacion_intentada:
             try:
-                restaurar_local_antes_de_publicar(origen, copia, barrera)
+                # Si el registro falla, se conserva la barrera. Si llegó a
+                # registrarse un intento, no se admite cancelar aunque fsync
+                # o una respuesta posterior hayan fallado.
+                registrar_estado(identidad_origen, diario, 'CANCELACION_SOLICITADA')
+                restaurar_local_antes_de_publicar(origen, copia, barrera, diario)
+                registrar_estado(identidad_origen, diario, 'CANCELADA')
             except Exception:
-                pass  # La barrera se conserva si cualquier comprobación falla.
+                pass  # Requiere revisión; no se fuerza ningún retorno.
         raise TransicionLocalRedError(
             'La transición no se ha confirmado. Conserva los datos, marcadores y servicios para revisión.'
         ) from None
