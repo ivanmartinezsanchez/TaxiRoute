@@ -37,7 +37,8 @@ class PruebasVerificador(unittest.TestCase):
                 "User": "101:101" if proxy else "10001:10001", "WorkingDir": "/" if proxy else "/app",
                 "Entrypoint": ["nginx"] if proxy else None,
                 "Cmd": ["-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"] if proxy else COMANDO_BACKEND[:]}
-            host = {"ReadonlyRootfs": True, "Privileged": False, "CapDrop": ["ALL"], "CapAdd": None,
+            host = {"ReadonlyRootfs": True, "Privileged": False, "RestartPolicy": {"Name": "no", "MaximumRetryCount": 0},
+                "AutoRemove": False, "CapDrop": ["ALL"], "CapAdd": None,
                 "SecurityOpt": ["no-new-privileges:true"], "Devices": None, "DeviceRequests": None,
                 "VolumesFrom": None, "GroupAdd": None, "PidMode": "", "IpcMode": "private", "UTSMode": "",
                 "NetworkMode": "container:" + self.ids["backend"] if proxy else self.proyecto + "_default",
@@ -95,6 +96,8 @@ class PruebasVerificador(unittest.TestCase):
             ("etiqueta", lambda d: d["proxy"]["Config"]["Labels"].update({"com.docker.compose.service":"backend"})),
             ("reiniciando", lambda d: d["proxy"]["State"].update(Restarting=True)),
             ("namespace", lambda d: d["proxy"]["HostConfig"].update(NetworkMode="container:"+"f"*64)),
+            ("reinicio automático", lambda d: d["proxy"]["HostConfig"].update(RestartPolicy={"Name":"always","MaximumRetryCount":0})),
+            ("borrado automático", lambda d: d["backend"]["HostConfig"].update(AutoRemove=True)),
             ("puerto", lambda d: d["backend"]["HostConfig"].update(PortBindings={"18771/tcp":[{"HostIp":"0.0.0.0","HostPort":"18771"}]})),
             ("capacidad", lambda d: d["proxy"]["HostConfig"].update(CapAdd=["SYS_ADMIN"])),
             ("sin_raiz_ro", lambda d: d["proxy"]["HostConfig"].update(ReadonlyRootfs=False)),

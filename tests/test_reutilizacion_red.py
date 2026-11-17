@@ -51,6 +51,14 @@ class PruebasReutilizacionRed(TestCase):
         self.assertEqual(starts, [['start','1'*64],['start','2'*64]])
         self._validar.assert_called_once()
 
+    def test_puerto_activo_no_verificado_impide_iniciar_proxy(self):
+        self._verificar_composicion.side_effect = [estado(False,False), estado(False,False), ValueError('enlace diferente')]
+        with self.assertRaises(ErrorReutilizacionRed):
+            reutilizar_red(self.carpeta)
+        starts = [x.args[0] for x in self._docker.call_args_list if x.args[0][0] == 'start']
+        self.assertEqual(starts, [['start', '1'*64]])
+        self._esperar_https.assert_not_called()
+
     def test_estado_mixto_no_altera_servicios(self):
         self._verificar_composicion.return_value = estado(True,False)
         with self.assertRaises(ErrorReutilizacionRed): reutilizar_red(self.carpeta)

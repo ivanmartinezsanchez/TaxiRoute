@@ -115,6 +115,8 @@ def _comprobar(servicio, contenedor, imagen, esperado, proyecto, montajes, *, pe
             or config["Env"] != imagen["Config"]["Env"]):
         raise ValueError("Configuración de Compose no válida.")
     if (host["ReadonlyRootfs"] is not True or host["Privileged"] is not False
+            or host.get("RestartPolicy") != {"Name": "no", "MaximumRetryCount": 0}
+            or host.get("AutoRemove") is not False
             or host["CapDrop"] != ["ALL"] or host.get("CapAdd") not in (None, [])
             or host["SecurityOpt"] != ["no-new-privileges:true"]
             or host.get("Devices") not in (None, []) or host.get("DeviceRequests") not in (None, [])
@@ -126,7 +128,7 @@ def _comprobar(servicio, contenedor, imagen, esperado, proyecto, montajes, *, pe
     return EstadoContenedor(identificador, esperado, estado["StartedAt"], contenedor["RestartCount"], estado["Running"])
 
 
-def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None, permitir_detenidos=False, direccion="127.0.0.1", puerto=18771):
+def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, anterior=None, permitir_detenidos=False, direccion="127.0.0.1", puerto=18771, puerto_no_observable_detenido=False):
     """Devuelve identidad y arranque observados, sin acceso al almacén OAuth.
 
     Las imágenes deben indicarse por ID inmutable obtenido fuera de esta función,
@@ -173,11 +175,23 @@ def _verificar_composicion(*, proyecto, imagenes_esperadas, rutas_esperadas, ant
         )
         b, p = contenedores["backend"], contenedores["proxy"]
         bc, bh, pc, ph = b["Config"], b["HostConfig"], p["Config"], p["HostConfig"]
+        if type(puerto_no_observable_detenido) is not bool:
+            raise ValueError("Opción de puerto no válida.")
+        enlace = bh["PortBindings"]
+        esperado = {"18771/tcp": [{"HostIp": direccion, "HostPort": str(puerto)}]}
+        # Docker Desktop puede mostrar este marcador mientras ambos servicios
+        # están detenidos. No confirma el puerto; al iniciar solo el backend se
+        # exige de nuevo el enlace exacto antes de iniciar el proxy.
+        marcador = {"18771/tcp": [{"HostIp": "127.0.0.1", "HostPort": ""}]}
+        enlace_admisible = enlace == esperado or (
+            puerto_no_observable_detenido and permitir_detenidos and direccion != "127.0.0.1"
+            and not evidencias["backend"].activo and not evidencias["proxy"].activo
+            and enlace == marcador)
         if (bc["User"] != "10001:10001" or bc["WorkingDir"] != "/app"
                 or bc["Entrypoint"] not in (None, []) or bc["Cmd"] != comando_backend
                 or bh["NetworkMode"] != f"{proyecto}_default"
                 or set(b["NetworkSettings"]["Networks"]) != {f"{proyecto}_default"}
-                or bh["PortBindings"] != {"18771/tcp": [{"HostIp": direccion, "HostPort": str(puerto)}]}
+                or not enlace_admisible
                 or not _tmpfs_real(bh["Tmpfs"], {"/tmp": [], "/run/taxiroute":
                     ["rw", "noexec", "nosuid", "nodev", "uid=10001", "gid=10001", "mode=0700"]})
                 or pc["User"] != "101:101" or pc["WorkingDir"] != "/"

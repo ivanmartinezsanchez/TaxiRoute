@@ -46,7 +46,7 @@ def reutilizar_red(identidad):
             _claves_distintas(rutas['cert_interno'], rutas['cert_externo'])
             opciones = dict(proyecto=manifiesto.proyecto, imagenes_esperadas=manifiesto.imagenes,
                             rutas_esperadas=rutas, direccion=manifiesto.direccion, puerto=manifiesto.puerto,
-                            permitir_detenidos=True)
+                            permitir_detenidos=True, puerto_no_observable_detenido=True)
             def comprobar_estado():
                 _exigir_sin_actualizacion_pendiente(identidad)
                 if leer_manifiesto_red(identidad) != manifiesto:
