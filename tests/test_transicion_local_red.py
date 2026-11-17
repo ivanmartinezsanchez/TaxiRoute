@@ -88,6 +88,25 @@ class PruebasTransicionLocalRed(TestCase):
         self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
         self.assertTrue((self.opciones['copia'] / 'cuentas.sqlite3').is_file())
 
+    def test_fallo_previo_a_publicacion_recupera_local_si_coinciden_datos(self):
+        self.configurar()
+        with patch('taxiroute.transicion_local_red._generar_certificado', side_effect=OSError('fallo')), \
+             patch('taxiroute.bloquear_transicion_lan.leer_manifiesto', return_value=self.manifiesto), \
+             patch('taxiroute.bloquear_transicion_lan.verificar_para_reutilizar', return_value=fixtures.estado()):
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())
+        self.assertTrue((self.opciones['copia'] / 'cuentas.sqlite3').is_file())
+
+    def test_fallo_al_publicar_no_intenta_quitar_barrera(self):
+        self.configurar()
+        with patch('taxiroute.transicion_local_red.arrancar_red', side_effect=OSError('fallo')), \
+             patch('taxiroute.transicion_local_red.restaurar_local_antes_de_publicar') as restaurar:
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        restaurar.assert_not_called()
+        self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+
     def test_destino_existente_no_bloquea_instalacion(self):
         self.configurar()
         self.opciones['destino'].mkdir()

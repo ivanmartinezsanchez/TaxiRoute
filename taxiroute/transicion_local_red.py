@@ -12,7 +12,7 @@ import os
 import sqlite3
 
 from taxiroute.arranque_red import _PROYECTO, arrancar_red
-from taxiroute.bloquear_transicion_lan import bloquear_local_para_transicion
+from taxiroute.bloquear_transicion_lan import bloquear_local_para_transicion, restaurar_local_antes_de_publicar
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.copia_sqlite_experimental import _copiar_archivos, _validar
 from taxiroute.iniciar_proxy_local_experimental import _crear_tls_interno
@@ -38,11 +38,14 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
     """Bloquea la instalación local y prepara una instalación LAN separada.
 
     No acepta carpetas existentes. En caso de fallo conserva cualquier marcador,
-    datos, certificados y servicios para su revisión; nunca hace rollback. El
+    datos, certificados y servicios para su revisión. Antes de intentar publicar,
+    un fallo puede retirar la barrera si todas las comprobaciones se repiten. El
     servidor anterior solo queda bloqueado para los lanzadores cooperativos. El
     correo necesita una acción explícita posterior y la prueba no acredita TLS
     confiable en los clientes ni evita acceso simultáneo de procesos externos.
     """
+    barrera = None
+    publicacion_intentada = False
     try:
         origen = Path(origen).expanduser().absolute()
         copia = Path(copia).expanduser().absolute()
@@ -61,7 +64,11 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
                 raise ValueError('Las carpetas deben estar separadas.')
         if any(os.path.lexists(ruta / '.git') for ruta in (padre, *padre.parents)):
             raise ValueError('El destino debe estar fuera de Git.')
-        bloquear_local_para_transicion(origen, copia)
+        marcador = bloquear_local_para_transicion(origen, copia)
+        info_marcador = marcador.stat()
+        if not info_marcador.st_ino:
+            raise ValueError("La identidad de la barrera no se puede comprobar.")
+        barrera = (info_marcador.st_dev, info_marcador.st_ino)
         destino.mkdir(mode=0o700)
         verificar_permisos_windows(destino)
         datos = destino / 'datos'
@@ -92,6 +99,7 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
         identidad = destino / 'proxy-local'
         identidad.mkdir(mode=0o700)
         verificar_permisos_windows(destino)
+        publicacion_intentada = True
         evidencia = arrancar_red(identidad=identidad, proyecto=proyecto, direccion=direccion, puerto=puerto,
                                  datos=datos, cert_interno=cert_interno, clave_interna=clave_interna,
                                  cert_externo=cert_externo, clave_externa=clave_externa)
@@ -99,6 +107,11 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
             raise ValueError('La identidad LAN ha cambiado.')
         return ResultadoTransicion(destino, identidad, evidencia)
     except Exception:
+        if barrera is not None and not publicacion_intentada:
+            try:
+                restaurar_local_antes_de_publicar(origen, copia, barrera)
+            except Exception:
+                pass  # La barrera se conserva si cualquier comprobación falla.
         raise TransicionLocalRedError(
             'La transición no se ha confirmado. Conserva los datos, marcadores y servicios para revisión.'
         ) from None
