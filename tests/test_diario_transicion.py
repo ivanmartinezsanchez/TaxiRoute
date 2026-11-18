@@ -13,7 +13,7 @@ class PruebasDiarioTransicion(unittest.TestCase):
     def setUp(self):
         temporal = TemporaryDirectory(prefix='taxi-diario-')
         self.addCleanup(temporal.cleanup)
-        self.carpeta = Path(temporal.name)
+        self.carpeta = Path(temporal.name).resolve()
 
     def test_intento_publicacion_impide_cancelacion(self):
         ident = iniciar_diario(self.carpeta)
