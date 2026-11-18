@@ -1,8 +1,8 @@
 # Manual de uso de TaxiRoute local
 
-Esta guía corresponde a la instalación de TaxiRoute con cuenta propia en Windows y Docker. Permite entrar como conductor o administrador, gestionar carreras y consultar el historial desde el ordenador donde está instalada.
+Esta guía corresponde a una instalación de TaxiRoute en red local con Windows y Docker. Permite entrar como conductor o administrador, gestionar carreras y consultar el historial desde dispositivos conectados a la misma red.
 
-La instalación sigue en preparación: utiliza datos de prueba y no está validada para cobros reales. El acceso de esta instalación está limitado al propio ordenador. La prueba desde el móvil se hizo con una instalación separada; no significa que esta instalación esté disponible en el teléfono.
+La instalación no está validada ni homologada para cobros reales. Mantén la copia anterior y consulta los límites de recuperación y actualización antes de utilizarla con información importante.
 
 ## 1. Arrancar la aplicación
 
@@ -13,26 +13,26 @@ La instalación sigue en preparación: utiliza datos de prueba y no está valida
    **Git Bash:**
 
    ```bash
-   ./iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
+   ./iniciar-taxiroute-red.cmd --conectar-gmail
    ```
 
    **PowerShell:**
 
    ```powershell
-   .\iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
+   .\iniciar-taxiroute-red.cmd --conectar-gmail
    ```
 
    **Símbolo del sistema (cmd):**
 
    ```cmd
-   iniciar-taxiroute-proxy-experimental.cmd --conectar-gmail
+   iniciar-taxiroute-red.cmd --conectar-gmail
    ```
 
    La opción solicita cargar el perfil de Gmail previamente autorizado, necesario para enviar el código de acceso del administrador. No envía un correo por el mero hecho de arrancar.
 
-4. Abre [TaxiRoute en este ordenador](https://127.0.0.1:18771/). El certificado local es autofirmado, por lo que el navegador puede mostrar una advertencia. La confianza HTTPS definitiva sigue pendiente.
+4. Abre en el navegador la dirección HTTPS que muestra el lanzador. El ordenador, el móvil o la tablet deben estar conectados a la misma red local. Cada dispositivo debe confiar en la autoridad pública de TaxiRoute; si aparece una advertencia, revisa el certificado antes de introducir credenciales.
 
-La primera vez se solicita crear el administrador y guardar cinco códigos de recuperación. Guárdalos en privado. Si te equivocas al escribir `GUARDADOS`, el asistente vuelve a pedir la confirmación; pulsa Intro para cancelar. Si la preparación se interrumpe y queda una carpeta parcial, consérvala para revisión en lugar de borrarla o repetir la creación a ciegas.
+La instalación de red debe estar preparada antes de utilizar este lanzador. Conserva en privado los códigos de recuperación generados para tu cuenta de administrador. La instalación local anterior queda bloqueada tras el traslado para evitar historiales divergentes.
 
 Si la preparación del entorno se interrumpe, conserva la carpeta `.venv` y revisa el error antes de volver a intentarlo. Si el lanzador indica que el código del proyecto y el contenedor son distintos, la instalación sigue usando la imagen anterior. Descargar cambios del repositorio no actualiza el contenedor automáticamente. No lo borres para forzar la actualización: el procedimiento seguro de sustitución sigue pendiente.
 
