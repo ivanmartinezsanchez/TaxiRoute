@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 
 from taxiroute.arranque_red import _PROYECTO
+from taxiroute.certificados_lan import verificar_certificados_preparados
 from taxiroute.iniciar_red_existente import main as iniciar_red
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
 from taxiroute.red_local import comprobar_direccion_local
@@ -16,7 +17,7 @@ from taxiroute.transicion_local_red import transicionar_local_a_red
 from taxiroute.verificar_copia_previa import verificar_copia_previa
 
 
-def _preparar(*, origen, copia, destino, direccion, puerto, proyecto):
+def _preparar(*, origen, copia, destino, direccion, puerto, proyecto, certificados_preparados=None):
     """Comprueba el destino y los requisitos antes de iniciar la transición.
 
     La comprobación no reserva el estado: la transición vuelve a comprobarlo.
@@ -36,9 +37,20 @@ def _preparar(*, origen, copia, destino, direccion, puerto, proyecto):
             raise ValueError('El destino debe estar separado del origen y la copia.')
     if any(os.path.lexists(p / '.git') for p in (padre, *padre.parents)):
         raise ValueError('El destino debe estar fuera de un repositorio Git.')
+    if certificados_preparados is not None:
+        certificados_preparados = Path(certificados_preparados).expanduser().absolute()
+        verificar_certificados_preparados(certificados_preparados, direccion=direccion,
+            comprobar_permisos=verificar_permisos_windows)
+        preparada = certificados_preparados.resolve(strict=True)
+        for otra in (origen.resolve(strict=True), copia.resolve(strict=True), destino):
+            if preparada == otra or otra in preparada.parents or preparada in otra.parents:
+                raise ValueError('Los certificados deben estar separados de las instalaciones.')
     verificar_copia_previa(origen, copia)
-    return dict(origen=origen, copia=copia, destino=destino, direccion=direccion,
-                puerto=puerto, proyecto=proyecto)
+    opciones = dict(origen=origen, copia=copia, destino=destino, direccion=direccion,
+                    puerto=puerto, proyecto=proyecto)
+    if certificados_preparados is not None:
+        opciones['certificados_preparados'] = certificados_preparados
+    return opciones
 
 
 def main(argv=None):
@@ -49,11 +61,13 @@ def main(argv=None):
     parser.add_argument('--direccion', required=True, help='IPv4 privada asignada a este equipo')
     parser.add_argument('--puerto', type=int, required=True, help='Puerto HTTPS de la red local')
     parser.add_argument('--proyecto', required=True, help='Nombre Docker nuevo')
+    parser.add_argument('--certificados-lan', type=Path, help='Carpeta de certificados LAN previamente preparados')
     parser.add_argument('--conectar-gmail', action='store_true', help='Cargar expresamente el perfil Gmail autorizado')
     args = parser.parse_args(argv)
     try:
         opciones = _preparar(origen=args.origen, copia=args.copia, destino=args.destino,
-                             direccion=args.direccion, puerto=args.puerto, proyecto=args.proyecto)
+                             direccion=args.direccion, puerto=args.puerto, proyecto=args.proyecto,
+                             certificados_preparados=args.certificados_lan)
     except Exception:
         print('No se han superado las comprobaciones previas; no se ha iniciado la transición.', file=sys.stderr)
         return 1
@@ -74,7 +88,7 @@ def main(argv=None):
     if codigo != 0:
         print('La instalación de red puede estar activa, pero no se ha confirmado su inicio completo. No borres ni reinicies las instalaciones; requieren revisión.', file=sys.stderr)
         return 1
-    print('El certificado es autofirmado. Debe establecerse confianza en cada dispositivo antes de usar credenciales reales.')
+    print('Instala únicamente el certificado público autoridad.cer en cada dispositivo y verifica HTTPS antes de usar credenciales reales.')
     print('Los CSV históricos y el registro de actividad permanecen en la instalación anterior.')
     return 0
 

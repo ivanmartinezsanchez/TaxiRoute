@@ -42,7 +42,24 @@ class PruebasAsistenteTransicion(TestCase):
         self.parches['verificar_copia_previa'].assert_called_once_with(self.origen, self.copia)
         self.parches['transicionar_local_a_red'].assert_called_once()
         self.parches['iniciar_red'].assert_called_once_with(['--identidad', str(self.destino / 'proxy-local')])
-        self.assertIn('autofirmado', salida)
+        self.assertIn('autoridad.cer', salida)
+
+    def test_certificados_preparados_se_validan_y_se_entregan_a_transicion(self):
+        preparada = self.raiz/'certificados'
+        preparada.mkdir()
+        with patch('taxiroute.asistente_transicion_red.verificar_certificados_preparados') as validar:
+            codigo, _, error = self.ejecutar(self.argv + ['--certificados-lan', str(preparada)])
+        self.assertEqual((codigo,error),(0,''))
+        validar.assert_called_once()
+        self.assertEqual(self.parches['transicionar_local_a_red'].call_args.kwargs['certificados_preparados'], preparada)
+
+    def test_certificados_invalidos_no_inician_transicion(self):
+        preparada = self.raiz/'certificados'
+        preparada.mkdir()
+        with patch('taxiroute.asistente_transicion_red.verificar_certificados_preparados', side_effect=ValueError('inválido')):
+            codigo, _, _ = self.ejecutar(self.argv + ['--certificados-lan', str(preparada)])
+        self.assertEqual(codigo, 1)
+        self.parches['transicionar_local_a_red'].assert_not_called()
 
     def test_correo_se_solicita_solo_con_flag_explicito(self):
         codigo, _, _ = self.ejecutar(self.argv + ['--conectar-gmail'])

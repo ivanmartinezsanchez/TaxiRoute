@@ -28,7 +28,7 @@ class PruebasArranqueRed(TestCase):
         evidencia = SimpleNamespace(backend=SimpleNamespace(identificador="a"*64),
                                    proxy=SimpleNamespace(identificador="b"*64))
         prefijo="taxiroute.arranque_red."
-        for nombre in ("comprobar_direccion_local", "_validar_certificados", "_claves_distintas",
+        for nombre in ("comprobar_direccion_local", "_validar_certificados", "verificar_certificado_externo", "_claves_distintas",
                        "verificar_permisos_windows", "_validar", "_sin_contenedores", "_compose",
                        "_esperar_https", "crear_manifiesto_red"):
             setattr(self, nombre, patch(prefijo+nombre).start())

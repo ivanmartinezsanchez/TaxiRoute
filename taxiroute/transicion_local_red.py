@@ -17,7 +17,9 @@ from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.copia_sqlite_experimental import _copiar_archivos, _validar
 from taxiroute.diario_transicion import iniciar_diario, registrar_estado
 from taxiroute.iniciar_proxy_local_experimental import _crear_tls_interno
-from taxiroute.instalacion_inicial import _generar_certificado, revisar_instalacion
+from taxiroute.instalacion_inicial import revisar_instalacion
+from taxiroute.certificados_lan import (generar_certificado_lan, verificar_certificados_preparados,
+    copiar_certificados_preparados)
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
 from taxiroute.recuperar_copia_experimental import _huella_estado
 from taxiroute.red_local import comprobar_direccion_local
@@ -35,7 +37,7 @@ class ResultadoTransicion:
     evidencia: object
 
 
-def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proyecto):
+def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proyecto, certificados_preparados=None):
     """Bloquea la instalación local y prepara una instalación LAN separada.
 
     No acepta carpetas existentes. En caso de fallo conserva cualquier marcador,
@@ -67,6 +69,14 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
                 raise ValueError('Las carpetas deben estar separadas.')
         if any(os.path.lexists(ruta / '.git') for ruta in (padre, *padre.parents)):
             raise ValueError('El destino debe estar fuera de Git.')
+        if certificados_preparados is not None:
+            certificados_preparados = Path(certificados_preparados).expanduser().absolute()
+            verificar_certificados_preparados(certificados_preparados, direccion=direccion,
+                comprobar_permisos=verificar_permisos_windows)
+            preparada = certificados_preparados.resolve(strict=True)
+            for otra in (origen.resolve(strict=True), copia.resolve(strict=True), destino):
+                if preparada == otra or otra in preparada.parents or preparada in otra.parents:
+                    raise ValueError('Los certificados deben estar en una carpeta separada.')
         marcador = bloquear_local_para_transicion(origen, copia)
         info_marcador = marcador.stat()
         if not info_marcador.st_ino:
@@ -99,7 +109,12 @@ def transicionar_local_a_red(*, origen, copia, destino, direccion, puerto, proye
                 conexion.execute('UPDATE autorizaciones_cambio SET consumido_en=? WHERE consumido_en IS NULL', (fecha,))
         _validar(datos)
         verificar_permisos_windows(destino)
-        cert_externo, clave_externa = _generar_certificado(destino / 'tls', direccion=direccion)
+        if certificados_preparados is None:
+            cert_externo, clave_externa = generar_certificado_lan(destino / 'tls', destino / 'autoridad-privada',
+                direccion=direccion, comprobar_permisos=verificar_permisos_windows)
+        else:
+            cert_externo, clave_externa = copiar_certificados_preparados(certificados_preparados, destino,
+                direccion=direccion, comprobar_permisos=verificar_permisos_windows)
         cert_interno, clave_interna = _crear_tls_interno(destino / 'tls-interno', direccion=direccion)
         identidad = destino / 'proxy-local'
         identidad.mkdir(mode=0o700)

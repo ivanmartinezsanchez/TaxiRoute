@@ -27,7 +27,7 @@ class PruebasReutilizacionRed(TestCase):
         self.parches = []
         prefijo = 'taxiroute.reutilizacion_red.'
         for nombre in ('_bloqueo_instalacion','_exigir_sin_actualizacion_pendiente','verificar_permisos_windows',
-                       'leer_manifiesto_red','comprobar_direccion_local','_validar_certificados', '_claves_distintas',
+                       'leer_manifiesto_red','comprobar_direccion_local','_validar_certificados', 'verificar_certificado_externo', '_claves_distintas',
                        '_verificar_composicion','verificar_instalacion_red','_docker','bloqueo_historial','_validar', '_esperar_https'):
             parche=patch(prefijo+nombre); setattr(self,nombre,parche.start()); self.parches.append(parche)
         self.addCleanup(lambda: [p.stop() for p in reversed(self.parches)])

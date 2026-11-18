@@ -151,9 +151,11 @@ class PruebasVerificador(unittest.TestCase):
             "18771/tcp": [{"HostIp": identidad.direccion, "HostPort": str(identidad.puerto)}]}
         with patch("taxiroute.manifiesto_proxy_experimental.leer_manifiesto_red", return_value=identidad), \
              patch("taxiroute.arranque_proxy_experimental._validar_certificados") as certificados, \
+             patch("taxiroute.certificados_lan.verificar_certificado_externo") as externo, \
              patch("taxiroute.arranque_proxy_experimental._claves_distintas"):
             verificar_instalacion_red(self.rutas["datos"])
-            self.assertEqual(certificados.call_count, 2)
+            self.assertEqual(certificados.call_count, 1)
+            externo.assert_called_once()
             identidad.contenedores = {**self.ids, "backend": "f" * 64}
             with self.assertRaises(VerificacionProxyError):
                 verificar_instalacion_red(self.rutas["datos"])

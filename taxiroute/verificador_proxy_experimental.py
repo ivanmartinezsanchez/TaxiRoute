@@ -243,14 +243,14 @@ def verificar_instalacion_red(carpeta):
     confianza en dispositivos. No autoriza por sí sola la carga de credenciales.
     """
     from taxiroute.arranque_proxy_experimental import _claves_distintas, _validar_certificados
+    from taxiroute.certificados_lan import verificar_certificado_externo
     from taxiroute.manifiesto_proxy_experimental import leer_manifiesto_red
     try:
         manifiesto = leer_manifiesto_red(carpeta)
         rutas = {nombre: Path(ruta) for nombre, ruta in manifiesto.rutas.items()}
         _validar_certificados(rutas["cert_interno"], rutas["clave_interna"],
                               interno=True, direccion=manifiesto.direccion)
-        _validar_certificados(rutas["cert_externo"], rutas["clave_externa"],
-                              interno=False, direccion=manifiesto.direccion)
+        verificar_certificado_externo(rutas["cert_externo"], rutas["clave_externa"], manifiesto.direccion)
         _claves_distintas(rutas["cert_interno"], rutas["cert_externo"])
         evidencia = verificar_composicion_red(proyecto=manifiesto.proyecto,
             imagenes_esperadas=manifiesto.imagenes, rutas_esperadas=rutas,

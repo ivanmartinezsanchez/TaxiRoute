@@ -84,7 +84,7 @@ class PruebasTransicionLocalRed(TestCase):
 
     def test_si_falla_despues_del_bloqueo_conserva_marcador_y_copia(self):
         self.configurar()
-        with patch('taxiroute.transicion_local_red._generar_certificado', side_effect=OSError('fallo')):
+        with patch('taxiroute.transicion_local_red.generar_certificado_lan', side_effect=OSError('fallo')):
             with self.assertRaises(TransicionLocalRedError):
                 transicionar_local_a_red(**self.opciones)
         self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
@@ -92,7 +92,7 @@ class PruebasTransicionLocalRed(TestCase):
 
     def test_fallo_previo_a_publicacion_recupera_local_si_coinciden_datos(self):
         self.configurar()
-        with patch('taxiroute.transicion_local_red._generar_certificado', side_effect=OSError('fallo')), \
+        with patch('taxiroute.transicion_local_red.generar_certificado_lan', side_effect=OSError('fallo')), \
              patch('taxiroute.bloquear_transicion_lan.leer_manifiesto', return_value=self.manifiesto), \
              patch('taxiroute.bloquear_transicion_lan.verificar_para_reutilizar', return_value=fixtures.estado()):
             with self.assertRaises(TransicionLocalRedError):
@@ -129,6 +129,30 @@ class PruebasTransicionLocalRed(TestCase):
         arrancar.assert_not_called()
         self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
         self.assertEqual(consultar_diario(self.identidad)['estado'], 'PUBLICACION_INTENTADA')
+
+    def test_material_preparado_se_conserva_en_transicion(self):
+        self.configurar()
+        from taxiroute.certificados_lan import generar_certificado_lan
+        preparado = self.raiz.parent / 'certificados-preparados'
+        preparado.mkdir()
+        generar_certificado_lan(preparado/'tls', preparado/'autoridad-privada',
+            direccion='192.168.1.25', comprobar_permisos=lambda *a, **k: None)
+        resultado = transicionar_local_a_red(**self.opciones, certificados_preparados=preparado)
+        self.assertEqual((preparado/'tls'/'autoridad.cer').read_bytes(),
+                         (resultado.carpeta/'tls'/'autoridad.cer').read_bytes())
+        self.assertEqual((preparado/'tls'/'certificado.pem').read_bytes(),
+                         (resultado.carpeta/'tls'/'certificado.pem').read_bytes())
+
+    def test_material_preparado_ip_erronea_no_bloquea(self):
+        self.configurar()
+        from taxiroute.certificados_lan import generar_certificado_lan
+        preparado = self.raiz.parent / 'certificados-preparados'
+        preparado.mkdir()
+        generar_certificado_lan(preparado/'tls', preparado/'autoridad-privada',
+            direccion='192.168.1.26', comprobar_permisos=lambda *a, **k: None)
+        with self.assertRaises(TransicionLocalRedError):
+            transicionar_local_a_red(**self.opciones, certificados_preparados=preparado)
+        self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())
 
     def test_destino_existente_no_bloquea_instalacion(self):
         self.configurar()

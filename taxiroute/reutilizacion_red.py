@@ -11,6 +11,7 @@ from taxiroute.arranque_red import _esperar_https
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.cargar_gmail_windows import _docker
 from taxiroute.copia_sqlite_experimental import _validar
+from taxiroute.certificados_lan import verificar_certificado_externo
 from taxiroute.manifiesto_proxy_experimental import leer_manifiesto_red
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
 from taxiroute.red_local import comprobar_direccion_local
@@ -41,8 +42,7 @@ def reutilizar_red(identidad):
             comprobar_direccion_local(manifiesto.direccion)
             _validar_certificados(rutas['cert_interno'], rutas['clave_interna'], interno=True,
                                   direccion=manifiesto.direccion)
-            _validar_certificados(rutas['cert_externo'], rutas['clave_externa'], interno=False,
-                                  direccion=manifiesto.direccion)
+            verificar_certificado_externo(rutas['cert_externo'], rutas['clave_externa'], manifiesto.direccion)
             _claves_distintas(rutas['cert_interno'], rutas['cert_externo'])
             opciones = dict(proyecto=manifiesto.proyecto, imagenes_esperadas=manifiesto.imagenes,
                             rutas_esperadas=rutas, direccion=manifiesto.direccion, puerto=manifiesto.puerto,

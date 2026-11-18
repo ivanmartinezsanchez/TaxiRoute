@@ -17,6 +17,7 @@ from taxiroute.arranque_proxy_experimental import (
 from taxiroute.arrancar_windows import _ruta_existente
 from taxiroute.bloqueo import bloqueo_historial
 from taxiroute.copia_sqlite_experimental import _validar
+from taxiroute.certificados_lan import verificar_certificado_externo
 from taxiroute.permisos_proxy_windows_experimental import verificar_permisos_windows
 from taxiroute.cargar_gmail_windows import _docker
 from taxiroute.manifiesto_proxy_experimental import ARCHIVO, MARCADOR, crear_manifiesto_red
@@ -42,7 +43,17 @@ def _compose(argumentos, proyecto, entorno):
 
 
 def _esperar_https(certificado, direccion, puerto):
-    contexto = ssl.create_default_context(cafile=str(certificado))
+    # La autoridad PEM debe corresponder a la cadena previamente verificada.
+    # El modo legado autofirmado mantiene su comprobación original.
+    from cryptography import x509
+    from taxiroute.certificados_lan import comprobar_autoridad_publica
+    bloques = x509.load_pem_x509_certificates(Path(certificado).read_bytes())
+    if len(bloques) == 1:
+        ancla = certificado  # Compatibilidad con instalaciones autofirmadas.
+    else:
+        comprobar_autoridad_publica(certificado, direccion)
+        ancla = Path(certificado).parent / 'autoridad.pem'
+    contexto = ssl.create_default_context(cafile=str(ancla))
     cliente = build_opener(ProxyHandler({}), HTTPSHandler(context=contexto))
     limite = time.monotonic() + 30
     while True:
@@ -85,7 +96,7 @@ def arrancar_red(*, identidad, proyecto, direccion, puerto, datos, cert_interno,
         verificar_permisos_windows(rutas["cert_interno"].parent)
         verificar_permisos_windows(rutas["cert_externo"].parent)
         _validar_certificados(rutas["cert_interno"], rutas["clave_interna"], interno=True, direccion=direccion)
-        _validar_certificados(rutas["cert_externo"], rutas["clave_externa"], interno=False, direccion=direccion)
+        verificar_certificado_externo(rutas["cert_externo"], rutas["clave_externa"], direccion)
         _claves_distintas(rutas["cert_interno"], rutas["cert_externo"])
         with _bloqueo_instalacion(identidad):
             _exigir_sin_actualizacion_pendiente(identidad)
