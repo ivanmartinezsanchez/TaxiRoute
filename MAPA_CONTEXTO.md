@@ -5,10 +5,10 @@
 ## Situación en una mirada
 
 - **Objetivo:** taxímetro formativo en Python con historial, acceso protegido y web adaptable. El enunciado está en [ENUNCIADO.md](ENUNCIADO.md).
-- **Ramas:** las fases 1 y 2 están integradas según el README; la fase 3 se cerró como demostración académica local. La fase 4 se desarrolla en `feature/fase-4-produccion`.
-- **Instalación:** se ha trasladado la instalación propia a una composición LAN con Docker. Una copia nueva se comprobó antes del cambio; cuentas, historial, códigos de recuperación y tarifas coinciden en el destino. Las sesiones anteriores se revocaron. El correo autorizado se ha cargado; la autenticación real en el destino está pendiente de confirmación. La instalación anterior y su copia permanecen conservadas y el lanzador anterior está bloqueado. No hay recuperación integral ni homologación para cobros.
-- **Red:** la composición LAN de la instalación propia responde por HTTPS desde el ordenador. Se ha preparado una autoridad local y los dos dispositivos han confirmado la página de prueba sin advertencias. Falta confirmar el acceso autenticado y el recorrido de la instalación propia desde los dispositivos. La clave privada de la autoridad permanece fuera de Docker. El lanzador `iniciar-taxiroute-red.cmd` reutiliza una instalación ya configurada; Gmail requiere `--conectar-gmail`.
-- **Certificados:** se ha instalado la autoridad local en el móvil y la tablet; ambos han confirmado una página de prueba sin advertencias. La validación del acceso autenticado a la instalación propia sigue pendiente.
+- **Ramas:** las fases 1 y 2 están integradas; la solicitud #18 reúne las fases 3 y 4 como MVP formativo. Consulta GitHub para conocer el estado de integración.
+- **Instalación:** la instalación propia utiliza Docker y datos trasladados a LAN. Se ha comprobado el acceso de administrador por correo y el acceso de una cuenta de conductor. La copia y la instalación anterior se conservan; el lanzador anterior está bloqueado. No hay recuperación integral ni homologación para cobros.
+- **Red:** la instalación propia responde por HTTPS en la red local. Se ha comprobado una carrera completa y su historial; el móvil y la tablet confirmaron la página de prueba del certificado sin advertencias. El lanzador `iniciar-taxiroute-red.cmd` reutiliza la instalación; Gmail requiere `--conectar-gmail`.
+- **Certificados:** se ha instalado la autoridad local en el móvil y la tablet; ambos confirmaron una página de prueba sin advertencias. La confianza puede requerir nueva configuración si cambian la dirección o los dispositivos.
 - **Recuperación:** se han probado interrupciones de carreras ficticias y revisión del último punto fiable. Las copias/restauraciones y los comprobantes de cierre siguen siendo experimentales; no acreditan recuperación completa de datos reales.
 - **Actualización:** se ha trasladado la instalación propia a LAN, conservando copia y origen e invalidando sesiones anteriores. La barrera bloquea el lanzador anterior, pero no procesos externos ni Docker directo. Los CSV históricos y el registro de actividad permanecen en origen. La recuperación tras interrupciones, la actualización de imagen y la coordinación con procesos externos tienen limitaciones pendientes.
 - **Cierre y migración:** un comprobante interno y una migración v14→v15 se prueban por separado. Ninguno está conectado a la API ni al lanzador; no migrar datos reales antes de coordinar imagen, base, copia y pruebas de interrupción. El cierre actual no tiene reintento idempotente completo.
@@ -18,11 +18,11 @@
 ## Decisiones que condicionan el trabajo
 
 - Interfaz local, adaptable y accesible. El acceso desde la red del taxi es requisito de fase 4; el acceso desde ubicaciones distintas y la sesión única por cuenta se dejaron para una evolución posterior.
-- La entrega y demostración deben quedar preparadas en Docker. La demo actual usa exclusivamente datos ficticios; el despliegue protegido real sigue pendiente.
+- La entrega y demostración utilizan Docker y una instalación protegida en la red local. El acceso desde ubicaciones distintas queda para una evolución posterior.
 - Varias cuentas con roles; el administrador también puede conducir. Las tarifas se fijan al iniciar cada carrera y los cambios se aplican a carreras nuevas.
 - Al interrumpirse una carrera, se revisa el último punto fiable y no se cobra automáticamente el intervalo desconocido. Cerrar sesión no finaliza la carrera. Para desactivar una cuenta con carrera o acción pendiente, primero se pide finalizarla o revisarla.
 - El historial de fase 3 se conserva en CSV por cuenta. La fase 4 migra a SQLite sin inventar propietarios ni borrar los CSV. Una cuenta sin CSV requiere revisión individual explícita de un administrador y registro de la decisión.
-- El asistente de migración, la transición y la recuperación siguen siendo experimentales. Se han probado con datos temporales y el asistente en una terminal interactiva de Windows; no se ha validado su procedimiento con datos reales ni en Git Bash. La web anterior sin cuentas no es la web protegida.
+- El asistente de transición se ha utilizado para trasladar la instalación propia; la recuperación integral, la migración de instalaciones y la actualización segura mantienen limitaciones experimentales.
 - La entrega incluye documentación técnica, repositorio, tablero, demostración y manual de usuario final basado en lo comprobado. No afirmar que una función experimental está lista para uso real.
 
 ## Mapa de fuentes

@@ -296,7 +296,7 @@ Se han comprobado durante el desarrollo la persistencia entre sesiones, la consu
 
 ### Cierre de la fase 2
 
-La entrega se ha integrado el 6 de noviembre de 2026 tras comprobar la demostración y las verificaciones de la pull request en Windows, Ubuntu y macOS. Las tareas de historial (#5), registros (#6) y tarifas (#7) están cerradas y figuran como completadas en el tablero. Las fases 3 y 4 siguen pendientes.
+La fase 2 se integró tras comprobar la demostración y las verificaciones en Windows, Ubuntu y macOS. Las tareas de historial (#5), registros (#6) y tarifas (#7) están cerradas. Las fases posteriores incorporan la interfaz web, cuentas, SQLite y Docker; consulta el mapa de contexto para conocer el estado y las limitaciones actuales.
 
 La [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17) conserva el resumen de la entrega y las evidencias de validación. Cada envío posterior a `main` vuelve a ejecutar la suite de GitHub Actions.
 
