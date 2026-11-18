@@ -23,8 +23,18 @@ MARCADOR_ACTUALIZACION = ".actualizacion-pendiente"
 
 def _exigir_sin_actualizacion_pendiente(carpeta):
     """Rechaza el arranque si existe una actualización interrumpida."""
-    if os.path.lexists(Path(carpeta) / MARCADOR_ACTUALIZACION):
+    carpeta = Path(carpeta)
+    if os.path.lexists(carpeta / MARCADOR_ACTUALIZACION):
         raise ErrorReutilizacion("Hay una actualización pendiente de revisión. No se han iniciado servicios ni cargado credenciales.")
+    # El diario también es una barrera: incluso si falta el marcador, un
+    # intento de publicación no permite volver automáticamente al origen.
+    from taxiroute.diario_transicion import ARCHIVO_DIARIO, consultar_diario
+    if os.path.lexists(carpeta / ARCHIVO_DIARIO):
+        try:
+            if consultar_diario(carpeta)['estado'] != 'CANCELADA':
+                raise ValueError('Transición pendiente.')
+        except Exception:
+            raise ErrorReutilizacion("Hay una transición que requiere revisión. No se han iniciado servicios ni cargado credenciales.") from None
 
 
 class ErrorReutilizacion(RuntimeError):

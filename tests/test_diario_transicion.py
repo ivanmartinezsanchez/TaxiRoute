@@ -63,6 +63,24 @@ class PruebasDiarioTransicion(unittest.TestCase):
         with self.assertRaises(DiarioTransicionError):
             registrar_estado(self.carpeta, registro['id'], 'CANCELACION_SOLICITADA')
 
+    def test_lanzador_local_bloquea_intento_aun_si_falta_marcador(self):
+        from taxiroute.reutilizacion_proxy_experimental import _exigir_sin_actualizacion_pendiente, ErrorReutilizacion
+        ident = iniciar_diario(self.carpeta)
+        registrar_estado(self.carpeta, ident, 'PUBLICACION_INTENTADA')
+        with self.assertRaises(ErrorReutilizacion):
+            _exigir_sin_actualizacion_pendiente(self.carpeta)
+
+    def test_lanzador_solo_admite_cancelacion_completa_y_rechaza_diario_roto(self):
+        from taxiroute.reutilizacion_proxy_experimental import _exigir_sin_actualizacion_pendiente, ErrorReutilizacion
+        ident = iniciar_diario(self.carpeta)
+        with self.assertRaises(ErrorReutilizacion): _exigir_sin_actualizacion_pendiente(self.carpeta)
+        registrar_estado(self.carpeta, ident, 'CANCELACION_SOLICITADA')
+        with self.assertRaises(ErrorReutilizacion): _exigir_sin_actualizacion_pendiente(self.carpeta)
+        registrar_estado(self.carpeta, ident, 'CANCELADA')
+        _exigir_sin_actualizacion_pendiente(self.carpeta)
+        with (self.carpeta / ARCHIVO_DIARIO).open('ab') as archivo: archivo.write(b'parcial')
+        with self.assertRaises(ErrorReutilizacion): _exigir_sin_actualizacion_pendiente(self.carpeta)
+
     def test_diario_existente_no_se_sobrescribe_y_exige_identidad(self):
         ident = iniciar_diario(self.carpeta)
         anterior = (self.carpeta / ARCHIVO_DIARIO).read_bytes()
