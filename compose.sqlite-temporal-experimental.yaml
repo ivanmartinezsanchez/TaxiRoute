@@ -1,0 +1,51 @@
+# Instalación de prueba separada; nunca usar cuentas ni credenciales de la demo.
+# Todas las rutas deben existir antes de arrancar. No es producción.
+name: taxiroute-temporal-experimental
+services:
+  taxiroute:
+    build: .
+    command:
+      - python
+      - -m
+      - taxiroute.iniciar_sqlite_local
+      - --cuentas
+      - /datos/cuentas.sqlite3
+      - --historial
+      - /datos/historial.sqlite3
+      - --tarifas
+      - /datos/tarifas.json
+      - --certificado
+      - /run/secrets/tls_certificado
+      - --clave
+      - /run/secrets/tls_clave
+      - --secreto-gmail
+      - /run/taxiroute/gmail_oauth.json
+      - --puerto
+      - "18770"
+      - --direccion
+      - "127.0.0.1"
+      - --escucha-contenedor
+    ports:
+      - "127.0.0.1:18770:18770"
+    volumes:
+      - type: bind
+        source: "${TAXIROUTE_DATOS:?Indica el directorio de datos de prueba}"
+        target: /datos
+        bind:
+          create_host_path: false
+    secrets:
+      - tls_certificado
+      - tls_clave
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/taxiroute:rw,noexec,nosuid,nodev,uid=10001,gid=10001,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+secrets:
+  tls_certificado:
+    file: "${TAXIROUTE_CERTIFICADO:?Indica el certificado de prueba}"
+  tls_clave:
+    file: "${TAXIROUTE_CLAVE_TLS:?Indica la clave TLS de prueba}"

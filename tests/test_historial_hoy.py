@@ -32,8 +32,8 @@ class PruebasHistorialHoy(unittest.TestCase):
         self.zona = timezone(timedelta(hours=1))
 
     def test_filtra_por_fecha_local_de_finalizacion(self):
-        with patch('taxiroute.terminal.fecha_local_actual', return_value=date(2026, 1, 5)), \
-             patch('taxiroute.terminal.a_fecha_local', side_effect=lambda dt: dt.astimezone(self.zona).date()):
+        with patch('taxiroute.servicio.fecha_local_actual', return_value=date(2026, 1, 5)), \
+             patch('taxiroute.servicio.a_fecha_local', side_effect=lambda dt: dt.astimezone(self.zona).date()):
             salida, _ = self.gestor.ejecutar('historial hoy')
         self.assertIn('medianoche', salida)
         self.assertIn('carrera_diurna', salida)
@@ -46,7 +46,7 @@ class PruebasHistorialHoy(unittest.TestCase):
             self.assertIn(identificador, salida)
 
     def test_sin_carreras_hoy_muestra_mensaje(self):
-        with patch('taxiroute.terminal.fecha_local_actual', return_value=date(2030, 1, 1)):
+        with patch('taxiroute.servicio.fecha_local_actual', return_value=date(2030, 1, 1)):
             salida, _ = self.gestor.ejecutar('historial hoy')
         self.assertIn('No hay carreras finalizadas hoy', salida)
 

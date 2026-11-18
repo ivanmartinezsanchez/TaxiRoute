@@ -1,0 +1,169 @@
+"""Flujo de transición completo con Docker simulado y datos ficticios."""
+from pathlib import Path
+from contextlib import closing
+import sqlite3
+from unittest import TestCase
+from unittest.mock import patch
+
+import test_preparacion_actualizacion as fixtures
+from taxiroute.copia_sqlite_experimental import _copiar_archivos
+from taxiroute.reutilizacion_proxy_experimental import MARCADOR_ACTUALIZACION, ErrorReutilizacion, reutilizar
+from taxiroute.transicion_local_red import TransicionLocalRedError, transicionar_local_a_red
+from taxiroute.verificador_proxy_experimental import EstadoComposicion, EstadoContenedor
+from taxiroute.manifiesto_proxy_experimental import leer_manifiesto_red
+from taxiroute.diario_transicion import consultar_diario, DiarioTransicionError, registrar_estado
+
+
+class PruebasTransicionLocalRed(TestCase):
+    setUp = fixtures.PruebasPreparacion.setUp
+
+    def configurar(self):
+        with closing(sqlite3.connect(self.rutas.datos / 'cuentas.sqlite3')) as conexion:
+            usuario = conexion.execute('SELECT id FROM usuarios').fetchone()[0]
+            conexion.execute('INSERT INTO sesiones VALUES (?,?,?,?,?,?,?,?,?,?)',
+                ('sesion-ficticia', 'hash-ficticio', usuario, 1, 'administrador', None,
+                 '2020-01-01', '2020-01-01', '2099-01-01', None))
+            conexion.commit()
+        copia = self.raiz.parent / 'copia'
+        copia.mkdir()
+        _copiar_archivos(self.rutas.datos, copia)
+        (copia / 'COPIA_DATOS_PREVIA.txt').write_text(
+            'TaxiRoute: copia de datos previa comprobada; no es una restauración completa.\n', encoding='utf-8')
+        destino = self.raiz.parent / 'lan'
+        self.opciones = dict(origen=self.raiz, copia=copia, destino=destino,
+                             direccion='192.168.1.25', puerto=18773, proyecto='taxi-red-ficticio')
+        evidencia = EstadoComposicion(
+            EstadoContenedor('1'*64, 'sha256:'+'a'*64, 'inicio', 0, True),
+            EstadoContenedor('2'*64, 'sha256:'+'b'*64, 'inicio', 0, True))
+        parches = {
+            'taxiroute.bloquear_transicion_lan.verificar_permisos_windows': {},
+            'taxiroute.bloquear_transicion_lan._docker': {'return_value': b''},
+            'taxiroute.transicion_local_red.verificar_permisos_windows': {},
+            'taxiroute.transicion_local_red.comprobar_direccion_local': {},
+            'taxiroute.arranque_red.verificar_permisos_windows': {},
+            'taxiroute.arranque_red.comprobar_direccion_local': {},
+            'taxiroute.arranque_red._sin_contenedores': {},
+            'taxiroute.arranque_red._compose': {},
+            'taxiroute.arranque_red._esperar_https': {},
+            'taxiroute.arranque_red.verificar_composicion_red': {'return_value': evidencia},
+            'taxiroute.arranque_red.verificar_instalacion_red': {'return_value': evidencia},
+            'taxiroute.reutilizacion_red.verificar_permisos_windows': {},
+            'taxiroute.reutilizacion_red.comprobar_direccion_local': {},
+            'taxiroute.reutilizacion_red._verificar_composicion': {'return_value': evidencia},
+            'taxiroute.reutilizacion_red.verificar_instalacion_red': {'return_value': evidencia},
+            'taxiroute.reutilizacion_red._esperar_https': {},
+        }
+        for nombre, opciones in parches.items():
+            parche = patch(nombre, **opciones)
+            parche.start()
+            self.addCleanup(parche.stop)
+        def docker(args):
+            if args[0] == 'ps': return b''
+            if args[:2] == ['image', 'inspect']:
+                return ('sha256:' + ('a' if '-backend' in args[2] else 'b')*64).encode()
+            raise AssertionError(args)
+        parche = patch('taxiroute.arranque_red._docker', side_effect=docker)
+        parche.start()
+        self.addCleanup(parche.stop)
+        return evidencia
+
+    def test_transicion_completa_bloquea_local_crea_identidad_y_reutiliza(self):
+        esperado = self.configurar()
+        resultado = transicionar_local_a_red(**self.opciones)
+        self.assertEqual(resultado.evidencia, esperado)
+        self.assertEqual(consultar_diario(self.identidad)['estado'], 'PUBLICADA')
+        self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+        manifiesto = leer_manifiesto_red(resultado.identidad)
+        self.assertEqual((manifiesto.direccion, manifiesto.puerto), ('192.168.1.25', 18773))
+        with closing(sqlite3.connect(resultado.carpeta / 'datos' / 'cuentas.sqlite3')) as conexion:
+            self.assertIsNotNone(conexion.execute('SELECT revocada_en FROM sesiones').fetchone()[0])
+        with closing(sqlite3.connect(self.rutas.datos / 'cuentas.sqlite3')) as conexion:
+            self.assertIsNone(conexion.execute('SELECT revocada_en FROM sesiones').fetchone()[0])
+        with self.assertRaises(ErrorReutilizacion):
+            reutilizar(self.identidad)
+
+    def test_si_falla_despues_del_bloqueo_conserva_marcador_y_copia(self):
+        self.configurar()
+        with patch('taxiroute.transicion_local_red.generar_certificado_lan', side_effect=OSError('fallo')):
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+        self.assertTrue((self.opciones['copia'] / 'cuentas.sqlite3').is_file())
+
+    def test_fallo_previo_a_publicacion_recupera_local_si_coinciden_datos(self):
+        self.configurar()
+        with patch('taxiroute.transicion_local_red.generar_certificado_lan', side_effect=OSError('fallo')), \
+             patch('taxiroute.bloquear_transicion_lan.leer_manifiesto', return_value=self.manifiesto), \
+             patch('taxiroute.bloquear_transicion_lan.verificar_para_reutilizar', return_value=fixtures.estado()):
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())
+        self.assertEqual(consultar_diario(self.identidad)['estado'], 'CANCELADA')
+        self.assertTrue((self.opciones['copia'] / 'cuentas.sqlite3').is_file())
+
+    def test_fallo_al_publicar_no_intenta_quitar_barrera(self):
+        self.configurar()
+        with patch('taxiroute.transicion_local_red.arrancar_red', side_effect=OSError('fallo')), \
+             patch('taxiroute.transicion_local_red.restaurar_local_antes_de_publicar') as restaurar:
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        restaurar.assert_not_called()
+        self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+        registro = consultar_diario(self.identidad)
+        self.assertEqual(registro['estado'], 'PUBLICACION_INTENTADA')
+        with self.assertRaises(DiarioTransicionError):
+            registrar_estado(self.identidad, registro['id'], 'CANCELACION_SOLICITADA')
+
+    def test_fallo_al_registrar_intento_no_inicia_red_ni_libera_barrera(self):
+        self.configurar()
+        from taxiroute.diario_transicion import registrar_estado as registrar_real
+        def fallo_despues_de_registrar(identidad, diario, estado):
+            if estado == 'PUBLICACION_INTENTADA':
+                registrar_real(identidad, diario, estado)
+                raise OSError('fallo de confirmación')
+            return registrar_real(identidad, diario, estado)
+        with patch('taxiroute.transicion_local_red.registrar_estado', side_effect=fallo_despues_de_registrar), \
+             patch('taxiroute.transicion_local_red.arrancar_red') as arrancar:
+            with self.assertRaises(TransicionLocalRedError):
+                transicionar_local_a_red(**self.opciones)
+        arrancar.assert_not_called()
+        self.assertTrue((self.identidad / MARCADOR_ACTUALIZACION).is_file())
+        self.assertEqual(consultar_diario(self.identidad)['estado'], 'PUBLICACION_INTENTADA')
+
+    def test_material_preparado_se_conserva_en_transicion(self):
+        self.configurar()
+        from taxiroute.certificados_lan import generar_certificado_lan
+        preparado = self.raiz.parent / 'certificados-preparados'
+        preparado.mkdir()
+        generar_certificado_lan(preparado/'tls', preparado/'autoridad-privada',
+            direccion='192.168.1.25', comprobar_permisos=lambda *a, **k: None)
+        resultado = transicionar_local_a_red(**self.opciones, certificados_preparados=preparado)
+        self.assertEqual((preparado/'tls'/'autoridad.cer').read_bytes(),
+                         (resultado.carpeta/'tls'/'autoridad.cer').read_bytes())
+        self.assertEqual((preparado/'tls'/'certificado.pem').read_bytes(),
+                         (resultado.carpeta/'tls'/'certificado.pem').read_bytes())
+
+    def test_material_preparado_ip_erronea_no_bloquea(self):
+        self.configurar()
+        from taxiroute.certificados_lan import generar_certificado_lan
+        preparado = self.raiz.parent / 'certificados-preparados'
+        preparado.mkdir()
+        generar_certificado_lan(preparado/'tls', preparado/'autoridad-privada',
+            direccion='192.168.1.26', comprobar_permisos=lambda *a, **k: None)
+        with self.assertRaises(TransicionLocalRedError):
+            transicionar_local_a_red(**self.opciones, certificados_preparados=preparado)
+        self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())
+
+    def test_destino_existente_no_bloquea_instalacion(self):
+        self.configurar()
+        self.opciones['destino'].mkdir()
+        with self.assertRaises(TransicionLocalRedError):
+            transicionar_local_a_red(**self.opciones)
+        self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())
+
+    def test_proyecto_invalido_no_bloquea_instalacion(self):
+        self.configurar()
+        self.opciones['proyecto'] = 'Nombre Inválido'
+        with self.assertRaises(TransicionLocalRedError):
+            transicionar_local_a_red(**self.opciones)
+        self.assertFalse((self.identidad / MARCADOR_ACTUALIZACION).exists())

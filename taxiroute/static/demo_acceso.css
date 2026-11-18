@@ -1,0 +1,11 @@
+:root { color-scheme: light; font: 1rem/1.5 system-ui, sans-serif; color: #17372c; background: #f3f1e7; }
+body { margin: 0; padding: 1rem; }
+.tarjeta { max-width: 32rem; margin: 4vh auto; padding: clamp(1.25rem, 4vw, 2rem); background: white; border: 1px solid #b8c9bc; border-radius: 1rem; }
+.marca { font-weight: 700; color: #22614a; }
+label { display: block; font-weight: 650; margin-top: 1rem; }
+input { box-sizing: border-box; display: block; width: 100%; min-height: 3rem; padding: .6rem; border: 1px solid #576e61; border-radius: .4rem; font: inherit; }
+button { display: block; margin-top: 1.25rem; min-height: 3rem; padding: .65rem 1rem; border: 0; border-radius: .4rem; color: white; background: #16533e; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+:focus-visible { outline: 3px solid #b65b04; outline-offset: 3px; }
+#mensaje { min-height: 1.5rem; }
+[hidden] { display: none !important; }

@@ -1,0 +1,25 @@
+services:
+  backend:
+    image: ${TAXIROUTE_LAB_IMAGE:-taxiroute-proxy-lab:local}
+    network_mode: none
+    user: "0"
+    environment:
+      PYTHONPATH: /app
+    volumes:
+      - prueba:/prueba
+      - ./backend.py:/laboratorio/backend.py:ro
+      - ./prueba.py:/laboratorio/prueba.py:ro
+    command: ["python", "/laboratorio/backend.py"]
+  proxy:
+    image: nginx:stable-alpine
+    network_mode: "service:backend"
+    depends_on:
+      - backend
+    volumes:
+      - prueba:/prueba:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'until test -s /prueba/certificado.pem && test -s /prueba/clave.pem; do sleep 1; done; exec nginx -g "daemon off;"'
+volumes:
+  prueba:

@@ -1,0 +1,49 @@
+*{box-sizing:border-box}
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#192b27;background:#f3f4ed;font-synthesis:none}
+body{margin:0}a{color:inherit}.marco{max-width:1200px;margin:auto;padding:0 32px}
+.cabecera{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:27px 0;border-bottom:1px solid #d3dad0}
+.marca{text-decoration:none;font-size:26px;font-weight:800;letter-spacing:-1px;display:flex;align-items:center;gap:9px}.punto{color:#456550}
+.simbolo{display:inline-grid;place-items:center;background:#193e32;color:#e3ef8d;width:39px;height:39px;border-radius:11px;font-size:30px}
+.etiqueta{font-size:11px;letter-spacing:1.4px;font-weight:700;padding:8px 12px;border:1px solid #bfcbbd;border-radius:30px}
+.introduccion{padding:42px 0 28px}.ceja{font-size:11px;font-weight:750;letter-spacing:1.7px;color:#4e6357}
+h1{font-size:clamp(30px,4.5vw,49px);letter-spacing:-1.9px;line-height:1.1;margin:13px 0}
+.introduccion>p:last-child{color:#53665c;font-size:16px}h2{font-size:19px;margin:0}p{line-height:1.6}
+.columnas{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,1fr);gap:24px;align-items:start}
+.contador{background:#173e32;color:#f9fbf3;border-radius:24px;padding:30px;box-shadow:0 18px 36px #183e3210}
+.fila{display:flex;align-items:center;justify-content:space-between;gap:12px}.fila h2{font-weight:550}
+#conexion{font-size:12px;color:#dae9bc}
+.estado{display:inline-block;background:#315446;border:1px solid #53745e;padding:6px 13px;border-radius:30px;font-size:14px;margin:30px 0 0}
+.leyenda{font-size:13px;color:#d5dfd7;margin:27px 0 0}
+.importe{font-size:clamp(48px,7vw,86px);font-weight:650;line-height:1.2;letter-spacing:-3px;margin:5px 0;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.moneda{font-size:.5em;font-weight:400;color:#dfedbe}.nota-importe{font-size:12px;color:#d5dfd7;margin:11px 0 26px}
+.acciones{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button{min-height:52px;padding:13px 16px;border:1px solid #80998b;border-radius:12px;background:#254e3f;color:#fff;font:inherit;font-size:15px;font-weight:650;cursor:pointer}
+button:hover:not(:disabled){background:#3b6451}button:disabled{opacity:.48;cursor:not-allowed}
+button.primario{grid-column:1/-1;background:#e3ee91;color:#173e32;border-color:#e3ee91;display:flex;justify-content:space-between}button.primario:hover:not(:disabled){background:#eff8b4}
+button.finalizar{grid-column:1/-1;background:transparent;border-color:#8ba695}button[aria-pressed="true"]{border:2px solid #e3ee91}
+.mensaje{min-height:3em;font-size:13px;margin:18px 0 0;color:#e2ebd9}
+.tarifas,.aviso{background:#fff;border:1px solid #dce1d6;border-radius:20px;padding:25px}
+.tarifas h2{font-size:23px;line-height:1.3;margin:12px 0 24px}.tarifa{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 0;border-top:1px solid #e4e8df;font-size:14px}
+.tarifa strong{font-size:24px;white-space:nowrap}.tarifa small{font-size:12px;font-weight:500;color:#54665b}
+.tarifas>p:last-child,.aviso p{font-size:13px;color:#4a5d52}.aviso{background:#e8eddf;margin-top:18px}.aviso h2{font-size:16px}
+footer{display:flex;justify-content:space-between;gap:15px;border-top:1px solid #d3dad0;margin-top:38px;padding:20px 0 25px;font-size:11px;color:#526458}
+:focus-visible{outline:3px solid #dc8c21;outline-offset:4px}.saltar{position:absolute;left:16px;top:-100px;background:white;padding:12px;z-index:2}.saltar:focus{top:12px}
+@media(max-width:760px){.marco{padding:0 18px}.columnas{grid-template-columns:1fr}.introduccion{padding:28px 0 18px}.contador{padding:24px}.cabecera{padding:20px 0}.marca{font-size:23px}.etiqueta{font-size:9px;padding:7px 9px}footer{flex-direction:column}.importe{font-size:68px}}
+@media(max-width:360px){.acciones{grid-template-columns:1fr}.cabecera{flex-wrap:wrap}.contador{padding:20px}.importe{font-size:54px}.fila{flex-wrap:wrap}}
+
+[hidden]{display:none!important}
+.editor-tarifas,.historial-panel,.registro-panel,.ayuda-panel{background:#fff;border:1px solid #dce1d6;border-radius:18px;padding:24px;margin-top:20px}
+summary{cursor:pointer;font-weight:700;min-height:32px;line-height:1.5}
+label{display:block;font-size:14px;margin:14px 0 6px;font-weight:650}
+input{width:100%;min-height:48px;border:1px solid #768b7d;background:white;color:#192b27;border-radius:8px;padding:10px;font:inherit}
+form button{margin-top:12px}.editor-tarifas p,.historial-panel>p,.registro-panel p,.ayuda-panel p{font-size:13px;color:#42594b}
+.editor-tarifas button,.historial-panel button,.registro-panel button,.cerrar{background:#244e3f;color:white}
+#recuperacion{margin-top:24px;border:2px solid #e3ee91;padding:16px;border-radius:12px}
+#recuperacion p{font-size:14px}#mensaje{white-space:pre-line}#aviso-registro{color:#78350f}
+.filtros{display:flex;flex-wrap:wrap;gap:8px}.filtros button{min-height:44px;font-size:13px;padding:9px 14px}
+.lista-historial{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px;margin-top:15px}
+.carrera-historial{padding:18px;border:1px solid #cfd9cb;border-radius:12px;background:#f6f8f1}
+.carrera-historial h3{font-size:23px;margin:0 0 10px}.carrera-historial p{font-size:13px;margin:6px 0;overflow-wrap:anywhere}
+#lista-registros{white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;font-size:12px}
+.cerrar{margin-top:20px}#mensaje-historial,#mensaje-tarifas{white-space:pre-line}
+@media(max-width:760px){.historial-panel>.fila{align-items:flex-start;flex-direction:column}.editor-tarifas,.historial-panel,.registro-panel,.ayuda-panel{padding:20px}}

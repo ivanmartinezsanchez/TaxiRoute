@@ -1,0 +1,36 @@
+* { box-sizing: border-box; }
+:root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #192b27; background: #f3f4ed; }
+body { margin: 0; }
+.marco { max-width: 1100px; margin: auto; padding: 0 32px; }
+.cabecera { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 27px 0; border-bottom: 1px solid #d3dad0; }
+.marca { font-size: 26px; font-weight: 800; letter-spacing: -1px; display: flex; align-items: center; gap: 9px; }
+.simbolo { display: inline-grid; place-items: center; width: 39px; height: 39px; border-radius: 11px; background: #193e32; color: #e3ef8d; font-size: 30px; }
+.punto { color: #456550; }
+.etiqueta, .ceja { font-size: .72rem; letter-spacing: .11em; font-weight: 750; }
+.etiqueta { color: #264d3c; background: #e3ebde; border-radius: 50px; padding: 8px 12px; }
+.contenedor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 29rem); gap: clamp(2rem, 7vw, 6rem); align-items: start; padding: clamp(2rem, 6vw, 5rem) 0; }
+.introduccion { padding-top: 1rem; }
+.introduccion h1 { max-width: 13ch; font-size: clamp(2.25rem, 5vw, 4rem); line-height: 1.05; letter-spacing: -.04em; margin: .8rem 0; }
+.introduccion p:last-child { color: #40564b; line-height: 1.6; }
+.ceja { color: #456550; }
+.tarjeta { background: #fff; border: 1px solid #dce1d6; border-radius: 18px; padding: clamp(1.3rem, 4vw, 2rem); box-shadow: 0 8px 32px #193e320d; }
+.tarjeta h2 { font-size: 1.7rem; margin: .4rem 0 1rem; }
+.tarjeta p { line-height: 1.55; }
+label { display: block; font-size: .92rem; font-weight: 700; margin: 1rem 0 .4rem; }
+input, select { min-width: 0; width: 100%; min-height: 48px; border: 1px solid #768b7d; background: #fff; color: #192b27; border-radius: 8px; padding: .7rem; font: inherit; }
+.campo-clave { display: flex; gap: .5rem; align-items: stretch; }
+button { min-height: 48px; border-radius: 8px; padding: .65rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+.principal { display: block; width: 100%; margin-top: 1.4rem; border: 1px solid #193e32; background: #193e32; color: white; }
+.secundario, .mostrar { background: white; color: #193e32; border: 1px solid #768b7d; }
+.secundario { width: 100%; margin-top: .7rem; }
+.mostrar { flex: 0 0 auto; }
+button:disabled { opacity: .65; cursor: wait; }
+.mensaje { min-height: 1.5rem; color: #78350f; overflow-wrap: anywhere; }
+.ayuda, .aviso { color: #40564b; font-size: .92rem; }
+footer { border-top: 1px solid #d3dad0; color: #526458; padding: 1.25rem 0; font-size: .8rem; }
+:focus-visible { outline: 3px solid #dc8c21; outline-offset: 3px; }
+.saltar { position: absolute; top: -100px; left: 16px; background: white; padding: 12px; z-index: 2; }
+.saltar:focus { top: 12px; }
+[hidden] { display: none !important; }
+@media (max-width: 760px) { .marco { padding: 0 18px; } .cabecera { padding: 20px 0; } .contenedor { grid-template-columns: 1fr; gap: 1.5rem; padding: 2rem 0; } .introduccion { padding: 0; } .introduccion h1 { font-size: clamp(2rem, 9vw, 3rem); } }
+@media (max-width: 360px) { .cabecera { flex-wrap: wrap; } .campo-clave { flex-wrap: wrap; } .campo-clave .mostrar { width: 100%; } }

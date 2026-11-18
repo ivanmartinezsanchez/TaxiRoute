@@ -1,0 +1,19 @@
+services:
+  taxiroute:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - taxiroute_datos:/home/taxiroute/.taxiroute
+      - taxiroute_tarifas:/app/configuracion
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  taxiroute_datos:
+  taxiroute_tarifas:

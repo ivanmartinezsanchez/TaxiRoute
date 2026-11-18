@@ -83,9 +83,73 @@ Si la aplicación se cierra antes de guardar o exportar la carrera pendiente, lo
 
 ### Fase 3. Interfaz y protección de acceso
 
+**Ampliación de alcance — 7 de noviembre de 2026.** Se han aprobado cuentas con roles, acceso administrativo con contraseña y código por correo, HTTPS y carreras simultáneas en vehículos diferentes. El [documento de alcance de fase 3](ALCANCE_FASE_3.md) recoge los requisitos, sus límites y las decisiones aún pendientes. Esta ampliación sustituye la premisa de una sola carrera compartida; no cambia todavía el código ni habilita acceso de red. El acceso desde distintas ubicaciones y la sesión única por cuenta se han aprobado como evolución posterior: se partirá del ordenador del administrador como servidor y una red privada. Su implementación queda aplazada mientras se desarrolla la versión local. Los apartados siguientes conservan el diseño y los resultados previos.
+
 En esta etapa se organizará la aplicación en componentes con responsabilidades delimitadas y se añadirá un mecanismo de acceso mediante contraseña. Las contraseñas no se almacenarán en texto plano.
 
 Se desarrollará una interfaz adecuada para su uso en una tablet. El conductor deberá poder identificar el estado del vehículo y el importe de un vistazo, interactuar mediante controles táctiles y utilizar la aplicación sin que la pantalla se bloquee durante el cálculo.
+
+#### Elección de la interfaz local — 6 de noviembre de 2026
+
+La fase 3 utilizará Flask con HTML, CSS y JavaScript. La aplicación se ejecutará en el ordenador y se abrirá desde su navegador. El servicio Python escuchará únicamente en la interfaz local `127.0.0.1`; no se contratará alojamiento ni se habilitará acceso desde Internet o desde otros dispositivos de la red.
+
+El diseño será responsive: se adaptará a distintos tamaños de ventana. Esto no equivale a disponer de una aplicación instalada en Android o iPad. El funcionamiento autónomo en esos dispositivos queda fuera del alcance confirmado. Los recursos de la interfaz se incluirán en el proyecto para evitar dependencias de Internet durante el uso; la instalación inicial de las dependencias sí puede requerir conexión.
+
+| Componente | Elección y motivo | Alternativas consideradas | Coste y mantenimiento | Validación pendiente y condición de revisión |
+|---|---|---|---|---|
+| Servidor web local | Flask permite añadir vistas y conectar las operaciones con la lógica Python existente. | FastAPI aporta validación y documentación de APIs; es viable, pero no resulta imprescindible para la primera interfaz. Django incluye autenticación y administración, a cambio de una estructura más amplia. | No requiere contratar alojamiento. Hay que mantener las dependencias, las sesiones y la configuración del servicio local. | Probar actualización del importe, coordinación de peticiones y cierre del proceso. Revisar la elección si cambia el alcance hacia múltiples usuarios o servicios. |
+| Presentación | HTML, CSS y JavaScript permiten construir una interfaz adaptable y controlar su comportamiento en el navegador. | Tkinter y PySide6 permitirían interfaces de escritorio; no cumplen por sí solos la decisión de usar el navegador. Un framework de interfaz añadiría herramientas que aún no se han justificado. | Requiere desarrollar y mantener estilos, interacción y accesibilidad. | Probar teclado, foco, zoom, tamaños de pantalla y estados de error. Revisar si la complejidad de la interfaz crece. |
+| Lógica y persistencia | Se reutilizan el cálculo Python, el historial CSV y las tarifas JSON de la fase 2. | La base de datos relacional corresponde a la fase 4. | Evita duplicar las reglas de cálculo; exige separar la coordinación de las carreras de los mensajes de terminal. | Mantener las pruebas existentes y añadir pruebas del servicio compartido y la interfaz web. |
+
+Python seguirá siendo la fuente del estado y del importe de la carrera. JavaScript enviará las acciones y actualizará la presentación; no sustituirá el cálculo de negocio. La interfaz de terminal seguirá disponible.
+
+La autenticación por contraseña forma parte de la fase 3, pero aún deben concretarse su configuración inicial, la gestión de sesiones y la recuperación de acceso. El servicio local también deberá validar las peticiones y proteger las operaciones frente a solicitudes no autorizadas. Escuchar en `127.0.0.1` no sustituye esos controles. Las bibliotecas de autenticación y el servidor de ejecución se elegirán antes de implementar esas partes.
+
+La interfaz necesitará rutas locales para consultar el estado y realizar acciones. La fase 4 mantendrá como entregables propios la API REST formal, la base de datos, el panel de gestión y el despliegue. La elección de Flask no obliga a cambiar de framework al llegar a esa fase.
+
+#### Primera comprobación prevista
+
+Se preparará un prototipo acotado para comprobar una pantalla adaptable y la actualización del importe sin recargar la página. Se utilizarán datos de prueba separados del historial de uso. Antes de ampliar la implementación se revisará el resultado visual y se acordará qué debe ocurrir al recargar, abrir varias pestañas o cerrar el navegador durante una carrera. Estas decisiones permanecen pendientes; no se presentan como comportamientos ya implementados.
+
+La primera revisión deberá comprobar que los controles se pueden usar con teclado, que no hay desplazamiento horizontal innecesario en una pantalla estrecha y que un fallo de comunicación se distingue de un importe actualizado. La validación visual no dará por completada la autenticación ni la accesibilidad de toda la aplicación.
+
+Fuentes de la selección: [diseño de Flask](https://flask.palletsprojects.com/en/stable/design/), [características de FastAPI](https://fastapi.tiangolo.com/features/) y [visión general de Django](https://www.djangoproject.com/start/overview/).
+
+#### Resultado del primer prototipo — 7 de noviembre de 2026
+
+Se ha preparado una aplicación aislada mediante `crear_app()`, en `taxiroute/web.py`. Reutiliza `Carrera` y mantiene su estado en memoria bajo un bloqueo entre hilos. Las rutas del prototipo consultan el estado y reciben acciones; no escriben en los archivos de historial o actividad. Una revisión numérica impide aplicar órdenes duplicadas o desactualizadas después de otra acción.
+
+La plantilla está en `taxiroute/templates/prototipo.html`; los estilos y la interacción se encuentran en `taxiroute/static/`. El navegador consulta el importe cada segundo, limita las acciones disponibles según el estado y avisa cuando no puede confirmar la conexión. El importe se recibe como cadena decimal calculada por Python.
+
+El servicio escucha en `127.0.0.1:8765`, sin depurador. Las operaciones requieren un token de la instancia y rechazan orígenes externos; también se validan los nombres de host. Estas medidas no equivalen a autenticación: la contraseña y las sesiones siguen pendientes.
+
+Se han superado las 52 pruebas locales y la comprobación de dependencias. Las seis pruebas nuevas verifican cálculo, transiciones, rechazo de peticiones sin token u origen permitido, revisión de acciones y aislamiento entre instancias. En el navegador se han comprobado inicio, movimiento, finalización y recarga, además del diseño a 390 píxeles de ancho sin desbordamiento horizontal. La comprobación completa de accesibilidad, navegación por teclado y fallos de comunicación en el navegador permanece pendiente.
+
+El estado provisional se comparte entre pestañas del mismo servicio y desaparece al detener Python. El cierre del navegador no detiene el contador. Estas reglas se muestran en la pantalla de prueba y se revisarán antes de conectar el historial o incorporar autenticación.
+
+#### Integración de las funciones anteriores — 7 de noviembre de 2026
+
+El primer prototipo descrito arriba se ha ampliado. ServicioCarreras, en taxiroute/servicio.py, coordina las operaciones comunes. GestorTerminal conserva los comandos y Flask utiliza el mismo servicio. El cálculo continúa en Carrera.
+
+| Función o mejora | Integración web |
+|---|---|
+| Estados, reloj monotónico y redondeo | Reutiliza Carrera y muestra el importe actualizado. |
+| Historial CSV con UUID, fechas, tiempos y tarifas | Guardado al finalizar y consulta en pantalla. |
+| Consulta diaria por finalización local | Filtros Hoy y Todas. |
+| Tarifas externas y validación | Lectura del JSON y formulario de edición. |
+| Tarifas fijas durante una carrera | Edición permitida en cualquier momento, aplicada solo a la siguiente. |
+| Errores y carrera pendiente | Mensaje con causa, reintento y copia alternativa sin sobrescritura. |
+| Duplicados y acceso simultáneo | Conserva la comprobación del CSV y los bloqueos entre procesos. |
+| Registros y rotación | Conserva RegistroActividad y muestra los últimos 50 eventos. |
+| Ayuda y salida protegida | Ayuda desplegable y cierre bloqueado con carrera activa o pendiente. |
+
+La edición de tarifas valida antes de escribir y sustituye el JSON mediante un archivo temporal. Un fallo previo a la sustitución conserva el archivo anterior. La pantalla distingue las tarifas activas de las de la siguiente carrera.
+
+El modo normal utiliza los archivos existentes. El modo --demo aísla historial, registros y tarifas en una carpeta temporal. Los ensayos del navegador se han realizado en modo demo.
+
+Se han superado 61 pruebas locales, incluidas nueve nuevas de integración que comprueban persistencia entre instancias, consulta diaria, edición de tarifas, conservación ante errores, exportación, reintento y cierre. Se han verificado en el navegador dos carreras con tarifas diferentes, su guardado y los eventos.
+
+La autenticación, las sesiones y la revisión completa de accesibilidad siguen pendientes. El archivo de carreras antiguas y la recuperación automática de escrituras interrumpidas eran mejoras futuras, no funciones ya implementadas; siguen pendientes. No se añade eliminación automática de carreras.
 
 ### Fase 4. API, panel web y despliegue
 
@@ -156,9 +220,10 @@ Para el primer entregable se utiliza la biblioteca estándar de Python para el c
 | Integración continua | GitHub Actions con Python 3.13 |
 | Control de versiones | Git y GitHub |
 | Organización del trabajo | GitHub Projects, con una columna por fase |
-| Interfaz visual, API y base de datos | Herramientas que se elegirán y justificarán al preparar cada fase |
+| Interfaz web local de fase 3 | Flask, HTML, CSS y JavaScript; prototipo en evaluación |
+| API y base de datos de fase 4 | Diseño que se concretará al preparar esa entrega |
 
-Las alternativas para la interfaz visual, la API y la base de datos se evaluarán en el momento de abordar esas entregas. La decisión tendrá en cuenta el tipo de dispositivo, la facilidad de mantenimiento, las necesidades de acceso y el despliegue.
+La elección de la interfaz local se recoge en el apartado de fase 3. Las decisiones de API y base de datos se concretarán en la fase 4. La decisión tendrá en cuenta el tipo de dispositivo, la facilidad de mantenimiento, las necesidades de acceso y el despliegue.
 
 ## 7. Experiencia de uso y accesibilidad
 
@@ -231,7 +296,7 @@ Se han comprobado durante el desarrollo la persistencia entre sesiones, la consu
 
 ### Cierre de la fase 2
 
-La entrega se ha integrado el 6 de noviembre de 2026 tras comprobar la demostración y las verificaciones de la pull request en Windows, Ubuntu y macOS. Las tareas de historial (#5), registros (#6) y tarifas (#7) están cerradas y figuran como completadas en el tablero. Las fases 3 y 4 siguen pendientes.
+La fase 2 se integró tras comprobar la demostración y las verificaciones en Windows, Ubuntu y macOS. Las tareas de historial (#5), registros (#6) y tarifas (#7) están cerradas. Las fases posteriores incorporan la interfaz web, cuentas, SQLite y Docker; consulta el mapa de contexto para conocer el estado y las limitaciones actuales.
 
 La [pull request #17](https://github.com/ivanmartinezsanchez/TaxiRoute/pull/17) conserva el resumen de la entrega y las evidencias de validación. Cada envío posterior a `main` vuelve a ejecutar la suite de GitHub Actions.
 

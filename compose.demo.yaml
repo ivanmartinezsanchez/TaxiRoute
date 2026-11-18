@@ -1,0 +1,19 @@
+# Demostración experimental con datos exclusivamente ficticios.
+services:
+  demo-integrada:
+    build: .
+    command: ["python", "-m", "taxiroute.demo_contenedor"]
+    ports:
+      - "127.0.0.1:18767:8767"
+    volumes:
+      - taxiroute_demo_integrada:/home/taxiroute/.taxiroute
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  taxiroute_demo_integrada:
