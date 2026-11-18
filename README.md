@@ -2,7 +2,7 @@
 
 Taxímetro digital en Python desarrollado como proyecto formativo a partir del [enunciado de Factoría F5](https://github.com/Factoria-F5-madrid/project-py-taximetro). El objetivo es avanzar desde una aplicación de terminal hasta un prototipo con historial, interfaz y API, entregando cada fase por separado.
 
-> **Estado:** las fases 1 y 2 están integradas en `main`; la fase 3 se cerró como demostración académica local y la fase 4 se desarrolla en `feature/fase-4-produccion`. La instalación definitiva, el acceso desde la red del taxi y su validación siguen pendientes. Consulta el [estado de entrega](ESTADO_ENTREGA.md) para los detalles.
+> **Estado:** las fases 1 y 2 están integradas en `main`; la fase 3 se cerró como demostración académica local y la fase 4 se desarrolla en `feature/fase-4-produccion`. Se ha trasladado una instalación propia a la red local y comprobado HTTPS; queda validar el acceso autenticado desde los dispositivos y la recuperación integral. Consulta el [mapa de contexto](MAPA_CONTEXTO.md) y el [estado de entrega](ESTADO_ENTREGA.md) para los detalles.
 
 ## Qué problema aborda
 

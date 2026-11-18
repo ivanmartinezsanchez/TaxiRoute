@@ -2,7 +2,7 @@
 
 Esta guía describe la API de la composición SQLite con recuperación experimental. Es el contrato utilizado por la interfaz web actual, no una API pública estable. Puede cambiar antes de la entrega final.
 
-La instalación con proxy escucha en `https://127.0.0.1:18771` en el mismo ordenador. Las solicitudes necesitan HTTPS y una sesión válida. Los cambios de estado requieren además una cabecera `Origin` igual al origen de la aplicación y un cuerpo JSON; no se aceptan parámetros en la URL. El servidor comprueba los hosts autorizados. El certificado local es autofirmado: una futura integración deberá disponer de una relación de confianza adecuada.
+La instalación con proxy puede configurarse para el propio ordenador o una dirección privada de red. Las solicitudes necesitan HTTPS y una sesión válida. Los cambios de estado requieren además una cabecera `Origin` igual al origen de la aplicación y un cuerpo JSON; no se aceptan parámetros en la URL. El servidor comprueba los hosts autorizados. Para el acceso de red, cada dispositivo debe confiar en la autoridad de la instalación antes de utilizar credenciales.
 
 ## Acceso
 
