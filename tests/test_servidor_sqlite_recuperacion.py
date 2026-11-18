@@ -44,7 +44,7 @@ class PruebasRecuperacionServidorSQLite(unittest.TestCase):
                 c = cliente(app)
                 pantalla = c.get("/taximetro", base_url=url).get_data(as_text=True)
                 self.assertIn('data-persistente="true"', pantalla)
-                self.assertIn('Instalación experimental: utiliza solo datos de prueba.', pantalla)
+                self.assertNotIn('Instalación experimental: utiliza solo datos de prueba.', pantalla)
                 inicio = c.post("/api/carrera/iniciar", base_url=url, headers=cabeceras,
                     json={"revision": 0, "id_operacion": str(uuid4())})
                 self.assertEqual(inicio.status_code, 200)
